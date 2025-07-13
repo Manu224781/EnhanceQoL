@@ -427,7 +427,7 @@ addon.Aura.buffAnchors = anchors
 addon.Aura.scanBuffs = scanBuffs
 
 local eventFrame = CreateFrame("Frame")
-eventFrame:SetScript("OnEvent", function(_, event, unit)
+eventFrame:SetScript("OnEvent", function(_, event, unit, ...)
 	if event == "PLAYER_LOGIN" or event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" then
 		for id, anchor in pairs(anchors) do
 			local cat = getCategory(id)
@@ -443,6 +443,56 @@ eventFrame:SetScript("OnEvent", function(_, event, unit)
 			return
 		end
 	end
+
+	if event == "UNIT_AURA" and unit == "player" then
+		local eventInfo = ...
+		if eventInfo then
+			local changed = {}
+			for _, aura in ipairs(eventInfo.addedAuras or {}) do
+				changed[aura.spellId] = true
+			end
+			for _, inst in ipairs(eventInfo.updatedAuraInstanceIDs or {}) do
+				local data = C_UnitAuras.GetAuraDataByAuraInstanceID("player", inst)
+				if data then changed[data.spellId] = true end
+			end
+			for _, inst in ipairs(eventInfo.removedAuraInstanceIDs or {}) do
+				local data = C_UnitAuras.GetAuraDataByAuraInstanceID("player", inst)
+				if data then changed[data.spellId] = true end
+			end
+
+			local updated = {}
+			for catId, cat in pairs(addon.db["buffTrackerCategories"]) do
+				if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
+					for buffId, buff in pairs(cat.buffs) do
+						local needs = changed[buffId]
+						if not needs and buff.altIDs then
+							for _, alt in ipairs(buff.altIDs) do
+								if changed[alt] then
+									needs = true
+									break
+								end
+							end
+						end
+						if needs then
+							if not addon.db["buffTrackerHidden"][buffId] then
+								updateBuff(catId, buffId)
+							elseif activeBuffFrames[catId] and activeBuffFrames[catId][buffId] then
+								activeBuffFrames[catId][buffId]:Hide()
+							end
+							updated[catId] = true
+						end
+					end
+				end
+			end
+
+			for catId in pairs(updated) do
+				updatePositions(catId)
+				if anchors[catId] then anchors[catId]:Show() end
+			end
+			return
+		end
+	end
+
 	scanBuffs()
 end)
 eventFrame:RegisterUnitEvent("UNIT_AURA", "player")
