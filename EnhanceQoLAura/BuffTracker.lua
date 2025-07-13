@@ -510,114 +510,114 @@ function addon.Aura.functions.buildCategoryOptions(container, catId)
 	local cat = getCategory(catId)
 	if not cat then return end
 
-	local listGroup = addon.functions.createContainer("InlineGroup", "List")
-	listGroup:SetTitle(L["TrackedBuffs"])
-	listGroup:SetFullWidth(true)
-	container:AddChild(listGroup)
+	-- local listGroup = addon.functions.createContainer("InlineGroup", "List")
+	-- listGroup:SetTitle(L["TrackedBuffs"])
+	-- listGroup:SetFullWidth(true)
+	-- container:AddChild(listGroup)
 
-	local buffData = {}
-	for id, data in pairs(cat.buffs) do
-		table.insert(buffData, { id = id, name = data.name, icon = data.icon })
-	end
-	if nil == addon.db["buffTrackerOrder"][catId] then addon.db["buffTrackerOrder"][catId] = {} end
-	local orderIndex = {}
-	for idx, bid in ipairs(addon.db["buffTrackerOrder"][catId]) do
-		orderIndex[bid] = idx
-	end
-	table.sort(buffData, function(a, b)
-		local ia = orderIndex[a.id] or math.huge
-		local ib = orderIndex[b.id] or math.huge
-		if ia ~= ib then return ia < ib end
-		return a.name < b.name
-	end)
+	-- local buffData = {}
+	-- for id, data in pairs(cat.buffs) do
+	-- 	table.insert(buffData, { id = id, name = data.name, icon = data.icon })
+	-- end
+	-- if nil == addon.db["buffTrackerOrder"][catId] then addon.db["buffTrackerOrder"][catId] = {} end
+	-- local orderIndex = {}
+	-- for idx, bid in ipairs(addon.db["buffTrackerOrder"][catId]) do
+	-- 	orderIndex[bid] = idx
+	-- end
+	-- table.sort(buffData, function(a, b)
+	-- 	local ia = orderIndex[a.id] or math.huge
+	-- 	local ib = orderIndex[b.id] or math.huge
+	-- 	if ia ~= ib then return ia < ib end
+	-- 	return a.name < b.name
+	-- end)
 
-	for _, info in ipairs(buffData) do
-		local row = addon.functions.createContainer("SimpleGroup", "Flow")
-		row:SetFullWidth(true)
-		local icon = info.icon
-		if not icon then icon = C_Spell.GetSpellInfo(info.id).iconID end
+	-- for _, info in ipairs(buffData) do
+	-- 	local row = addon.functions.createContainer("SimpleGroup", "Flow")
+	-- 	row:SetFullWidth(true)
+	-- 	local icon = info.icon
+	-- 	if not icon then icon = C_Spell.GetSpellInfo(info.id).iconID end
 
-		local cbSpell = addon.functions.createCheckboxAce(info.name .. " (" .. info.id .. ")", not addon.db["buffTrackerHidden"][info.id], function(self, _, val)
-			addon.db["buffTrackerHidden"][info.id] = not val
-			if val then
-				updateBuff(catId, info.id)
-			elseif activeBuffFrames[catId] and activeBuffFrames[catId][info.id] then
-				activeBuffFrames[catId][info.id]:Hide()
-				updatePositions(catId)
-			end
-		end)
-		if icon then cbSpell:SetImage(icon) end
-		cbSpell:SetRelativeWidth(0.6)
-		cbSpell.frame:HookScript("OnEnter", function()
-			GameTooltip:SetOwner(cbSpell.frame, "ANCHOR_RIGHT")
-			GameTooltip:SetSpellByID(info.id)
-			GameTooltip:Show()
-		end)
-		cbSpell.frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
-		row:AddChild(cbSpell)
+	-- 	local cbSpell = addon.functions.createCheckboxAce(info.name .. " (" .. info.id .. ")", not addon.db["buffTrackerHidden"][info.id], function(self, _, val)
+	-- 		addon.db["buffTrackerHidden"][info.id] = not val
+	-- 		if val then
+	-- 			updateBuff(catId, info.id)
+	-- 		elseif activeBuffFrames[catId] and activeBuffFrames[catId][info.id] then
+	-- 			activeBuffFrames[catId][info.id]:Hide()
+	-- 			updatePositions(catId)
+	-- 		end
+	-- 	end)
+	-- 	if icon then cbSpell:SetImage(icon) end
+	-- 	cbSpell:SetRelativeWidth(0.6)
+	-- 	cbSpell.frame:HookScript("OnEnter", function()
+	-- 		GameTooltip:SetOwner(cbSpell.frame, "ANCHOR_RIGHT")
+	-- 		GameTooltip:SetSpellByID(info.id)
+	-- 		GameTooltip:Show()
+	-- 	end)
+	-- 	cbSpell.frame:HookScript("OnLeave", function() GameTooltip:Hide() end)
+	-- 	row:AddChild(cbSpell)
 
-		local upIcon = AceGUI:Create("Icon")
-		upIcon:SetLabel("")
-		upIcon:SetImage("Interface\\AddOns\\" .. addonName .. "\\Textures\\up.blp")
-		upIcon:SetImageSize(20, 20)
-		upIcon:SetRelativeWidth(0.05)
-		upIcon:SetHeight(20)
-		if #buffData > 1 and info ~= buffData[1] then
-			upIcon:SetCallback("OnClick", function()
-				moveTrackedBuff(catId, info.id, -1)
-				container:ReleaseChildren()
-				addon.Aura.functions.buildCategoryOptions(container, catId)
-			end)
-		else
-			upIcon:SetDisabled(true)
-		end
-		row:AddChild(upIcon)
+	-- 	local upIcon = AceGUI:Create("Icon")
+	-- 	upIcon:SetLabel("")
+	-- 	upIcon:SetImage("Interface\\AddOns\\" .. addonName .. "\\Textures\\up.blp")
+	-- 	upIcon:SetImageSize(20, 20)
+	-- 	upIcon:SetRelativeWidth(0.05)
+	-- 	upIcon:SetHeight(20)
+	-- 	if #buffData > 1 and info ~= buffData[1] then
+	-- 		upIcon:SetCallback("OnClick", function()
+	-- 			moveTrackedBuff(catId, info.id, -1)
+	-- 			container:ReleaseChildren()
+	-- 			addon.Aura.functions.buildCategoryOptions(container, catId)
+	-- 		end)
+	-- 	else
+	-- 		upIcon:SetDisabled(true)
+	-- 	end
+	-- 	row:AddChild(upIcon)
 
-		local downIcon = AceGUI:Create("Icon")
-		downIcon:SetLabel("")
-		downIcon:SetImage("Interface\\AddOns\\" .. addonName .. "\\Textures\\down.blp")
-		downIcon:SetImageSize(20, 20)
-		downIcon:SetRelativeWidth(0.05)
-		downIcon:SetHeight(20)
-		if #buffData > 1 and info ~= buffData[#buffData] then
-			downIcon:SetCallback("OnClick", function()
-				moveTrackedBuff(catId, info.id, 1)
-				container:ReleaseChildren()
-				addon.Aura.functions.buildCategoryOptions(container, catId)
-			end)
-		else
-			downIcon:SetDisabled(true)
-		end
-		row:AddChild(downIcon)
+	-- 	local downIcon = AceGUI:Create("Icon")
+	-- 	downIcon:SetLabel("")
+	-- 	downIcon:SetImage("Interface\\AddOns\\" .. addonName .. "\\Textures\\down.blp")
+	-- 	downIcon:SetImageSize(20, 20)
+	-- 	downIcon:SetRelativeWidth(0.05)
+	-- 	downIcon:SetHeight(20)
+	-- 	if #buffData > 1 and info ~= buffData[#buffData] then
+	-- 		downIcon:SetCallback("OnClick", function()
+	-- 			moveTrackedBuff(catId, info.id, 1)
+	-- 			container:ReleaseChildren()
+	-- 			addon.Aura.functions.buildCategoryOptions(container, catId)
+	-- 		end)
+	-- 	else
+	-- 		downIcon:SetDisabled(true)
+	-- 	end
+	-- 	row:AddChild(downIcon)
 
-		local gearIcon = AceGUI:Create("Icon")
-		gearIcon:SetLabel("")
-		gearIcon:SetImage("Interface\\Icons\\INV_Misc_Gear_01")
-		gearIcon:SetImageSize(16, 16)
-		gearIcon:SetRelativeWidth(0.1)
-		gearIcon:SetHeight(16)
-		gearIcon:SetCallback("OnClick", function() treeGroup:SelectByValue(catId .. "\001" .. info.id) end)
-		row:AddChild(gearIcon)
+	-- 	local gearIcon = AceGUI:Create("Icon")
+	-- 	gearIcon:SetLabel("")
+	-- 	gearIcon:SetImage("Interface\\Icons\\INV_Misc_Gear_01")
+	-- 	gearIcon:SetImageSize(16, 16)
+	-- 	gearIcon:SetRelativeWidth(0.1)
+	-- 	gearIcon:SetHeight(16)
+	-- 	gearIcon:SetCallback("OnClick", function() treeGroup:SelectByValue(catId .. "\001" .. info.id) end)
+	-- 	row:AddChild(gearIcon)
 
-		local removeIcon = AceGUI:Create("Icon")
-		removeIcon:SetLabel("")
-		removeIcon:SetImage("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
-		removeIcon:SetImageSize(16, 16)
-		removeIcon:SetRelativeWidth(0.1)
-		removeIcon:SetHeight(16)
-		removeIcon:SetCallback("OnClick", function()
-			removeBuff(catId, info.id)
-			refreshTree(catId)
-			container:ReleaseChildren()
-			addon.Aura.functions.buildCategoryOptions(container, catId)
-		end)
-		row:AddChild(removeIcon)
-	end
+	-- 	local removeIcon = AceGUI:Create("Icon")
+	-- 	removeIcon:SetLabel("")
+	-- 	removeIcon:SetImage("Interface\\Buttons\\UI-GroupLoot-Pass-Up")
+	-- 	removeIcon:SetImageSize(16, 16)
+	-- 	removeIcon:SetRelativeWidth(0.1)
+	-- 	removeIcon:SetHeight(16)
+	-- 	removeIcon:SetCallback("OnClick", function()
+	-- 		removeBuff(catId, info.id)
+	-- 		refreshTree(catId)
+	-- 		container:ReleaseChildren()
+	-- 		addon.Aura.functions.buildCategoryOptions(container, catId)
+	-- 	end)
+	-- 	row:AddChild(removeIcon)
+	-- end
 
 	local core = addon.functions.createContainer("InlineGroup", "Flow")
 	container:AddChild(core)
 
-	local enableCB = addon.functions.createCheckboxAce(L["EnableBuffTracker"], addon.db["buffTrackerEnabled"][catId], function(self, _, val)
+	local enableCB = addon.functions.createCheckboxAce(L["EnableBuffTracker"]:format(cat.name), addon.db["buffTrackerEnabled"][catId], function(self, _, val)
 		addon.db["buffTrackerEnabled"][catId] = val
 		for id, anchor in pairs(anchors) do
 			if addon.db["buffTrackerEnabled"][id] then
@@ -705,7 +705,7 @@ function addon.Aura.functions.buildCategoryOptions(container, catId)
 	roleDrop:SetRelativeWidth(0.5)
 	core:AddChild(roleDrop)
 
-	local spellEdit = addon.functions.createEditboxAce(L["SpellID"], nil, function(self, _, text)
+	local spellEdit = addon.functions.createEditboxAce(L["AddSpellID"], nil, function(self, _, text)
 		local id = tonumber(text)
 		if id then
 			addBuff(catId, id)
@@ -737,8 +737,13 @@ function addon.Aura.functions.buildBuffOptions(container, catId, buffId)
 	local buff = addon.db["buffTrackerCategories"][catId]["buffs"][buffId]
 	if not buff then return end
 
+	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	container:AddChild(groupCore)
+
 	local wrapper = addon.functions.createContainer("SimpleGroup", "List")
-	container:AddChild(wrapper)
+	groupCore:AddChild(wrapper)
+	wrapper:SetFullWidth(true)
+	wrapper:SetFullHeight(true)
 
 	local label = AceGUI:Create("Label")
 	label:SetText((buff.name or "") .. " (" .. buffId .. ")")
@@ -867,28 +872,26 @@ function addon.Aura.functions.addBuffTrackerOptions(container)
 	left:SetFullHeight(true)
 	wrapper:AddChild(left)
 
-	local right = addon.functions.createContainer("ScrollFrame", "Flow")
-	right:SetRelativeWidth(0.7)
-	right:SetFullHeight(true)
-	wrapper:AddChild(right)
-
 	treeGroup = AceGUI:Create("TreeGroup")
 	treeGroup:SetFullHeight(true)
 	treeGroup:SetFullWidth(true)
 	treeGroup:SetTree(getCategoryTree())
 	treeGroup:SetCallback("OnGroupSelected", function(widget, _, value)
-		if right and right.frame then
-			right.frame:Show() -- ensure the scroll container becomes visible
-		end
-		local catId, buffId = strsplit("\001", value)
+		local catId, _, buffId = strsplit("\001", value)
 		catId = tonumber(catId)
 		selectedCategory = catId
 		addon.db["buffTrackerSelectedCategory"] = catId
-		right:ReleaseChildren()
+		widget:ReleaseChildren()
+
+		local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
+		scroll:SetFullWidth(true)
+		scroll:SetFullHeight(true)
+		widget:AddChild(scroll)
+
 		if buffId then
-			addon.Aura.functions.buildBuffOptions(right, catId, tonumber(buffId))
+			addon.Aura.functions.buildBuffOptions(scroll, catId, tonumber(buffId))
 		else
-			addon.Aura.functions.buildCategoryOptions(right, catId)
+			addon.Aura.functions.buildCategoryOptions(scroll, catId)
 		end
 	end)
 	left:AddChild(treeGroup)
