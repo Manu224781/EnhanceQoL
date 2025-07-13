@@ -491,6 +491,50 @@ local function refreshTree(selectValue)
 	if selectValue then treeGroup:SelectByValue(selectValue) end
 end
 
+local function handleDragDrop(src, dst)
+	if not src or not dst then return end
+
+	local sCat, _, sBuff = strsplit("\001", src)
+	local dCat, _, dBuff = strsplit("\001", dst)
+	sCat = tonumber(sCat)
+	dCat = tonumber(dCat)
+	if not sBuff then return end
+	sBuff = tonumber(sBuff)
+	if dBuff then dBuff = tonumber(dBuff) end
+
+	local srcCat = addon.db["buffTrackerCategories"][sCat]
+	local dstCat = addon.db["buffTrackerCategories"][dCat]
+	if not srcCat or not dstCat then return end
+
+	local buffData = srcCat.buffs[sBuff]
+	if not buffData then return end
+
+	srcCat.buffs[sBuff] = nil
+	addon.db["buffTrackerOrder"][sCat] = addon.db["buffTrackerOrder"][sCat] or {}
+	for i, v in ipairs(addon.db["buffTrackerOrder"][sCat]) do
+		if v == sBuff then
+			table.remove(addon.db["buffTrackerOrder"][sCat], i)
+			break
+		end
+	end
+
+	dstCat.buffs[sBuff] = buffData
+	addon.db["buffTrackerOrder"][dCat] = addon.db["buffTrackerOrder"][dCat] or {}
+	local insertPos = #addon.db["buffTrackerOrder"][dCat] + 1
+	if dBuff then
+		for i, v in ipairs(addon.db["buffTrackerOrder"][dCat]) do
+			if v == dBuff then
+				insertPos = i
+				break
+			end
+		end
+	end
+        table.insert(addon.db["buffTrackerOrder"][dCat], insertPos, sBuff)
+
+        refreshTree(selectedCategory)
+        scanBuffs()
+end
+
 function addon.Aura.functions.buildCategoryOptions(container, catId)
 	local cat = getCategory(catId)
 	if not cat then return end
@@ -769,7 +813,7 @@ function addon.Aura.functions.addBuffTrackerOptions(container)
 	left:SetFullHeight(true)
 	wrapper:AddChild(left)
 
-	treeGroup = AceGUI:Create("TreeGroup")
+	treeGroup = AceGUI:Create("EQOL_DragTreeGroup")
 	treeGroup:SetFullHeight(true)
 	treeGroup:SetFullWidth(true)
 	treeGroup:SetTree(getCategoryTree())
@@ -813,6 +857,7 @@ function addon.Aura.functions.addBuffTrackerOptions(container)
 			addon.Aura.functions.buildCategoryOptions(scroll, catId)
 		end
 	end)
+	treeGroup:SetCallback("OnDragDrop", function(_, _, src, dst) handleDragDrop(src, dst) end)
 	left:AddChild(treeGroup)
 
 	local ok = treeGroup:SelectByValue(tostring(selectedCategory))
