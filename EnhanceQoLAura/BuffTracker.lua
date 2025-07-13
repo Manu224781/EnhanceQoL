@@ -810,13 +810,14 @@ function addon.Aura.functions.addBuffTrackerOptions(container)
 	container:AddChild(wrapper)
 
 	local left = addon.functions.createContainer("SimpleGroup", "Flow")
-	left:SetWidth(220)
+	left:SetWidth(300)
 	left:SetFullHeight(true)
 	wrapper:AddChild(left)
 
 	treeGroup = AceGUI:Create("EQOL_DragTreeGroup")
 	treeGroup:SetFullHeight(true)
 	treeGroup:SetFullWidth(true)
+	treeGroup:SetTreeWidth(260, true)
 	treeGroup:SetTree(getCategoryTree())
 	treeGroup:SetCallback("OnGroupSelected", function(widget, _, value)
 		-- Handle click on pseudo‑node for adding new categories
