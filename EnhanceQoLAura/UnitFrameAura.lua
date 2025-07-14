@@ -10,39 +10,57 @@ local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
 
 addon.Aura.unitFrame = {}
 
-local function ensureIcon(frame)
-	if frame.EQOLTrackedAura then return frame.EQOLTrackedAura end
-	local iconFrame = CreateFrame("Frame", nil, frame)
-	iconFrame:SetSize(20, 20)
-	iconFrame:SetPoint("CENTER", frame)
-	local tex = iconFrame:CreateTexture(nil, "OVERLAY")
-	tex:SetAllPoints(iconFrame)
-	iconFrame.icon = tex
-	frame.EQOLTrackedAura = iconFrame
-	return iconFrame
+local ICON_SIZE = 20
+local ICON_SPACING = 2
+
+local function ensureIcon(frame, index)
+	frame.EQOLTrackedAura = frame.EQOLTrackedAura or {}
+	local pool = frame.EQOLTrackedAura
+	if not pool[index] then
+		local iconFrame = CreateFrame("Frame", nil, frame)
+		iconFrame:SetSize(ICON_SIZE, ICON_SIZE)
+		iconFrame:SetFrameLevel(frame:GetFrameLevel() + 10)
+		local tex = iconFrame:CreateTexture(nil, "OVERLAY")
+		tex:SetAllPoints(iconFrame)
+		iconFrame.icon = tex
+		pool[index] = iconFrame
+	end
+	return pool[index]
+end
+
+local function hideUnusedIcons(frame, used)
+	if not frame.EQOLTrackedAura then return end
+	for i = used + 1, #frame.EQOLTrackedAura do
+		frame.EQOLTrackedAura[i]:Hide()
+	end
+end
+
+local function layoutIcons(frame, count)
+	if not frame.EQOLTrackedAura then return end
+	for i = 1, count do
+		local icon = frame.EQOLTrackedAura[i]
+		icon:ClearAllPoints()
+		local offset = (i - (count + 1) / 2) * (ICON_SIZE + ICON_SPACING)
+		icon:SetPoint("CENTER", frame, "CENTER", offset, 0)
+	end
 end
 
 local function UpdateTrackedBuffs(frame, unit)
 	if not frame or not unit or not addon.db.unitFrameAuraIDs then return end
-	local iconFrame = ensureIcon(frame)
 
-	local found
-	-- Iterate all helpful auras with the Dragonflight+/TWW API
+	local index = 0
 	AuraUtil.ForEachAura(unit, "HELPFUL", nil, function(icon, ...)
 		local spellId = select(9, ...)
 		if addon.db.unitFrameAuraIDs[spellId] then
-                        print(spellId,addon.db.unitFrameAuraIDs[spellId])
+			index = index + 1
+			local iconFrame = ensureIcon(frame, index)
 			iconFrame.icon:SetTexture(icon)
 			iconFrame:Show()
-			found = true
-			return true -- stop the iteration early
 		end
 	end)
 
-	if not found then
-		-- nothing tracked on this unit right now
-		iconFrame:Hide()
-	end
+	hideUnusedIcons(frame, index)
+	if index > 0 then layoutIcons(frame, index) end
 end
 
 addon.Aura.unitFrame.Update = UpdateTrackedBuffs
