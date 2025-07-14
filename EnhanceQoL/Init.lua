@@ -3,6 +3,9 @@ _G[addonName] = addon
 addon.saveVariables = {} -- Cross-Module variables for DB Save
 addon.saveVariables["hidePlayerFrame"] = false -- Default for hiding the Player Frame
 addon.saveVariables["hideRaidFrameBuffs"] = false -- Default for hiding buffs on raid-style frames
+addon.saveVariables["unitFrameTruncateNames"] = false -- Default for truncating unit names
+addon.saveVariables["unitFrameScaleEnabled"] = false -- Default for scaling compact unit frames
+addon.saveVariables["unitFrameScale"] = 1 -- Default scale for compact party frames
 addon.gossip = {}
 addon.gossip.variables = {}
 addon.variables = {}
@@ -513,6 +516,8 @@ addon.variables.catalystID = nil -- Change to get the actual cataclyst charges i
 addon.variables.durabilityIcon = 136241 -- Anvil Symbol
 addon.variables.durabilityCount = 0
 addon.variables.hookedOrderHall = false
+addon.variables.unitFrameMaxNameLength = 6 -- default truncation length
+addon.variables.unitFrameScale = 1 -- default scale value
 addon.variables.maxLevel = GetMaxLevelForPlayerExpansion()
 addon.variables.statusTable = { groups = {} }
 

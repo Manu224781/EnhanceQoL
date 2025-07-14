@@ -1,4 +1,4 @@
--- luacheck: globals DefaultCompactUnitFrameSetup CompactUnitFrame_UpdateAuras
+-- luacheck: globals DefaultCompactUnitFrameSetup CompactUnitFrame_UpdateAuras CompactUnitFrame_UpdateName
 local addonName, addon = ...
 
 local LDB = LibStub("LibDataBroker-1.1")
@@ -1356,6 +1356,78 @@ local function addUnitFrame(container)
 		end, desc)
 		groupCore:AddChild(cbElement)
 	end
+
+	local groupCoreUF = addon.functions.createContainer("InlineGroup", "List")
+	wrapper:AddChild(groupCoreUF)
+
+	local labelHeadlineUF = addon.functions.createLabelAce("|cffffd700" .. L["UnitFrameUFExplain"] .. "|r", nil, nil, 14)
+	labelHeadlineUF:SetFullWidth(true)
+	groupCoreUF:AddChild(labelHeadlineUF)
+	groupCoreUF:AddChild(addon.functions.createSpacerAce())
+
+	local cbRaidFrameBuffHide = addon.functions.createCheckboxAce(L["hideRaidFrameBuffs"], addon.db["hideRaidFrameBuffs"], function(self, _, value)
+		addon.db["hideRaidFrameBuffs"] = value
+		addon.functions.updateRaidFrameBuffs()
+		addon.variables.requireReload = true
+	end, nil)
+	groupCoreUF:AddChild(cbRaidFrameBuffHide)
+
+	local cbPartyFrameSolo = addon.functions.createCheckboxAce(L["showPartyFrameInSoloContent"], addon.db["showPartyFrameInSoloContent"], function(self, _, value)
+		addon.db["showPartyFrameInSoloContent"] = value
+		addon.variables.requireReload = true
+		container:ReleaseChildren()
+		addUnitFrame(container)
+		addon.functions.togglePlayerFrame(addon.db["hidePlayerFrame"])
+	end, nil)
+	groupCoreUF:AddChild(cbPartyFrameSolo)
+
+	local sliderName
+	local cbTruncate = addon.functions.createCheckboxAce(L["unitFrameTruncateNames"], addon.db.unitFrameTruncateNames, function(self, _, v)
+		addon.db.unitFrameTruncateNames = v
+		if sliderName then sliderName:SetDisabled(not v) end
+		addon.functions.updateUnitFrameNames()
+	end)
+	groupCoreUF:AddChild(cbTruncate)
+
+	sliderName = addon.functions.createSliderAce(L["unitFrameMaxNameLength"] .. ": " .. addon.db.unitFrameMaxNameLength, addon.db.unitFrameMaxNameLength, 1, 20, 1, function(self, _, val)
+		addon.db.unitFrameMaxNameLength = val
+		self:SetLabel(L["unitFrameMaxNameLength"] .. ": " .. val)
+		addon.functions.updateUnitFrameNames()
+	end)
+	sliderName:SetDisabled(not addon.db.unitFrameTruncateNames)
+	groupCoreUF:AddChild(sliderName)
+
+	local sliderScale
+	local cbScale = addon.functions.createCheckboxAce(L["unitFrameScaleEnable"], addon.db.unitFrameScaleEnabled, function(self, _, v)
+		addon.db.unitFrameScaleEnabled = v
+		if sliderScale then sliderScale:SetDisabled(not v) end
+		if v then
+			addon.functions.updatePartyFrameScale()
+		else
+			addon.variables.requireReload = true
+			addon.functions.checkReloadFrame()
+		end
+	end)
+	groupCoreUF:AddChild(cbScale)
+
+	sliderScale = addon.functions.createSliderAce(L["unitFrameScale"] .. ": " .. addon.db.unitFrameScale, addon.db.unitFrameScale, 0.5, 2, 0.05, function(self, _, val)
+		addon.db.unitFrameScale = val
+		self:SetLabel(L["unitFrameScale"] .. ": " .. string.format("%.2f", val))
+		addon.functions.updatePartyFrameScale()
+	end)
+	sliderScale:SetDisabled(not addon.db.unitFrameScaleEnabled)
+	groupCoreUF:AddChild(sliderScale)
+
+	groupCoreUF:AddChild(addon.functions.createSpacerAce())
+
+	if addon.db["showPartyFrameInSoloContent"] then
+		local cbHidePlayerFrame = addon.functions.createCheckboxAce(L["hidePlayerFrame"], addon.db["hidePlayerFrame"], function(self, _, value)
+			addon.db["hidePlayerFrame"] = value
+			addon.functions.togglePlayerFrame(addon.db["hidePlayerFrame"])
+		end, nil)
+		groupCoreUF:AddChild(cbHidePlayerFrame)
+	end
+	scroll:DoLayout()
 end
 
 local function addDynamicFlightFrame(container)
@@ -1622,42 +1694,7 @@ local function addPartyFrame(container)
 				end
 			end,
 		},
-
-		{
-			parent = "",
-			var = "hideRaidFrameBuffs",
-			type = "CheckBox",
-			callback = function(self, _, value)
-				addon.db["hideRaidFrameBuffs"] = value
-				addon.functions.updateRaidFrameBuffs()
-				addon.variables.requireReload = true
-			end,
-		},
-		{
-			parent = "",
-			var = "showPartyFrameInSoloContent",
-			type = "CheckBox",
-			callback = function(self, _, value)
-				addon.db["showPartyFrameInSoloContent"] = value
-				addon.variables.requireReload = true
-				container:ReleaseChildren()
-				addPartyFrame(container)
-				addon.functions.togglePlayerFrame(addon.db["hidePlayerFrame"])
-			end,
-		},
 	}
-
-	if addon.db["showPartyFrameInSoloContent"] then
-		table.insert(data, {
-			parent = "",
-			var = "hidePlayerFrame",
-			type = "CheckBox",
-			callback = function(self, _, value)
-				addon.db["hidePlayerFrame"] = value
-				addon.functions.togglePlayerFrame(addon.db["hidePlayerFrame"])
-			end,
-		})
-	end
 
 	if addon.db["autoAcceptGroupInvite"] == true then
 		table.insert(data, {
@@ -3155,6 +3192,10 @@ local function initUnitFrame()
 	addon.functions.InitDBValue("hideHitIndicatorPet", false)
 	addon.functions.InitDBValue("hidePlayerFrame", false)
 	addon.functions.InitDBValue("hideRaidFrameBuffs", false)
+	addon.functions.InitDBValue("unitFrameTruncateNames", false)
+	addon.functions.InitDBValue("unitFrameMaxNameLength", addon.variables.unitFrameMaxNameLength)
+	addon.functions.InitDBValue("unitFrameScaleEnabled", false)
+	addon.functions.InitDBValue("unitFrameScale", addon.variables.unitFrameScale)
 	if addon.db["hideHitIndicatorPlayer"] then PlayerFrame.PlayerFrameContent.PlayerFrameContentMain.HitIndicator:Hide() end
 
 	if PetHitIndicator then hooksecurefunc(PetHitIndicator, "Show", function(self)
@@ -3183,6 +3224,36 @@ local function initUnitFrame()
 		end
 	end
 	hooksecurefunc("CompactUnitFrame_SetUpFrame", DisableBlizzBuffs)
+
+	local function TruncateFrameName(cuf)
+		if not addon.db["unitFrameTruncateNames"] then return end
+		if not addon.db["unitFrameMaxNameLength"] then return end
+		if cuf and cuf.name and cuf.name:GetText() then
+			local name = cuf.name:GetText()
+			-- Remove server names before truncation
+			local shortName = strsplit("-", name)
+			if #shortName > addon.db["unitFrameMaxNameLength"] then shortName = strsub(shortName, 1, addon.db["unitFrameMaxNameLength"]) end
+			if shortName ~= name then cuf.name:SetText(shortName) end
+		end
+	end
+
+	local function ApplyFrameSettings(cuf) TruncateFrameName(cuf) end
+
+	if CompactUnitFrame_UpdateName then hooksecurefunc("CompactUnitFrame_UpdateName", TruncateFrameName) end
+
+	if DefaultCompactUnitFrameSetup then hooksecurefunc("DefaultCompactUnitFrameSetup", ApplyFrameSettings) end
+
+	function addon.functions.updateUnitFrameNames()
+		if not addon.db["unitFrameTruncateNames"] then return end
+		for i = 1, 5 do
+			local f = _G["CompactPartyFrameMember" .. i]
+			TruncateFrameName(f)
+		end
+		for i = 1, 40 do
+			local f = _G["CompactRaidFrame" .. i]
+			TruncateFrameName(f)
+		end
+	end
 	function addon.functions.updateRaidFrameBuffs()
 		for i = 1, 5 do
 			local f = _G["CompactPartyFrameMember" .. i]
@@ -3194,7 +3265,15 @@ local function initUnitFrame()
 		end
 	end
 
+	function addon.functions.updatePartyFrameScale()
+		if not addon.db["unitFrameScaleEnabled"] then return end
+		if not addon.db["unitFrameScale"] then return end
+		if CompactPartyFrame then CompactPartyFrame:SetScale(addon.db["unitFrameScale"]) end
+	end
+
 	if addon.db["hideRaidFrameBuffs"] then addon.functions.updateRaidFrameBuffs() end
+	if addon.db["unitFrameTruncateNames"] then addon.functions.updateUnitFrameNames() end
+	if addon.db["unitFrameScaleEnabled"] then addon.functions.updatePartyFrameScale() end
 
 	for _, cbData in ipairs(addon.variables.unitFrameNames) do
 		if cbData.var and cbData.name then
