@@ -1,4 +1,4 @@
--- luacheck: globals DefaultCompactUnitFrameSetup CompactUnitFrame_UpdateAuras
+-- luacheck: globals DefaultCompactUnitFrameSetup CompactUnitFrame_UpdateAuras CompactUnitFrame_UpdateName
 local addonName, addon = ...
 
 local LDB = LibStub("LibDataBroker-1.1")
@@ -3223,13 +3223,22 @@ local function initUnitFrame()
 		end
 	end
 	hooksecurefunc("CompactUnitFrame_SetUpFrame", DisableBlizzBuffs)
-	local function ApplyFrameSettings(cuf)
-		if addon.db["unitFrameScaleEnabled"] and addon.db["unitFrameScale"] then cuf:SetScale(addon.db["unitFrameScale"]) end
-		if addon.db["unitFrameTruncateNames"] and addon.db["unitFrameMaxNameLength"] then
-			local name = cuf.name and cuf.name:GetText()
-			if name and #name > addon.db["unitFrameMaxNameLength"] then cuf.name:SetText(strsub(name, 1, addon.db["unitFrameMaxNameLength"])) end
+
+	local function TruncateFrameName(cuf)
+		if not addon.db["unitFrameTruncateNames"] then return end
+		if not addon.db["unitFrameMaxNameLength"] then return end
+		if cuf and cuf.name and cuf.name:GetText() then
+			local name = cuf.name:GetText()
+			if #name > addon.db["unitFrameMaxNameLength"] then cuf.name:SetText(strsub(name, 1, addon.db["unitFrameMaxNameLength"])) end
 		end
 	end
+
+	local function ApplyFrameSettings(cuf)
+		if addon.db["unitFrameScaleEnabled"] and addon.db["unitFrameScale"] then cuf:SetScale(addon.db["unitFrameScale"]) end
+		TruncateFrameName(cuf)
+	end
+
+	if CompactUnitFrame_UpdateName then hooksecurefunc("CompactUnitFrame_UpdateName", TruncateFrameName) end
 
 	if DefaultCompactUnitFrameSetup then hooksecurefunc("DefaultCompactUnitFrameSetup", ApplyFrameSettings) end
 
@@ -3249,17 +3258,11 @@ local function initUnitFrame()
 		if not addon.db["unitFrameTruncateNames"] then return end
 		for i = 1, 5 do
 			local f = _G["CompactPartyFrameMember" .. i]
-			if f and f.name and f.name:GetText() then
-				local n = f.name:GetText()
-				if #n > addon.db["unitFrameMaxNameLength"] then f.name:SetText(strsub(n, 1, addon.db["unitFrameMaxNameLength"])) end
-			end
+			TruncateFrameName(f)
 		end
 		for i = 1, 40 do
 			local f = _G["CompactRaidFrame" .. i]
-			if f and f.name and f.name:GetText() then
-				local n = f.name:GetText()
-				if #n > addon.db["unitFrameMaxNameLength"] then f.name:SetText(strsub(n, 1, addon.db["unitFrameMaxNameLength"])) end
-			end
+			TruncateFrameName(f)
 		end
 	end
 	function addon.functions.updateRaidFrameBuffs()
