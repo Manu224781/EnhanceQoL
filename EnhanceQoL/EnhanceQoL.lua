@@ -1359,9 +1359,11 @@ local function addUnitFrame(container)
 
 	local groupCoreUF = addon.functions.createContainer("InlineGroup", "List")
 	wrapper:AddChild(groupCoreUF)
+	
 	local labelHeadlineUF = addon.functions.createLabelAce("|cffffd700" .. L["UnitFrameUFExplain"] .. "|r", nil, nil, 14)
 	labelHeadlineUF:SetFullWidth(true)
 	groupCoreUF:AddChild(labelHeadlineUF)
+	groupCoreUF:AddChild(addon.functions.createSpacerAce())
 
 	local sliderName
 	local cbTruncate = addon.functions.createCheckboxAce(L["unitFrameTruncateNames"], addon.db.unitFrameTruncateNames, function(self, _, v)
