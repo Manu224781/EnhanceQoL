@@ -829,7 +829,12 @@ end
 local function refreshTree(selectValue)
 	if not treeGroup then return end
 	treeGroup:SetTree(getCategoryTree())
-	if selectValue then treeGroup:SelectByValue(tostring(selectValue)) end
+	if selectValue then 
+		treeGroup:SelectByValue(tostring(selectValue)) 
+		-- C_Timer.After(0, function() 
+			treeGroup:Select(selectValue)
+		--  end)
+	end
 end
 
 local function handleDragDrop(src, dst)
