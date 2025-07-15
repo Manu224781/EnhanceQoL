@@ -3,6 +3,9 @@
 ## [3.28.1] – 2025-07-14
 ### 🐛 Fixed
 - Fixed a rare issue with *Loot-Toast-Settings*
+- Fixed an issue with *Creating new Auras* and not selecting the new Category
+- Fixed an issue with *Deleting Categories* and not cleaning the UI
+- Fixed an issue with *Glow of Auras* not changing it's size when icon size changed
 
 ## [3.28.0] – 2025-07-14
 ### ✨ Added
