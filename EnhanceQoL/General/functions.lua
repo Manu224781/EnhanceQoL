@@ -361,14 +361,14 @@ local function updateButtonInfo(itemButton, bag, slot, frameName)
 						if nil == addon.itemBagFiltersQuality[eItem:GetItemQuality()] or addon.itemBagFiltersQuality[eItem:GetItemQuality()] == false then setVisibility = true end
 					end
 					local cilvl = eItem:GetCurrentItemLevel()
-					if addon.itemBagFilters["minLevel"] and (cilvl < addon.itemBagFilters["minLevel"] or (nil == itemEquipLoc or itemEquipLoc == "INVTYPE_NON_EQUIP_IGNORE")) then
+					if addon.itemBagFilters["minLevel"] and (cilvl < addon.itemBagFilters["minLevel"] or (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc])) then
 						setVisibility = true
 					end
-					if addon.itemBagFilters["maxLevel"] and (cilvl > addon.itemBagFilters["maxLevel"] or (nil == itemEquipLoc or itemEquipLoc == "INVTYPE_NON_EQUIP_IGNORE")) then
+					if addon.itemBagFilters["maxLevel"] and (cilvl > addon.itemBagFilters["maxLevel"] or (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc])) then
 						setVisibility = true
 					end
 					if addon.itemBagFilters["currentExpension"] and LE_EXPANSION_LEVEL_CURRENT ~= expId then setVisibility = true end
-					if addon.itemBagFilters["equipment"] and (nil == itemEquipLoc or itemEquipLoc == "INVTYPE_NON_EQUIP_IGNORE") then setVisibility = true end
+					if addon.itemBagFilters["equipment"] and (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc]) then setVisibility = true end
 					if addon.itemBagFilters["bind"] then
 						if nil == addon.itemBagFiltersBound[bKey] or addon.itemBagFiltersBound[bKey] == false then setVisibility = true end
 					end
@@ -689,9 +689,11 @@ local function CreateFilterMenu()
 
 					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
 					if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-						for slot = 1, NUM_BANKGENERIC_SLOTS do
-							local itemButton = _G["BankFrameItem" .. slot]
-							if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+						if NUM_BANKGENERIC_SLOTS then
+							for slot = 1, NUM_BANKGENERIC_SLOTS do
+								local itemButton = _G["BankFrameItem" .. slot]
+								if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+							end
 						end
 					end
 					if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
@@ -743,9 +745,11 @@ local function CreateFilterMenu()
 
 					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
 					if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-						for slot = 1, NUM_BANKGENERIC_SLOTS do
-							local itemButton = _G["BankFrameItem" .. slot]
-							if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+						if NUM_BANKGENERIC_SLOTS then
+							for slot = 1, NUM_BANKGENERIC_SLOTS do
+								local itemButton = _G["BankFrameItem" .. slot]
+								if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+							end
 						end
 					end
 					if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
@@ -828,9 +832,11 @@ local function CreateFilterMenu()
 
 		--TODO remove this after Patch 11.2 release in August 2025
 		if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-			for slot = 1, NUM_BANKGENERIC_SLOTS do
-				local itemButton = _G["BankFrameItem" .. slot]
-				if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+			if NUM_BANKGENERIC_SLOTS then
+				for slot = 1, NUM_BANKGENERIC_SLOTS do
+					local itemButton = _G["BankFrameItem" .. slot]
+					if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+				end
 			end
 		end
 		if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end

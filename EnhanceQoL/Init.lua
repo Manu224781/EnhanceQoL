@@ -655,6 +655,11 @@ addon.variables.allowedEquipSlotsBagIlvl = {
 	["INVTYPE_PROFESSION_TOOL"] = true,
 	["INVTYPE_PROFESSION_GEAR"] = true,
 }
+addon.variables.ignoredEquipmentTypes = {
+	["INVTYPE_NON_EQUIP_IGNORE"] = true,
+	["INVTYPE_BAG"] = true,
+	["INVTYPE_PROFESSION_TOOL"] = true,
+}
 
 -- Actionbars
 addon.variables.actionBarNames = {

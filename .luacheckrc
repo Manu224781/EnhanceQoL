@@ -113,6 +113,7 @@ globals = {
 	"BUYBACK_ITEMS_PER_PAGE",
 	"EquipmentManager_UnpackLocation",
 	"AccountBankPanel",
+	"BankPanel",
 	"ItemLocation",
 	"securecallfunction",
 	"ACCESSIBILITY_GENERAL_LABEL",
