@@ -20,6 +20,9 @@ for _, cat in pairs(addon.db["buffTrackerCategories"]) do
 		if not buff.allowedRoles then buff.allowedRoles = {} end
 		if not buff.conditions then buff.conditions = { join = "AND", conditions = {} } end
 	end
+	cat.allowedSpecs = nil
+	cat.allowedClasses = nil
+	cat.allowedRoles = nil
 end
 
 local anchors = {}
@@ -252,7 +255,7 @@ local function ensureAnchor(id)
 	anchor:RegisterForDrag("LeftButton")
 	anchor.text = anchor:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	anchor.text:SetPoint("CENTER", anchor, "CENTER")
-	anchor.text:SetText(L["DragToPosition"])
+	anchor.text:SetText(L["DragToPosition"]:format("|cffffd700" .. (cat.name or "") .. "|r"))
 
 	anchor:SetScript("OnDragStart", anchor.StartMoving)
 	anchor:SetScript("OnDragStop", function(self)
@@ -275,6 +278,14 @@ local function ensureAnchor(id)
 	end
 	anchors[id] = anchor
 	return anchor
+end
+
+local function changeAnchorName(id)
+	local anchor = ensureAnchor(id)
+	if not anchor then return end
+	local cat = getCategory(id)
+	if not cat then return end
+	anchor.text:SetText(L["DragToPosition"]:format("|cffffd700" .. (cat.name or "") .. "|r"))
 end
 
 local function updatePositions(id)
@@ -337,9 +348,14 @@ local function applySize(id)
 	local size = cat.size
 	anchor:SetSize(size, size)
 	activeBuffFrames[id] = activeBuffFrames[id] or {}
-	for _, frame in pairs(activeBuffFrames[id]) do
+	for buffId, frame in pairs(activeBuffFrames[id]) do
 		frame:SetSize(size, size)
 		frame.cd:SetAllPoints(frame)
+		if frame.SpellActivationAlert then
+			ActionButton_HideOverlayGlow(frame)
+			local buff = cat.buffs and cat.buffs[buffId]
+			if buff and buff.glow and frame.isActive then ActionButton_ShowOverlayGlow(frame) end
+		end
 	end
 	updatePositions(id)
 end
@@ -813,6 +829,12 @@ end
 local function refreshTree(selectValue)
 	if not treeGroup then return end
 	treeGroup:SetTree(getCategoryTree())
+	if selectValue then 
+		treeGroup:SelectByValue(tostring(selectValue)) 
+		-- C_Timer.After(0, function() 
+			treeGroup:Select(selectValue)
+		--  end)
+	end
 end
 
 local function handleDragDrop(src, dst)
@@ -878,18 +900,28 @@ function addon.Aura.functions.buildCategoryOptions(container, catId)
 		applyLockState()
 		scanBuffs()
 		refreshTree(selectedCategory)
+		container:ReleaseChildren()
+		addon.Aura.functions.buildCategoryOptions(container, catId)
 	end)
 	core:AddChild(enableCB)
 
-	local lockCB = addon.functions.createCheckboxAce(L["buffTrackerLocked"], addon.db["buffTrackerLocked"][catId], function(self, _, val)
-		addon.db["buffTrackerLocked"][catId] = val
-		applyLockState()
-	end)
-	core:AddChild(lockCB)
+	if addon.db["buffTrackerEnabled"][catId] then
+		local lockCB = addon.functions.createCheckboxAce(L["buffTrackerLocked"], addon.db["buffTrackerLocked"][catId], function(self, _, val)
+			addon.db["buffTrackerLocked"][catId] = val
+			applyLockState()
+		end)
+		core:AddChild(lockCB)
+	end
 
 	local nameEdit = addon.functions.createEditboxAce(L["CategoryName"], cat.name, function(self, _, text)
-		if text ~= "" then cat.name = text end
+		if text ~= "" then
+			cat.name = text
+			changeAnchorName(catId)
+		end
+
 		refreshTree(catId)
+		container:ReleaseChildren()
+		addon.Aura.functions.buildCategoryOptions(container, catId)
 	end)
 	core:AddChild(nameEdit)
 
@@ -943,6 +975,7 @@ function addon.Aura.functions.buildCategoryOptions(container, catId)
 			selectedCategory = next(addon.db["buffTrackerCategories"]) or 1
 			rebuildAltMapping()
 			refreshTree(selectedCategory)
+			container:ReleaseChildren()
 		end
 		StaticPopup_Show("EQOL_DELETE_CATEGORY", catName)
 	end)
@@ -1238,6 +1271,18 @@ function addon.Aura.functions.buildBuffOptions(container, catId, buffId)
 	end)
 	wrapper:AddChild(altEdit)
 
+	local infoIcon = AceGUI:Create("Icon")
+	infoIcon:SetImage("Interface\\FriendsFrame\\InformationIcon")
+	infoIcon:SetImageSize(16, 16)
+	infoIcon:SetWidth(16)
+	infoIcon:SetCallback("OnEnter", function(widget)
+		GameTooltip:SetOwner(widget.frame, "ANCHOR_RIGHT")
+		GameTooltip:SetText("Alternative spell IDs are treated as the same aura. Use this to track multiple IDs of one spell.")
+		GameTooltip:Show()
+	end)
+	infoIcon:SetCallback("OnLeave", function() GameTooltip:Hide() end)
+	wrapper:AddChild(infoIcon)
+
 	wrapper:AddChild(addon.functions.createSpacerAce())
 
 	local delBtn = addon.functions.createButtonAce(L["DeleteAura"], 150, function()
@@ -1275,12 +1320,14 @@ function addon.Aura.functions.addBuffTrackerOptions(container)
 				point = "CENTER",
 				x = 0,
 				y = 0,
-				size = 36,
+				size = 50,
 				direction = "RIGHT",
 				buffs = {},
 			}
+			addon.db["buffTrackerEnabled"][newId] = true
+			addon.db["buffTrackerLocked"][newId] = false
 			ensureAnchor(newId)
-			refreshTree(newId) -- rebuild tree and select new node
+			refreshTree(newId)
 			return -- don’t build options for pseudo‑node
 		end
 

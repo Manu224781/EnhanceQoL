@@ -1,7 +1,7 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("EnhanceQoL_Aura", "enUS", true) -- “true” = default / fallback
 
 L["Aura"] = "Aura"
-L["DragToPosition"] = "Drag me to position"
+L["DragToPosition"] = "Drag me\n%s"
 L["BuffTracker"] = "Aura Tracker"
 L["EnableBuffTracker"] = 'Enable Aura Tracker "%s"'
 L["GrowthDirection"] = "Growth Direction"
