@@ -796,25 +796,25 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, ...)
 	end
 
 	if event == "SPELL_UPDATE_COOLDOWN" then
-               local changedSpell = ...
-               local needsLayout = {}
+		local changedSpell = ...
+		local needsLayout = {}
 
-               if changedSpell then
-                       local baseSpell = altToBase[changedSpell] or changedSpell
-                       for catId in pairs(spellToCat[baseSpell] or {}) do
-                               local cat = addon.db["buffTrackerCategories"][catId]
-                               if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
-                                       local buff = cat.buffs[baseSpell]
-                                       if buff and buff.showCooldown then
-                                               updateBuff(catId, baseSpell)
-                                               needsLayout[catId] = true
-                                       end
-                               end
-                       end
-               else
-                       for catId, cat in pairs(addon.db["buffTrackerCategories"]) do
-                               if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
-                                       for id, buff in pairs(cat.buffs) do
+		if changedSpell then
+			local baseSpell = altToBase[changedSpell] or changedSpell
+			for catId in pairs(spellToCat[baseSpell] or {}) do
+				local cat = addon.db["buffTrackerCategories"][catId]
+				if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
+					local buff = cat.buffs[baseSpell]
+					if buff and buff.showCooldown then
+						updateBuff(catId, baseSpell)
+						needsLayout[catId] = true
+					end
+				end
+			end
+		else
+			for catId, cat in pairs(addon.db["buffTrackerCategories"]) do
+				if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
+					for id, buff in pairs(cat.buffs) do
 						if buff.showCooldown then
 							updateBuff(catId, id)
 							needsLayout[catId] = true
