@@ -41,6 +41,12 @@ local refreshTimeTicker
 local LSM = LibStub("LibSharedMedia-3.0")
 local getSpellCooldown = C_Spell and C_Spell.GetSpellCooldown or GetSpellCooldown
 
+local function CDResetScript(self)
+	local icon = self:GetParent().icon
+	icon:SetDesaturated(false)
+	icon:SetAlpha(1)
+end
+
 local function isNumber(val)
 	if type(val) == "number" then return true end
 	if type(val) == "string" then return tonumber(val) ~= nil end
@@ -537,10 +543,7 @@ local function updateBuff(catId, id, changedId)
 					frame.cd:SetCooldown(cdStart, cdDur, modRate)
 					frame.icon:SetDesaturated(true)
 					frame.icon:SetAlpha(0.5)
-					frame.cd:SetScript("OnCooldownDone", function()
-						frame.icon:SetDesaturated(false)
-						frame.icon:SetAlpha(1)
-					end)
+					frame.cd:SetScript("OnCooldownDone", CDResetScript)
 				else
 					frame.cd:Clear()
 					frame.cd:SetScript("OnCooldownDone", nil)
@@ -608,16 +611,17 @@ local function updateBuff(catId, id, changedId)
 			frame.icon:SetTexture(icon)
 			local cdStart, cdDur, cdEnable, modRate
 			if buff.showCooldown then
-				cdStart, cdDur, cdEnable, modRate = getSpellCooldown(id)
+				local spellInfo = getSpellCooldown(id)
+				cdStart = spellInfo.startTime
+				cdDur = spellInfo.duration
+				cdEnable = spellInfo.isEnabled
+				modRate = spellInfo.modRate
 			end
 			if buff.showCooldown and cdEnable and cdDur and cdDur > 0 and cdStart > 0 and (cdStart + cdDur) > GetTime() then
 				frame.cd:SetCooldown(cdStart, cdDur, modRate)
 				frame.icon:SetDesaturated(true)
 				frame.icon:SetAlpha(0.5)
-				frame.cd:SetScript("OnCooldownDone", function()
-					frame.icon:SetDesaturated(false)
-					frame.icon:SetAlpha(1)
-				end)
+				frame.cd:SetScript("OnCooldownDone", CDResetScript)
 			else
 				frame.cd:Clear()
 				frame.cd:SetScript("OnCooldownDone", nil)
@@ -710,16 +714,16 @@ local function scanBuffs()
 end
 
 local function collectActiveAuras()
-    for _, filter in ipairs({ "HELPFUL", "HARMFUL" }) do
-        local i = 1
-        local aura = C_UnitAuras.GetAuraDataByIndex("player", i, filter)
-        while aura do
-            local base = altToBase[aura.spellId] or aura.spellId
-            auraInstanceMap[aura.auraInstanceID] = { buffId = base }
-            i = i + 1
-            aura = C_UnitAuras.GetAuraDataByIndex("player", i, filter)
-        end
-    end
+	for _, filter in ipairs({ "HELPFUL", "HARMFUL" }) do
+		local i = 1
+		local aura = C_UnitAuras.GetAuraDataByIndex("player", i, filter)
+		while aura do
+			local base = altToBase[aura.spellId] or aura.spellId
+			auraInstanceMap[aura.auraInstanceID] = { buffId = base }
+			i = i + 1
+			aura = C_UnitAuras.GetAuraDataByIndex("player", i, filter)
+		end
+	end
 end
 
 addon.Aura.buffAnchors = anchors
@@ -736,14 +740,14 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, ...)
 				anchor:Hide()
 			end
 		end
-			if event == "PLAYER_LOGIN" then
+		if event == "PLAYER_LOGIN" then
 			addon.Aura.functions.BuildSoundTable()
 			rebuildAltMapping()
 			collectActiveAuras()
 			C_Timer.After(1, scanBuffs)
 			return
-end
-end
+		end
+	end
 
 	if event == "UNIT_AURA" and unit == "player" then
 		local eventInfo = ...
