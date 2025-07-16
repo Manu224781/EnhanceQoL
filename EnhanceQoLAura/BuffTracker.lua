@@ -10,6 +10,8 @@ end
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
 local AceGUI = addon.AceGUI
 
+-- luacheck: globals ChatThrottleLib ChatFrame_OpenChat
+
 local selectedCategory = addon.db["buffTrackerSelectedCategory"] or 1
 
 for _, cat in pairs(addon.db["buffTrackerCategories"]) do
@@ -827,6 +829,9 @@ local function sanitiseCategory(cat)
 end
 
 -- encodeMode = "chat" | "addon" | nil
+-- forward declaration so luacheck sees ShareCategory below
+local ShareCategory
+
 local function exportCategory(catId, encodeMode)
 	local cat = addon.db["buffTrackerCategories"][catId]
 	if not cat then return end
@@ -1553,7 +1558,7 @@ local function getCatName(catId)
        return cat and cat.name or tostring(catId)
 end
 
-local function ShareCategory(catId, targetPlayer)
+ShareCategory = function(catId, targetPlayer)
        local chatEncoded = exportCategory(catId, "chat")
        local addonEncoded = exportCategory(catId, "addon")
        if not chatEncoded or not addonEncoded then return end
