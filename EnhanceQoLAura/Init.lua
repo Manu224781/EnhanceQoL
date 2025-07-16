@@ -33,6 +33,7 @@ addon.functions.InitDBValue("buffTrackerSounds", {})
 addon.functions.InitDBValue("buffTrackerSoundsEnabled", {})
 addon.functions.InitDBValue("buffTrackerShowStacks", false)
 addon.functions.InitDBValue("buffTrackerShowTimerText", true)
+addon.functions.InitDBValue("buffTrackerShowCharges", false)
 
 if type(addon.db["buffTrackerSelectedCategory"]) ~= "number" then addon.db["buffTrackerSelectedCategory"] = 1 end
 
@@ -65,5 +66,9 @@ for _, cat in pairs(addon.db["buffTrackerCategories"]) do
 			if buff.showTimerText == nil then buff.showTimerText = true end
 		end
 		if buff.showCooldown == nil then buff.showCooldown = false end
+		if buff.showCharges == nil then
+			buff.showCharges = addon.db["buffTrackerShowCharges"]
+			if buff.showCharges == nil then buff.showCharges = false end
+		end
 	end
 end
