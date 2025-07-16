@@ -771,7 +771,7 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, ...)
 				auraInstanceMap[inst] = nil
 			end
 
-			local updated = {}
+			local needsLayout = {}
 			for spellId, cId in pairs(changed) do
 				for catId in pairs(spellToCat[spellId] or {}) do
 					local cat = addon.db["buffTrackerCategories"][catId]
@@ -782,12 +782,12 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, ...)
 						elseif activeBuffFrames[catId] and activeBuffFrames[catId][spellId] then
 							activeBuffFrames[catId][spellId]:Hide()
 						end
-						updated[catId] = true
+						needsLayout[catId] = true
 					end
 				end
 			end
 
-			for catId in pairs(updated) do
+			for catId in pairs(needsLayout) do
 				updatePositions(catId)
 				if anchors[catId] then anchors[catId]:Show() end
 			end
@@ -796,18 +796,34 @@ eventFrame:SetScript("OnEvent", function(_, event, unit, ...)
 	end
 
 	if event == "SPELL_UPDATE_COOLDOWN" then
-		local updated = {}
-		for catId, cat in pairs(addon.db["buffTrackerCategories"]) do
-			if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
-				for id, buff in pairs(cat.buffs) do
-					if buff.showCooldown then
-						updateBuff(catId, id)
-						updated[catId] = true
+		local changedSpell = ...
+		local needsLayout = {}
+
+		if changedSpell then
+			for catId in pairs(spellToCat[changedSpell] or {}) do
+				local cat = addon.db["buffTrackerCategories"][catId]
+				if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
+					local buff = cat.buffs[changedSpell]
+					if buff and buff.showCooldown then
+						updateBuff(catId, changedSpell)
+						needsLayout[catId] = true
+					end
+				end
+			end
+		else
+			for catId, cat in pairs(addon.db["buffTrackerCategories"]) do
+				if addon.db["buffTrackerEnabled"][catId] and categoryAllowed(cat) then
+					for id, buff in pairs(cat.buffs) do
+						if buff.showCooldown then
+							updateBuff(catId, id)
+							needsLayout[catId] = true
+						end
 					end
 				end
 			end
 		end
-		for catId in pairs(updated) do
+
+		for catId in pairs(needsLayout) do
 			updatePositions(catId)
 		end
 		return
