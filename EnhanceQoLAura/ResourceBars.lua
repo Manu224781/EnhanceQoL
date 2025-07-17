@@ -65,32 +65,32 @@ end
 
 local function resolveAnchor(info, type)
 	local frame = _G[info and info.relativeFrame]
+	if not frame or frame == UIParent then return frame or UIParent end
+
 	local visited = {}
+	local check = frame
 	local limit = 10
 
-	while frame and frame.GetName and frame ~= UIParent and limit > 0 do
-		local fname = frame:GetName()
-		if fname == "EQOLHealthBar" or fname:match("^EQOL.+Bar$") then
-			if visited[fname] then return UIParent end
-			visited[fname] = true
+	while check and check.GetName and check ~= UIParent and limit > 0 do
+		local fname = check:GetName()
+		if visited[fname] then return UIParent end
+		visited[fname] = true
 
-			local bType
-			if fname == "EQOLHealthBar" then
-				bType = "HEALTH"
-			else
-				bType = fname:match("^EQOL(.+)Bar$")
-			end
-
-			if not bType then break end
-			local anch = getAnchor(bType, addon.variables.unitSpec)
-			frame = _G[anch and anch.relativeFrame]
-			limit = limit - 1
+		local bType
+		if fname == "EQOLHealthBar" then
+			bType = "HEALTH"
 		else
-			break
+			bType = fname:match("^EQOL(.+)Bar$")
 		end
+
+		if not bType then break end
+		local anch = getAnchor(bType, addon.variables.unitSpec)
+		check = _G[anch and anch.relativeFrame]
+		if check == nil or check == UIParent then break end
+		limit = limit - 1
 	end
 
-	if not frame or limit <= 0 then return UIParent end
+	if limit <= 0 then return UIParent end
 	return frame or UIParent
 end
 
