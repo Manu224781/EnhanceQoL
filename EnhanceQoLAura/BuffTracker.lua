@@ -719,8 +719,8 @@ refreshTimeTicker = function()
 		timeTicker = nil
 	end
 	if next(timedAuras) then
+		local updatedCats = {}
 		timeTicker = C_Timer.NewTicker(1, function()
-			local updatedCats = {}
 			for _, info in pairs(timedAuras) do
 				updateBuff(info.catId, info.buffId)
 				updatedCats[info.catId] = true
@@ -728,6 +728,7 @@ refreshTimeTicker = function()
 			for catId in pairs(updatedCats) do
 				updatePositions(catId)
 			end
+		wipe(updatedCats)
 		end)
 	end
 end
