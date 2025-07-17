@@ -13,7 +13,7 @@ end
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
 local AceGUI = addon.AceGUI
 
-local tabContainerMain
+local lastTabIndex
 
 local function addResourceFrame(container)
 	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
@@ -192,6 +192,7 @@ local function addResourceFrame(container)
 			table.insert(specTabs, { text = specName, value = i })
 		end
 
+		local tabGroup = addon.functions.createContainer("TabGroup", "Flow")
 		local function buildSpec(container, specIndex)
 			container:ReleaseChildren()
 			if not addon.Aura.ResourceBars.powertypeClasses[addon.variables.unitClass] then return end
@@ -222,13 +223,13 @@ local function addResourceFrame(container)
 
 					local cfg = dbSpec[real]
 					local label = _G[real] or real
-                                        local cb = addon.functions.createCheckboxAce(label, cfg.enabled, function(self, _, val)
-                                                cfg.enabled = val
-                                                addon.Aura.ResourceBars.Refresh()
-                                                container:ReleaseChildren()
-                                                addResourceFrame(container)
-                                                buildSpec(tabContainerMain, specIndex)
-                                        end)
+					local cb = addon.functions.createCheckboxAce(label, cfg.enabled, function(self, _, val)
+						cfg.enabled = val
+						addon.Aura.ResourceBars.Refresh()
+						tabGroup:ReleaseChildren()
+						tabGroup:SetTabs(specTabs)
+						tabGroup:SelectTab(lastTabIndex or addon.variables.unitSpec or specTabs[1].value)
+					end)
 					container:AddChild(cb)
 
 					if cfg.enabled then
@@ -274,10 +275,9 @@ local function addResourceFrame(container)
 			end
 		end
 
-		local tabGroup = addon.functions.createContainer("TabGroup", "Flow")
 		tabGroup:SetTabs(specTabs)
 		tabGroup:SetCallback("OnGroupSelected", function(tabContainer, _, val)
-			tabContainerMain = tabContainer
+			lastTabIndex = val
 			buildSpec(tabContainer, val)
 		end)
 		wrapper:AddChild(tabGroup)
