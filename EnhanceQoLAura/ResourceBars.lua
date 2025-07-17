@@ -64,36 +64,34 @@ local function getAnchor(name, spec)
 end
 
 local function resolveAnchor(info, type)
-	local frame = _G[info.relativeFrame]
+	local frame = _G[info and info.relativeFrame]
 	local visited = {}
 	local limit = 10
 
+	while frame and frame.GetName and frame ~= UIParent and limit > 0 do
+		local fname = frame:GetName()
+		if fname == "EQOLHealthBar" or fname:match("^EQOL.+Bar$") then
+			if visited[fname] then return UIParent end
+			visited[fname] = true
+
+			local bType
+			if fname == "EQOLHealthBar" then
+				bType = "HEALTH"
+			else
+				bType = fname:match("^EQOL(.+)Bar$")
+			end
+
+			if not bType then break end
+			local anch = getAnchor(bType, addon.variables.unitSpec)
+			frame = _G[anch and anch.relativeFrame]
+			limit = limit - 1
+		else
+			break
+		end
+	end
+
+	if not frame or limit <= 0 then return UIParent end
 	return frame or UIParent
-	-- while frame and frame.GetName and limit > 0 do
-	-- 	local fname = frame:GetName()
-	-- 	if fname == "EQOLHealthBar" or fname:match("^EQOL.+Bar$") then
-	-- 		if visited[fname] then return UIParent end
-	-- 		visited[fname] = true
-
-	-- 		local bType
-	-- 		if fname == "EQOLHealthBar" then
-	-- 			bType = "HEALTH"
-	-- 		else
-	-- 			bType = fname:match("^EQOL(.+)Bar$")
-	-- 		end
-	-- 		print("bType", bType)
-
-	-- 		if not bType then break end
-	-- 		local anch = getAnchor(bType, addon.variables.unitSpec)
-	-- 		print("anch", anch.relativeFrame)
-	-- 		frame = _G[anch.relativeFrame]
-	-- 		limit = limit - 1
-	-- 	else
-	-- 		break
-	-- 	end
-	-- end
-	-- if limit <= 0 then return UIParent end
-	-- return frame or UIParent
 end
 
 local function createHealthBar()
@@ -301,9 +299,7 @@ local function createPowerBar(type, anchor)
 	if a.point then
 		local rel = resolveAnchor(a, type)
 		if rel and rel:GetName() ~= "UIParent" then allowMove = false end
-		if type == "ENERGY" then
-		print(a.point, rel:GetName(), a.relativePoint or a.point, a.x or 0, a.y or 0)
-		end	
+		if type == "ENERGY" then print(a.point, rel:GetName(), a.relativePoint or a.point, a.x or 0, a.y or 0) end
 		bar:SetPoint(a.point, rel, a.relativePoint or a.point, a.x or 0, a.y or 0)
 	elseif anchor then
 		bar:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, 0)
