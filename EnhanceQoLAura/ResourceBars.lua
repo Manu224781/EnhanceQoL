@@ -553,11 +553,33 @@ function ResourceBars.SetHealthBarSize(w, h)
 end
 
 function ResourceBars.SetPowerBarSize(w, h, pType)
+	local changed = {}
 	if pType then
-		if powerbar[pType] then powerbar[pType]:SetSize(w, h) end
+		if powerbar[pType] then
+			powerbar[pType]:SetSize(w, h)
+			changed[getFrameName(pType)] = true
+		end
 	else
-		for _, bar in pairs(powerbar) do
+		for t, bar in pairs(powerbar) do
 			bar:SetSize(w, h)
+			changed[getFrameName(t)] = true
+		end
+	end
+
+	local class = addon.variables.unitClass
+	local spec = addon.variables.unitSpec
+	local specCfg = addon.db.personalResourceBarSettings and addon.db.personalResourceBarSettings[class] and addon.db.personalResourceBarSettings[class][spec]
+
+	if specCfg then
+		for bType, cfg in pairs(specCfg) do
+			local anchor = cfg.anchor
+			if anchor and changed[anchor.relativeFrame] then
+				local frame = bType == "HEALTH" and healthBar or powerbar[bType]
+				if frame then
+					local rel = _G[anchor.relativeFrame] or UIParent
+					frame:SetPoint(anchor.point or "CENTER", rel, anchor.relativePoint or anchor.point or "CENTER", anchor.x or 0, anchor.y or 0)
+				end
+			end
 		end
 	end
 end
