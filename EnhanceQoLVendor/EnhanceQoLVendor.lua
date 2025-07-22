@@ -12,6 +12,15 @@ local lastEbox = nil
 local sellMoreButton
 local hasMoreItems = false
 local sellMarkLookup = {}
+local updateSellMarks
+
+local function inventoryOpen()
+	if ContainerFrameCombinedBags:IsShown() then return true end
+	for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
+		if frame:IsShown() then return true end
+	end
+	return false
+end
 
 local function updateSellMoreButton()
 	if not sellMoreButton then return end
@@ -478,6 +487,22 @@ local function addGeneralFrame(container)
 			desc = L["vendorAltClickIncludeDesc"],
 			var = "vendorAltClickInclude",
 		},
+		{
+			text = L["vendorShowSellOverlay"],
+			var = "vendorShowSellOverlay",
+			func = function(self, _, checked)
+				addon.db["vendorShowSellOverlay"] = checked
+				if inventoryOpen() then updateSellMarks() end
+			end,
+		},
+		{
+			text = L["vendorShowSellTooltip"],
+			var = "vendorShowSellTooltip",
+			func = function(self, _, checked)
+				addon.db["vendorShowSellTooltip"] = checked
+				if inventoryOpen() then updateSellMarks() end
+			end,
+		},
 	}
 	table.sort(data, function(a, b) return a.text < b.text end)
 
@@ -529,8 +554,32 @@ function addon.Vendor.functions.treeCallback(container, group)
 	end
 end
 
-local function updateSellMarks()
+function updateSellMarks()
+	local overlay = addon.db["vendorShowSellOverlay"]
+	local tooltip = addon.db["vendorShowSellTooltip"]
+
+	if not overlay and not tooltip then
+		local frames = { ContainerFrameCombinedBags }
+		for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
+			table.insert(frames, frame)
+		end
+
+		for _, frame in ipairs(frames) do
+			if frame and frame:IsShown() then
+				for _, itemButton in frame:EnumerateValidItems() do
+					if itemButton.ItemMarkSell then
+						itemButton.ItemMarkSell:Hide()
+						itemButton.SellOverlay:Hide()
+					end
+				end
+			end
+		end
+		wipe(sellMarkLookup)
+		return
+	end
+
 	wipe(sellMarkLookup)
+
 	local items = lookupItems() or {}
 	for _, v in ipairs(items) do
 		sellMarkLookup[v.bag .. "_" .. v.slot] = true
@@ -547,7 +596,7 @@ local function updateSellMarks()
 				local bag = itemButton:GetBagID()
 				local slot = itemButton:GetID()
 				local key = bag .. "_" .. slot
-				if sellMarkLookup[key] then
+				if overlay and sellMarkLookup[key] then
 					if not itemButton.ItemMarkSell then
 						itemButton.ItemMarkSell = itemButton:CreateTexture(nil, "OVERLAY", nil, 7)
 						itemButton.ItemMarkSell:SetTexture("Interface\\AddOns\\EnhanceQoLVendor\\Art\\sell.tga")
@@ -610,6 +659,7 @@ end
 
 if TooltipDataProcessor then
 	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
+		if not addon.db["vendorShowSellTooltip"] then return end
 		if not data or not tooltip.GetOwner then return end
 		local oTooltip = tooltip.GetOwner and tooltip:GetOwner()
 		if not oTooltip or not oTooltip.GetBagID or not oTooltip.GetID then return end
