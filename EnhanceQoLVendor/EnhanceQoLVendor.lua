@@ -11,6 +11,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Vendor")
 local lastEbox = nil
 local sellMoreButton
 local hasMoreItems = false
+local sellMarkLookup = {}
 
 local function updateSellMoreButton()
 	if not sellMoreButton then return end
@@ -528,6 +529,42 @@ function addon.Vendor.functions.treeCallback(container, group)
 	end
 end
 
+local function updateSellMarks()
+	wipe(sellMarkLookup)
+	local items = lookupItems() or {}
+	for _, v in ipairs(items) do
+		sellMarkLookup[v.bag .. "_" .. v.slot] = true
+	end
+
+	local frames = { ContainerFrameCombinedBags }
+	for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
+		table.insert(frames, frame)
+	end
+
+	for _, frame in ipairs(frames) do
+		if frame and frame:IsShown() then
+			for _, itemButton in frame:EnumerateValidItems() do
+				local bag = itemButton:GetBagID()
+				local slot = itemButton:GetID()
+				local key = bag .. "_" .. slot
+				if sellMarkLookup[key] then
+					if not itemButton.ItemMarkSell then
+						itemButton.ItemMarkSell = itemButton:CreateFontString(nil, "ARTWORK")
+						itemButton.ItemMarkSell:SetDrawLayer("ARTWORK", 2)
+						itemButton.ItemMarkSell:SetFont(addon.variables.defaultFont, 12, "OUTLINE")
+						itemButton.ItemMarkSell:SetPoint("CENTER", itemButton, "CENTER")
+						itemButton.ItemMarkSell:SetText("S")
+						itemButton.ItemMarkSell:SetTextColor(1, 0.82, 0)
+					end
+					itemButton.ItemMarkSell:Show()
+				elseif itemButton.ItemMarkSell then
+					itemButton.ItemMarkSell:Hide()
+				end
+			end
+		end
+	end
+end
+
 local function AltClickHook(self, button)
 	if not addon.db["vendorAltClickInclude"] then return end
 	if not IsAltKeyDown() or not (button == "LeftButton" or button == "RightButton") then return end
@@ -554,6 +591,7 @@ local function AltClickHook(self, button)
 						print(REMOVE .. ":", id, name)
 					end
 				end
+				updateSellMarks()
 			end)
 		end
 	end
@@ -561,7 +599,7 @@ end
 
 hooksecurefunc(_G.ContainerFrameItemButtonMixin, "OnModifiedClick", AltClickHook)
 
-hooksecurefunc(ContainerFrameCombinedBags, "UpdateItems", function() local items = lookupItems() end)
+hooksecurefunc(ContainerFrameCombinedBags, "UpdateItems", updateSellMarks)
 for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
-	hooksecurefunc(frame, "UpdateItems", function() local items = lookupItems() end)
+	hooksecurefunc(frame, "UpdateItems", updateSellMarks)
 end
