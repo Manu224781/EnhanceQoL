@@ -305,6 +305,44 @@ function addon.functions.addToTree(parentValue, newElement, noSort)
 end
 
 local knownButtons = {}
+local tooltipCache = {}
+local function getTooltipInfo(bag, slot)
+	local key = bag .. "_" .. slot
+	local cached = tooltipCache[key]
+	if cached then return cached[1], cached[2], cached[3], cached[4] end
+
+	local bType, bKey, upgradeKey, bAuc
+	local data = C_TooltipInfo.GetBagItem(bag, slot)
+	if data and data.lines then
+		for i, v in pairs(data.lines) do
+			if v.type == 20 then
+				bAuc = true
+				if v.leftText == ITEM_BIND_ON_EQUIP then
+					bType = "BoE"
+					bKey = "boe"
+					bAuc = false
+				elseif v.leftText == ITEM_ACCOUNTBOUND_UNTIL_EQUIP or v.leftText == ITEM_BIND_TO_ACCOUNT_UNTIL_EQUIP then
+					bType = "WuE"
+					bKey = "wue"
+				elseif v.leftText == ITEM_ACCOUNTBOUND or v.leftText == ITEM_BIND_TO_BNETACCOUNT then
+					bType = "WB"
+					bKey = "wb"
+				end
+			elseif v.type == 42 then
+				local text = v.rightText or v.leftText
+				if text then
+					local tier = text:gsub(".+:%s?", ""):gsub("%s?%d/%d", "")
+					if tier then upgradeKey = string.lower(tier) end
+				end
+			elseif v.type == 0 and v.leftText == ITEM_CONJURED then
+				bAuc = true
+			end
+		end
+	end
+
+	tooltipCache[key] = { bType, bKey, upgradeKey, bAuc }
+	return bType, bKey, upgradeKey, bAuc
+end
 
 local function updateButtonInfo(itemButton, bag, slot, frameName)
 	itemButton:SetAlpha(1)
@@ -315,158 +353,138 @@ local function updateButtonInfo(itemButton, bag, slot, frameName)
 		itemButton.ItemBoundType:SetAlpha(1)
 		itemButton.ItemBoundType:SetText("")
 	end
-	local eItem = Item:CreateFromBagAndSlot(bag, slot)
-	if eItem and not eItem:IsItemEmpty() then
-		eItem:ContinueOnItemLoad(function()
-			local _, _, _, _, _, _, _, _, itemEquipLoc, _, sellPrice, classID, subclassID, _, expId = GetItemInfo(eItem:GetItemLink())
-			local bType, bKey, upgradeKey, bAuc
-			local data
-			if addon.db["showBindOnBagItems"] or addon.itemBagFilters["bind"] or addon.itemBagFilters["upgrade"] or addon.itemBagFilters["misc_auctionhouse_sellable"] then
-				data = GetBagItem(bag, slot)
-				if data and data.lines then
-					for i, v in pairs(data.lines) do
-						if v.type == 20 then
-							bAuc = true
-							if v.leftText == ITEM_BIND_ON_EQUIP then
-								bType = "BoE"
-								bKey = "boe"
-								bAuc = false
-							elseif v.leftText == ITEM_ACCOUNTBOUND_UNTIL_EQUIP or v.leftText == ITEM_BIND_TO_ACCOUNT_UNTIL_EQUIP then
-								bType = "WuE"
-								bKey = "wue"
-							elseif v.leftText == ITEM_ACCOUNTBOUND or v.leftText == ITEM_BIND_TO_BNETACCOUNT then
-								bType = "WB"
-								bKey = "wb"
-							end
-						elseif v.type == 42 then
-							local text = v.rightText or v.leftText
-							if text then
-								local tier = text:gsub(".+:%s?", ""):gsub("%s?%d/%d", "")
-								if tier then upgradeKey = string.lower(tier) end
-							end
-						elseif v.type == 0 and v.leftText == ITEM_CONJURED then
-							bAuc = true
-						end
-					end
-				end
-			end
-			local setVisibility = false
+	local itemLink = C_Container.GetContainerItemLink(bag, slot)
+	-- local eItem = Item:CreateFromBagAndSlot(bag, slot)
+	-- if eItem and not eItem:IsItemEmpty() then
+	if itemLink then
+		-- eItem:ContinueOnItemLoad(function()
+		local _, _, itemQuality, _, _, _, _, _, itemEquipLoc, _, sellPrice, classID, subclassID, _, expId = GetItemInfo(itemLink)
 
-			if addon.filterFrame then
-				if classID == 15 and subclassID == 0 then bAuc = true end -- ignore lockboxes etc.
-				local cInfo = GetContainerItemInfo(bag, slot)
-				if cInfo and cInfo.isFiltered then setVisibility = true end
-				if addon.filterFrame:IsVisible() then
-					if addon.itemBagFilters["rarity"] then
-						if nil == addon.itemBagFiltersQuality[eItem:GetItemQuality()] or addon.itemBagFiltersQuality[eItem:GetItemQuality()] == false then setVisibility = true end
-					end
-					local cilvl = eItem:GetCurrentItemLevel()
-					if addon.itemBagFilters["minLevel"] and (cilvl < addon.itemBagFilters["minLevel"] or (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc])) then
-						setVisibility = true
-					end
-					if addon.itemBagFilters["maxLevel"] and (cilvl > addon.itemBagFilters["maxLevel"] or (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc])) then
-						setVisibility = true
-					end
-					if addon.itemBagFilters["currentExpension"] and LE_EXPANSION_LEVEL_CURRENT ~= expId then setVisibility = true end
-					if addon.itemBagFilters["equipment"] and (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc]) then setVisibility = true end
-					if addon.itemBagFilters["bind"] then
-						if nil == addon.itemBagFiltersBound[bKey] or addon.itemBagFiltersBound[bKey] == false then setVisibility = true end
-					end
-					if addon.itemBagFilters["misc_auctionhouse_sellable"] then
-						if bAuc then setVisibility = true end
-					end
-					if addon.itemBagFilters["upgrade"] then
-						if nil == addon.itemBagFiltersUpgrade[upgradeKey] or addon.itemBagFiltersUpgrade[upgradeKey] == false then setVisibility = true end
-					end
-					if addon.itemBagFilters["misc_sellable"] then
-						if addon.itemBagFilters["misc_sellable"] == true and (not sellPrice or sellPrice == 0) then setVisibility = true end
-					end
-					if
-						addon.itemBagFilters["usableOnly"]
-						and (
-							IsEquippableItem(eItem:GetItemLink()) == false
-							or (
-								(
-									nil == addon.itemBagFilterTypes[addon.variables.unitClass]
-									or nil == addon.itemBagFilterTypes[addon.variables.unitClass][addon.variables.unitSpec]
-									or nil == addon.itemBagFilterTypes[addon.variables.unitClass][addon.variables.unitSpec][classID]
-									or nil == addon.itemBagFilterTypes[addon.variables.unitClass][addon.variables.unitSpec][classID][subclassID]
-									or itemEquipLoc == "INVTYPE_TABARD" -- ignore Tabards
-								) and itemEquipLoc ~= "INVTYPE_CLOAK" -- ignore Cloaks
-							)
+		local bType, bKey, upgradeKey, bAuc
+		local data
+		if addon.db["showBindOnBagItems"] or addon.itemBagFilters["bind"] or addon.itemBagFilters["upgrade"] or addon.itemBagFilters["misc_auctionhouse_sellable"] then
+			bType, bKey, upgradeKey, bAuc = getTooltipInfo(bag, slot)
+		end
+		local setVisibility = false
+
+		if addon.filterFrame then
+			if classID == 15 and subclassID == 0 then bAuc = true end -- ignore lockboxes etc.
+			if not itemButton.matchesSearch then setVisibility = true end
+			if addon.filterFrame:IsVisible() then
+				if addon.itemBagFilters["rarity"] then
+					if nil == addon.itemBagFiltersQuality[itemQuality] or addon.itemBagFiltersQuality[itemQuality] == false then setVisibility = true end
+				end
+				local cilvl = C_Item.GetDetailedItemLevelInfo(itemLink)
+				if addon.itemBagFilters["minLevel"] and (cilvl < addon.itemBagFilters["minLevel"] or (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc])) then
+					setVisibility = true
+				end
+				if addon.itemBagFilters["maxLevel"] and (cilvl > addon.itemBagFilters["maxLevel"] or (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc])) then
+					setVisibility = true
+				end
+				if addon.itemBagFilters["currentExpension"] and LE_EXPANSION_LEVEL_CURRENT ~= expId then setVisibility = true end
+				if addon.itemBagFilters["equipment"] and (nil == itemEquipLoc or addon.variables.ignoredEquipmentTypes[itemEquipLoc]) then setVisibility = true end
+				if addon.itemBagFilters["bind"] then
+					if nil == addon.itemBagFiltersBound[bKey] or addon.itemBagFiltersBound[bKey] == false then setVisibility = true end
+				end
+				if addon.itemBagFilters["misc_auctionhouse_sellable"] then
+					if bAuc then setVisibility = true end
+				end
+				if addon.itemBagFilters["upgrade"] then
+					if nil == addon.itemBagFiltersUpgrade[upgradeKey] or addon.itemBagFiltersUpgrade[upgradeKey] == false then setVisibility = true end
+				end
+				if addon.itemBagFilters["misc_sellable"] then
+					if addon.itemBagFilters["misc_sellable"] == true and (not sellPrice or sellPrice == 0) then setVisibility = true end
+				end
+				if
+					addon.itemBagFilters["usableOnly"]
+					and (
+						IsEquippableItem(itemLink) == false
+						or (
+							(
+								nil == addon.itemBagFilterTypes[addon.variables.unitClass]
+								or nil == addon.itemBagFilterTypes[addon.variables.unitClass][addon.variables.unitSpec]
+								or nil == addon.itemBagFilterTypes[addon.variables.unitClass][addon.variables.unitSpec][classID]
+								or nil == addon.itemBagFilterTypes[addon.variables.unitClass][addon.variables.unitSpec][classID][subclassID]
+								or itemEquipLoc == "INVTYPE_TABARD" -- ignore Tabards
+							) and itemEquipLoc ~= "INVTYPE_CLOAK" -- ignore Cloaks
 						)
-					then
-						setVisibility = true
+					)
+				then
+					setVisibility = true
+				end
+			end
+		end
+
+		if
+			(itemEquipLoc ~= "INVTYPE_NON_EQUIP_IGNORE" or (classID == 4 and subclassID == 0)) and not (classID == 4 and subclassID == 5) -- Cosmetic
+		then
+			if not itemButton.OverlayFilter then itemButton.OverlayFilter = itemButton:CreateFontString(nil, "ARTWORK") end
+			if not itemButton.ItemLevelText then
+				-- Create behind Blizzard's search overlay so it fades automatically
+				itemButton.ItemLevelText = itemButton:CreateFontString(nil, "ARTWORK")
+				itemButton.ItemLevelText:SetDrawLayer("ARTWORK", 1)
+				itemButton.ItemLevelText:SetFont(addon.variables.defaultFont, 13, "OUTLINE")
+				itemButton.ItemLevelText:SetPoint("TOPRIGHT", itemButton, "TOPRIGHT", 0, -2)
+
+				itemButton.ItemLevelText:SetShadowOffset(2, -2)
+				itemButton.ItemLevelText:SetShadowColor(0, 0, 0, 1)
+			end
+			if frameName then table.insert(knownButtons[frameName], itemButton) end
+			if nil ~= addon.variables.allowedEquipSlotsBagIlvl[itemEquipLoc] then
+				-- local color = eItem:GetItemQualityColor()
+				local r, g, b = C_Item.GetItemQualityColor(itemQuality)
+				local color = {
+					r = r,
+					g = g,
+					b = b,
+				}
+				local itemLevelText = C_Item.GetDetailedItemLevelInfo(itemLink)
+
+				itemButton.ItemLevelText:SetFormattedText(itemLevelText)
+				itemButton.ItemLevelText:SetTextColor(color.r, color.g, color.b, 1)
+
+				itemButton.ItemLevelText:Show()
+
+				if addon.db["showBindOnBagItems"] and bType then
+					if not itemButton.ItemBoundType then
+						-- Position behind Blizzard's overlay
+						itemButton.ItemBoundType = itemButton:CreateFontString(nil, "ARTWORK")
+						itemButton.ItemBoundType:SetDrawLayer("ARTWORK", 1)
+						itemButton.ItemBoundType:SetFont(addon.variables.defaultFont, 10, "OUTLINE")
+						itemButton.ItemBoundType:SetPoint("BOTTOMLEFT", itemButton, "BOTTOMLEFT", 2, 2)
+
+						itemButton.ItemBoundType:SetShadowOffset(2, 2)
+						itemButton.ItemBoundType:SetShadowColor(0, 0, 0, 1)
 					end
+					itemButton.ItemBoundType:SetFormattedText(bType)
+					itemButton.ItemBoundType:Show()
+				elseif itemButton.ItemBoundType then
+					itemButton.ItemBoundType:Hide()
 				end
+			elseif itemButton.ItemLevelText then
+				if itemButton.ItemBoundType then itemButton.ItemBoundType:Hide() end
+				itemButton.ItemLevelText:Hide()
+			end
+		end
+		-- itemButton:SetMatchesSearch(not setVisibility)
+		if setVisibility then
+			itemButton:SetAlpha(0.1)
+			if itemButton.ItemContextOverlay then
+				itemButton.ItemContextOverlay:Show()
+				itemButton.ItemContextOverlay:SetColorTexture(0, 0, 0, 0.8)
 			end
 
-			if
-				(itemEquipLoc ~= "INVTYPE_NON_EQUIP_IGNORE" or (classID == 4 and subclassID == 0)) and not (classID == 4 and subclassID == 5) -- Cosmetic
-			then
-				if not itemButton.OverlayFilter then itemButton.OverlayFilter = itemButton:CreateFontString(nil, "ARTWORK") end
-				if not itemButton.ItemLevelText then
-					-- Create behind Blizzard's search overlay so it fades automatically
-					itemButton.ItemLevelText = itemButton:CreateFontString(nil, "ARTWORK")
-					itemButton.ItemLevelText:SetDrawLayer("ARTWORK", 1)
-					itemButton.ItemLevelText:SetFont(addon.variables.defaultFont, 13, "OUTLINE")
-					itemButton.ItemLevelText:SetPoint("TOPRIGHT", itemButton, "TOPRIGHT", 0, -2)
-
-					itemButton.ItemLevelText:SetShadowOffset(2, -2)
-					itemButton.ItemLevelText:SetShadowColor(0, 0, 0, 1)
-				end
-				if frameName then table.insert(knownButtons[frameName], itemButton) end
-				local link = eItem:GetItemLink()
-				local invSlot = select(4, GetItemInfoInstant(link))
-				if nil ~= addon.variables.allowedEquipSlotsBagIlvl[invSlot] then
-					local color = eItem:GetItemQualityColor()
-					local itemLevelText = eItem:GetCurrentItemLevel()
-
-					itemButton.ItemLevelText:SetFormattedText(itemLevelText)
-					itemButton.ItemLevelText:SetTextColor(color.r, color.g, color.b, 1)
-
-					itemButton.ItemLevelText:Show()
-
-					if addon.db["showBindOnBagItems"] and bType then
-						if not itemButton.ItemBoundType then
-							-- Position behind Blizzard's overlay
-							itemButton.ItemBoundType = itemButton:CreateFontString(nil, "ARTWORK")
-							itemButton.ItemBoundType:SetDrawLayer("ARTWORK", 1)
-							itemButton.ItemBoundType:SetFont(addon.variables.defaultFont, 10, "OUTLINE")
-							itemButton.ItemBoundType:SetPoint("BOTTOMLEFT", itemButton, "BOTTOMLEFT", 2, 2)
-
-							itemButton.ItemBoundType:SetShadowOffset(2, 2)
-							itemButton.ItemBoundType:SetShadowColor(0, 0, 0, 1)
-						end
-						itemButton.ItemBoundType:SetFormattedText(bType)
-						itemButton.ItemBoundType:Show()
-					elseif itemButton.ItemBoundType then
-						itemButton.ItemBoundType:Hide()
-					end
-				elseif itemButton.ItemLevelText then
-					if itemButton.ItemBoundType then itemButton.ItemBoundType:Hide() end
-					itemButton.ItemLevelText:Hide()
-				end
-			end
-			-- itemButton:SetMatchesSearch(not setVisibility)
-			if setVisibility then
-				itemButton:SetAlpha(0.1)
-				if itemButton.ItemContextOverlay then
-					itemButton.ItemContextOverlay:Show()
-					itemButton.ItemContextOverlay:SetColorTexture(0, 0, 0, 0.8)
-				end
-
-				if itemButton.ItemLevelText then itemButton.ItemLevelText:SetAlpha(0.1) end
-				if itemButton.ItemBoundType then itemButton.ItemBoundType:SetAlpha(0.1) end
-				if itemButton.ProfessionQualityOverlay and addon.db["fadeBagQualityIcons"] then itemButton.ProfessionQualityOverlay:SetAlpha(0.1) end
-			else
-				itemButton:SetAlpha(1)
-				if itemButton.ItemContextOverlay then itemButton.ItemContextOverlay:Hide() end
-				if itemButton.ItemLevelText then itemButton.ItemLevelText:SetAlpha(1) end
-				if itemButton.ItemBoundType then itemButton.ItemBoundType:SetAlpha(1) end
-				if itemButton.ProfessionQualityOverlay and addon.db["fadeBagQualityIcons"] then itemButton.ProfessionQualityOverlay:SetAlpha(1) end
-			end
-		end)
+			if itemButton.ItemLevelText then itemButton.ItemLevelText:SetAlpha(0.1) end
+			if itemButton.ItemBoundType then itemButton.ItemBoundType:SetAlpha(0.1) end
+			if itemButton.ProfessionQualityOverlay and addon.db["fadeBagQualityIcons"] then itemButton.ProfessionQualityOverlay:SetAlpha(0.1) end
+		else
+			itemButton:SetAlpha(1)
+			if itemButton.ItemContextOverlay then itemButton.ItemContextOverlay:Hide() end
+			if itemButton.ItemLevelText then itemButton.ItemLevelText:SetAlpha(1) end
+			if itemButton.ItemBoundType then itemButton.ItemBoundType:SetAlpha(1) end
+			if itemButton.ProfessionQualityOverlay and addon.db["fadeBagQualityIcons"] then itemButton.ProfessionQualityOverlay:SetAlpha(1) end
+		end
+		-- end)
 	elseif itemButton.ItemLevelText then
 		if itemButton.ItemBoundType then itemButton.ItemBoundType:Hide() end
 		itemButton.ItemLevelText:Hide()
