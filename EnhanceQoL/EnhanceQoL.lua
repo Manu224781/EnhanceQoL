@@ -433,8 +433,6 @@ end
 local function getTooltipInfoFromLink(link)
 	if not link then return nil, nil end
 
-	local itemLevel = C_Item.GetDetailedItemLevelInfo(link)
-
 	local enchantID = tonumber(link:match("item:%d+:(%d+)") or 0)
 	local enchantText = nil
 
@@ -451,11 +449,10 @@ local function getTooltipInfoFromLink(link)
 					local text = strmatch(gsub(gsub(gsub(v.leftText, "%s?|A.-|a", ""), "|cn.-:(.-)|r", "%1"), "[&+] ?", ""), addon.variables.enchantString)
 					local icons = {}
 					v.leftText:gsub("(|A.-|a)", function(iconString) table.insert(icons, iconString) end)
-					if #icons > 0 then text = text .. icons[1] end
 					text = text:gsub("(%d+)", "%1")
 					text = text:gsub("(%a%a%a)%a+", "%1")
 					text = text:gsub("%%", "%%%%")
-					enchantText = colorHex .. text .. "|r"
+					enchantText = colorHex .. text .. (icons[1] or "") .. "|r"
 					break
 				end
 			end
@@ -466,7 +463,7 @@ local function getTooltipInfoFromLink(link)
 		enchantText = nil
 	end
 
-	return itemLevel, enchantText
+	return enchantText
 end
 
 local itemCount = 0
@@ -655,9 +652,6 @@ local function onInspect(arg1)
 							local color = eItem:GetItemQualityColor()
 							local itemLevelText = eItem:GetCurrentItemLevel()
 
-							local cacheIlvl = select(1, getTooltipInfoFromLink(itemLink))
-							if cacheIlvl then itemLevelText = cacheIlvl end
-
 							ilvlSum = ilvlSum + itemLevelText
 							element.ilvl:SetFormattedText(itemLevelText)
 							element.ilvl:SetTextColor(color.r, color.g, color.b, 1)
@@ -686,7 +680,7 @@ local function onInspect(arg1)
 								element.enchant:SetFont(addon.variables.defaultFont, 12, "OUTLINE")
 							end
 							if element.borderGradient then
-								local _, enchantText = getTooltipInfoFromLink(itemLink)
+								local enchantText = getTooltipInfoFromLink(itemLink)
 								local foundEnchant = enchantText ~= nil
 								if foundEnchant then element.enchant:SetFormattedText(enchantText) end
 
@@ -783,12 +777,11 @@ local function setIlvlText(element, slot)
 					end
 				end
 
-				local cacheIlvl, enchantText = getTooltipInfoFromLink(link)
+				local enchantText = getTooltipInfoFromLink(link)
 
 				if addon.db["showIlvlOnCharframe"] then
 					local color = eItem:GetItemQualityColor()
 					local itemLevelText = eItem:GetCurrentItemLevel()
-					if cacheIlvl then itemLevelText = cacheIlvl end
 
 					element.ilvl:SetFormattedText(itemLevelText)
 					element.ilvl:SetTextColor(color.r, color.g, color.b, 1)

@@ -10,8 +10,6 @@
 - **Memory usage**
   - Removed obsolete and duplicate function calls
   - Replaced excessive API calls with leaner, more performant alternatives
-- **Character frame**
-  - Enchant text is now cached by enchant ID to avoid repeated tooltip parsing
 - **Aura Tracker**
   - Fixed a rare issue where some auras marked **“show when missing”** were not visible on login
 
