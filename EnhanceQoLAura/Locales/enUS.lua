@@ -3,6 +3,7 @@ local L = LibStub("AceLocale-3.0"):NewLocale("EnhanceQoL_Aura", "enUS", true) --
 L["Aura"] = "Aura"
 L["DragToPosition"] = "Drag me\n%s"
 L["BuffTracker"] = "Aura Tracker"
+L["CastTracker"] = "Cast Tracker"
 L["EnableBuffTracker"] = 'Enable Aura Tracker "%s"'
 L["GrowthDirection"] = "Growth Direction"
 L["AddSpellID"] = "Add Spell ID"

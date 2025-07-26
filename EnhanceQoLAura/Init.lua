@@ -83,3 +83,12 @@ for _, cat in pairs(addon.db["buffTrackerCategories"]) do
 		end
 	end
 end
+
+addon.functions.InitDBValue("castTrackerEnabled", true)
+addon.functions.InitDBValue("castTracker", {
+	anchor = { point = "CENTER", x = 0, y = 0 },
+	width = 200,
+	height = 20,
+	color = { 1, 0.5, 0, 1 },
+	sound = SOUNDKIT.ALARM_CLOCK_WARNING_3,
+})
