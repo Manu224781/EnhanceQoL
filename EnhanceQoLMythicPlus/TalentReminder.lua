@@ -28,16 +28,22 @@ local function createSeasonInfo()
 		for spellID, data in pairs(section.spells) do
 			if data.mapID and data.cId then
 				for cId in pairs(data.cId) do
-					local mID
-					if type(data.mapID) == "table" then
-						mID = data.mapID[cId]
-					else
-						mID = data.mapID
-					end
-					if mID and cModeIDLookup[cId] and not addon.MythicPlus.variables.seasonMapHash[mID] then
-						local mapName = C_ChallengeMode.GetMapUIInfo(cId)
-						table.insert(addon.MythicPlus.variables.seasonMapInfo, { name = mapName, id = mID })
-						addon.MythicPlus.variables.seasonMapHash[mID] = true
+					if cModeIDLookup[cId] then
+						local mID
+						if type(data.mapID) == "table" then
+							if type(data.mapID[cId]) == "table" then
+								mID = data.mapID[cId].mapID .. "_" .. data.mapID[cId].zoneID
+							else
+								mID = data.mapID[cId]
+							end
+						else
+							mID = data.mapID
+						end
+						if mID and not addon.MythicPlus.variables.seasonMapHash[mID] then
+							local mapName = C_ChallengeMode.GetMapUIInfo(cId)
+							table.insert(addon.MythicPlus.variables.seasonMapInfo, { name = mapName, id = mID })
+							addon.MythicPlus.variables.seasonMapHash[mID] = true
+						end
 					end
 				end
 			end
@@ -237,35 +243,39 @@ local function checkLoadout(isReadycheck)
 	then
 		if #addon.MythicPlus.variables.seasonMapInfo == 0 then createSeasonInfo() end
 		local _, _, difficulty, _, _, _, _, mapID = GetInstanceInfo()
-		if
-			difficulty == 23
-			and mapID
-			and addon.MythicPlus.variables.seasonMapHash[mapID]
-			and addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID]
-		then
-			local reqTalent = addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID]
-			if
-				reqTalent
-				and addon.MythicPlus.variables.knownLoadout
-				and addon.MythicPlus.variables.knownLoadout[addon.MythicPlus.variables.currentSpecID]
-				and addon.MythicPlus.variables.knownLoadout[addon.MythicPlus.variables.currentSpecID][reqTalent]
-			then
-				local actTalent = C_ClassTalents.GetLastSelectedSavedConfigID(addon.MythicPlus.variables.currentSpecID)
-				if type(reqTalent) == "number" and reqTalent > 0 then
-					if actTalent ~= reqTalent then
-						showPopup(actTalent, reqTalent)
-					else
-						deleteFrame(ChangeTalentUIPopup)
+
+		if difficulty == 23 and mapID then
+			if not addon.MythicPlus.variables.seasonMapHash[mapID] then
+				-- try combined MapID with zoneID
+				local zoneID = C_Map.GetBestMapForUnit("player")
+				if addon.MythicPlus.variables.seasonMapHash[mapID .. "_" .. zoneID] then mapID = mapID .. "_" .. zoneID end
+			end
+
+			if addon.MythicPlus.variables.seasonMapHash[mapID] and addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID] then
+				local reqTalent = addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID]
+				if
+					reqTalent
+					and addon.MythicPlus.variables.knownLoadout
+					and addon.MythicPlus.variables.knownLoadout[addon.MythicPlus.variables.currentSpecID]
+					and addon.MythicPlus.variables.knownLoadout[addon.MythicPlus.variables.currentSpecID][reqTalent]
+				then
+					local actTalent = C_ClassTalents.GetLastSelectedSavedConfigID(addon.MythicPlus.variables.currentSpecID)
+					if type(reqTalent) == "number" and reqTalent > 0 then
+						if actTalent ~= reqTalent then
+							showPopup(actTalent, reqTalent)
+						else
+							deleteFrame(ChangeTalentUIPopup)
+						end
+					elseif type(reqTalent) == "string" and string.len(reqTalent) > 0 then
+						if C_Traits.GenerateImportString(C_ClassTalents.GetActiveConfigID()) ~= reqTalent:gsub("_.*$", "") then
+							showPopup(actTalent, reqTalent)
+						else
+							deleteFrame(ChangeTalentUIPopup)
+						end
 					end
-				elseif type(reqTalent) == "string" and string.len(reqTalent) > 0 then
-					if C_Traits.GenerateImportString(C_ClassTalents.GetActiveConfigID()) ~= reqTalent:gsub("_.*$", "") then
-						showPopup(actTalent, reqTalent)
-					else
-						deleteFrame(ChangeTalentUIPopup)
-					end
+				else
+					deleteFrame(ChangeTalentUIPopup)
 				end
-			else
-				deleteFrame(ChangeTalentUIPopup)
 			end
 		end
 	elseif (ChangeTalentUIPopup and ChangeTalentUIPopup:IsVisible()) or (ChangeTalentUIWarning and ChangeTalentUIWarning:IsVisible()) then
@@ -340,6 +350,9 @@ local eventHandlers = {
 	end,
 	["READY_CHECK"] = function()
 		if addon.db["talentReminderLoadOnReadyCheck"] then checkLoadout(true) end
+	end,
+	["ZONE_CHANGED"] = function()
+		if IsInInstance() then checkLoadout() end
 	end,
 	["ZONE_CHANGED_NEW_AREA"] = function() checkLoadout() end,
 	["PLAYER_ENTERING_WORLD"] = function()

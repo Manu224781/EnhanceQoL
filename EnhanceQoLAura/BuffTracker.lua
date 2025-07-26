@@ -12,6 +12,13 @@ local AceGUI = addon.AceGUI
 
 -- luacheck: globals ChatFrame_OpenChat
 
+local bleedList = {
+	-- Cinderbrew Meatery
+	[441413] = true, -- Shredding Sting
+	[438975] = true, -- Shredding Sting - Boss Ability
+	[434773] = true, -- mean mug
+}
+
 local selectedCategory = addon.db["buffTrackerSelectedCategory"] or 1
 
 for _, cat in pairs(addon.db["buffTrackerCategories"]) do
@@ -105,6 +112,14 @@ local roleNames = {
 	TANK = INLINE_TANK_ICON .. " " .. TANK,
 	HEALER = INLINE_HEALER_ICON .. " " .. HEALER,
 	DAMAGER = INLINE_DAMAGER_ICON .. " " .. DAMAGER,
+}
+
+local DebuffBorderColors = {
+	Magic = { 0.2, 0.6, 1 },
+	Curse = { 0.6, 0, 1 },
+	Disease = { 0.6, 0.4, 0 },
+	Poison = { 0, 0.6, 0 },
+	none = { 1, 0, 0 },
 }
 
 local function categoryAllowed(cat)
@@ -420,6 +435,12 @@ local function createBuffFrame(icon, parent, size, castOnClick, spellID, showTim
 	frame:SetSize(size, size)
 	frame:SetFrameStrata("DIALOG")
 
+	local border = frame:CreateTexture(nil, "BORDER")
+	border:SetPoint("TOPLEFT", frame, "TOPLEFT", -1, 1)
+	border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 1, -1)
+	border:SetColorTexture(0, 0, 0, 0)
+	frame.border = border
+
 	local tex = frame:CreateTexture(nil, "ARTWORK")
 	tex:SetAllPoints(frame)
 	tex:SetTexture(icon)
@@ -451,6 +472,12 @@ local function createBuffFrame(icon, parent, size, castOnClick, spellID, showTim
 	charges:SetShadowOffset(1, -1)
 	charges:SetShadowColor(0, 0, 0, 1)
 	frame.charges = charges
+
+	local custom = overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	custom:SetFont(addon.variables.defaultFont, 12, "OUTLINE")
+	custom:SetShadowOffset(1, -1)
+	custom:SetShadowColor(0, 0, 0, 1)
+	frame.customText = custom
 
 	frame.castOnClick = castOnClick
 	if castOnClick then
@@ -485,6 +512,7 @@ local function updateBuff(catId, id, changedId, firstScan)
 	if firstScan == nil then firstScan = false end
 	local cat = getCategory(catId)
 	local buff = cat and cat.buffs and cat.buffs[id]
+	local tType = buff and buff.trackType or (cat and cat.trackType) or "BUFF"
 	local key = catId .. ":" .. id
 	local before = timedAuras[key] ~= nil
 	if buff and hasTimeCondition(buff.conditions) then
@@ -555,7 +583,7 @@ local function updateBuff(catId, id, changedId, firstScan)
 			if firstScan and aura.expirationTime and aura.expirationTime > 0 and (not aura.duration or aura.duration <= 0) then aura.duration = aura.expirationTime - GetTime() end
 			if aura.duration and aura.duration > 0 then
 				frame.cd:SetCooldown(aura.expirationTime - aura.duration, aura.duration)
-				frame.cd:SetReverse(true)
+				frame.cd:SetReverse(tType == "DEBUFF")
 			else
 				frame.cd:SetReverse(false)
 				frame.cd:Clear()
@@ -621,6 +649,7 @@ local function updateBuff(catId, id, changedId, firstScan)
 			frame.icon:SetAlpha(1)
 			if displayAura.duration and displayAura.duration > 0 then
 				frame.cd:SetCooldown(displayAura.expirationTime - displayAura.duration, displayAura.duration)
+				frame.cd:SetReverse(tType == "DEBUFF")
 			else
 				frame.cd:Clear()
 			end
@@ -727,6 +756,47 @@ local function updateBuff(catId, id, changedId, firstScan)
 			end
 		else
 			frame.charges:Hide()
+		end
+
+		if buff and buff.customTextEnabled and buff.customText and buff.customText ~= "" then
+			local pos = buff.customTextPosition or "TOP"
+			frame.customText:ClearAllPoints()
+			local margin = 2
+			if pos == "TOP" then
+				frame.customText:SetPoint("BOTTOM", frame, "TOP", 0, margin)
+			elseif pos == "BOTTOM" then
+				frame.customText:SetPoint("TOP", frame, "BOTTOM", 0, -margin)
+			elseif pos == "LEFT" then
+				frame.customText:SetPoint("RIGHT", frame, "LEFT", -margin, 0)
+			else
+				frame.customText:SetPoint("LEFT", frame, "RIGHT", margin, 0)
+			end
+
+			local stack = aura and aura.applications or 0
+			local val = stack
+			if buff.customTextUseStacks then
+				val = stack * (buff.customTextBase or 1)
+				if buff.customTextMin and val < buff.customTextMin then val = buff.customTextMin end
+			end
+			local text = tostring(buff.customText)
+			text = text:gsub("<stack>", tostring(val))
+			frame.customText:SetText(text)
+			frame.customText:Show()
+		else
+			frame.customText:Hide()
+		end
+
+		if frame.border then
+			local tType = buff and buff.trackType or (cat and cat.trackType) or "BUFF"
+			if tType == "DEBUFF" and displayAura then
+				if displayAura.dispelName or bleedList[displayAura.spellId] then
+					local dtype = displayAura.dispelName or displayAura.debuffType or "none"
+					local col = DebuffBorderColors[dtype] or DebuffBorderColors.none
+					frame.border:SetColorTexture(col[1], col[2], col[3], 1)
+				end
+			else
+				frame.border:SetColorTexture(0, 0, 0, 0)
+			end
 		end
 	end
 end
@@ -979,6 +1049,12 @@ local function addBuff(catId, id)
 		allowedRoles = {},
 		showStacks = defStacks,
 		showTimerText = defTimer,
+		customTextEnabled = false,
+		customTextPosition = "TOP",
+		customText = "",
+		customTextUseStacks = false,
+		customTextBase = 1,
+		customTextMin = 0,
 	}
 
 	if nil == addon.db["buffTrackerOrder"][catId] then addon.db["buffTrackerOrder"][catId] = {} end
@@ -1048,6 +1124,12 @@ local function sanitiseCategory(cat)
 			if def == nil then def = false end
 			buff.showCharges = def
 		end
+		if buff.customTextEnabled == nil then buff.customTextEnabled = false end
+		if not buff.customTextPosition then buff.customTextPosition = "TOP" end
+		if buff.customText == nil then buff.customText = "" end
+		if buff.customTextUseStacks == nil then buff.customTextUseStacks = false end
+		if buff.customTextBase == nil then buff.customTextBase = 1 end
+		if buff.customTextMin == nil then buff.customTextMin = 0 end
 	end
 end
 
@@ -1376,6 +1458,7 @@ function addon.Aura.functions.buildBuffOptions(container, catId, buffId)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
 	container:AddChild(groupCore)
+	groupCore:SetFullHeight(true)
 
 	local wrapper = addon.functions.createContainer("SimpleGroup", "List")
 	groupCore:AddChild(wrapper)
@@ -1455,6 +1538,68 @@ function addon.Aura.functions.buildBuffOptions(container, catId, buffId)
 		end
 	)
 	wrapper:AddChild(cbTimer)
+
+	local cbText = addon.functions.createCheckboxAce(L["buffTrackerShowCustomText"], buff.customTextEnabled, function(_, _, val)
+		buff.customTextEnabled = val
+		container:ReleaseChildren()
+		addon.Aura.functions.buildBuffOptions(container, catId, buffId)
+		scanBuffs()
+	end)
+	wrapper:AddChild(cbText)
+
+	if buff.customTextEnabled then
+		local posDrop = addon.functions.createDropdownAce(L["buffTrackerCustomTextPosition"], { TOP = "TOP", LEFT = "LEFT", RIGHT = "RIGHT", BOTTOM = "BOTTOM" }, nil, function(_, _, val)
+			buff.customTextPosition = val
+			scanBuffs()
+		end)
+		posDrop:SetValue(buff.customTextPosition or "TOP")
+		posDrop:SetRelativeWidth(0.4)
+		wrapper:AddChild(posDrop)
+
+		local txtEdit = addon.functions.createEditboxAce(L["buffTrackerCustomText"], buff.customText or "", function(self, _, text)
+			buff.customText = text
+			scanBuffs()
+		end)
+		txtEdit:SetRelativeWidth(0.6)
+		wrapper:AddChild(txtEdit)
+
+		local cbMult = addon.functions.createCheckboxAce(L["buffTrackerCustomTextMultiply"], buff.customTextUseStacks, function(_, _, val)
+			buff.customTextUseStacks = val
+			container:ReleaseChildren()
+			addon.Aura.functions.buildBuffOptions(container, catId, buffId)
+			scanBuffs()
+		end)
+		wrapper:AddChild(cbMult)
+
+		if buff.customTextUseStacks then
+			local info = AceGUI:Create("Label")
+			info:SetText(L["buffTrackerCustomTextInfo"] or "")
+			info:SetFullWidth(true)
+			info:SetFont(addon.variables.defaultFont, 10, "OUTLINE")
+			wrapper:AddChild(info)
+			wrapper:AddChild(addon.functions.createSpacerAce())
+			local baseEdit = addon.functions.createEditboxAce(L["buffTrackerCustomTextBase"], tostring(buff.customTextBase or 1), function(self, _, text)
+				local num = tonumber(text)
+				if num then buff.customTextBase = num end
+				scanBuffs()
+			end)
+			baseEdit:SetRelativeWidth(0.3)
+			wrapper:AddChild(baseEdit)
+
+			local minEdit = addon.functions.createEditboxAce(L["buffTrackerCustomTextMin"], tostring(buff.customTextMin or 0), function(self, _, text)
+				local num = tonumber(text)
+				if num then
+					buff.customTextMin = num
+				else
+					buff.customTextMin = 0
+				end
+				scanBuffs()
+			end)
+			minEdit:SetRelativeWidth(0.3)
+			wrapper:AddChild(minEdit)
+			wrapper:AddChild(addon.functions.createSpacerAce())
+		end
+	end
 
 	local typeDrop = addon.functions.createDropdownAce(L["TrackType"], { BUFF = L["Buff"], DEBUFF = L["Debuff"] }, nil, function(self, _, val)
 		buff.trackType = val
@@ -1875,41 +2020,41 @@ for _, ev in ipairs({
 end
 
 local function HandleEQOLLink(link, text, button, frame)
-       local label = link:match("^garrmission:eqolaura:(.+)")
-       if not label then return end
+	local label = link:match("^garrmission:eqolaura:(.+)")
+	if not label then return end
 
-       local pktID = pending[label]
-       if not (pktID and incoming[pktID]) then return end
+	local pktID = pending[label]
+	if not (pktID and incoming[pktID]) then return end
 
-       StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"] = StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"]
-               or {
-                       text = L["ImportCategory"],
-                       button1 = ACCEPT,
-                       button2 = CANCEL,
-                       timeout = 0,
-                       whileDead = true,
-                       hideOnEscape = true,
-                       preferredIndex = 3,
-                       OnAccept = function(_, data)
-                               local encoded = incoming[data]
-                               incoming[data] = nil
-                               pending[label] = nil
-                               local newId = importCategory(encoded)
-                               if newId then refreshTree(newId) end
-                       end,
-               }
+	StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"] = StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"]
+		or {
+			text = L["ImportCategory"],
+			button1 = ACCEPT,
+			button2 = CANCEL,
+			timeout = 0,
+			whileDead = true,
+			hideOnEscape = true,
+			preferredIndex = 3,
+			OnAccept = function(_, data)
+				local encoded = incoming[data]
+				incoming[data] = nil
+				pending[label] = nil
+				local newId = importCategory(encoded)
+				if newId then refreshTree(newId) end
+			end,
+		}
 
-       StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"].OnShow = function(self, data)
-               local encoded = incoming[data]
-               local name, count = previewImportCategory(encoded or "")
-               if name then
-                       self.text:SetFormattedText("%s\n%s", L["ImportCategory"], (L["ImportCategoryPreview"] or "Category: %s (%d auras)"):format(name, count))
-               else
-                       self.text:SetText(L["ImportCategory"])
-               end
-       end
+	StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"].OnShow = function(self, data)
+		local encoded = incoming[data]
+		local name, count = previewImportCategory(encoded or "")
+		if name then
+			self.text:SetFormattedText("%s\n%s", L["ImportCategory"], (L["ImportCategoryPreview"] or "Category: %s (%d auras)"):format(name, count))
+		else
+			self.text:SetText(L["ImportCategory"])
+		end
+	end
 
-       StaticPopup_Show("EQOL_IMPORT_FROM_SHARE", nil, nil, pktID)
+	StaticPopup_Show("EQOL_IMPORT_FROM_SHARE", nil, nil, pktID)
 end
 
 hooksecurefunc("SetItemRef", HandleEQOLLink)

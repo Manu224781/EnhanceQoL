@@ -13,7 +13,22 @@ local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_MythicPlus")
 local allowedSpells = { -- Tinker Engineering
 	[55004] = { duration = 60, isInvis = false, text = L["Tinker"] }, -- Nitro boost - Shares CD with combat potions but only 60s
 	-- [255974] = 300, --Personal Space Amplifier - Shares CD with combat potions but only 60s --Wurde wohl rausgepatcht
-
+	-- The War Within
+	[431932] = { duration = 300, isInvis = false, icon = 650640 }, -- Tempered Potion
+	[431422] = { duration = 300, isInvis = false, icon = 5931168 }, -- Slumbering Soul Serum
+	[431941] = { duration = 300, isInvis = false }, -- Potion of the Reborn Cheetah
+	[431432] = { duration = 300, isInvis = false, icon = 134842 }, -- Draugth of Shocking Revelations
+	[431925] = { duration = 300, isInvis = false, icon = 236887 }, -- Frontline Potion
+	[453040] = { duration = 300, isInvis = false }, -- Potion Bomb of Speed
+	[453162] = { duration = 300, isInvis = false }, -- Potion Bomb of Recobery
+	[453205] = { duration = 300, isInvis = false }, -- Potion Bomb of Power
+	[431914] = { duration = 300, isInvis = false }, -- Potion of Unwavering Focus
+	[431424] = { duration = 600, isInvis = true }, -- Draught of Silent Footfalls
+	[431419] = { duration = 300, isInvis = false, icon = 236873 }, -- Cavedweller's Delight Heal/Mana Pot counts as combat, -- Potion of Silent Footfalls
+	[431418] = { duration = 300, isInvis = false, icon = 5931166 }, -- Algari Mana Potion
+	[431416] = { duration = 300, isInvis = false, isHealpot = true, icon = 5931169 }, -- Algari Healing Potion
+	[460074] = { duration = 300, isInvis = false, isHealpot = true, icon = 135264 }, -- Grotesque Vial
+	[1247091] = { duration = 300, isInvis = false, icon = 132331 }, -- Umbral Essentia - Shadowmeld Potion
 	-- Dragonflight
 	[371028] = { duration = 300, isInvis = false }, -- Elemental potion of ultimate power
 	[371134] = { duration = 300, isInvis = true }, -- Potion of the Hushed Zephyr
@@ -35,21 +50,7 @@ local allowedSpells = { -- Tinker Engineering
 	[279154] = { duration = 300, isInvis = false }, -- Battle Potion of Stamina
 	[279151] = { duration = 300, isInvis = false }, -- Battle Potion of Int
 	[279152] = { duration = 300, isInvis = false }, -- Battle Potion of Agi
-	-- The War Within
-	[431932] = { duration = 300, isInvis = false, icon = 650640 }, -- Tempered Potion
-	[431422] = { duration = 300, isInvis = false, icon = 5931168 }, -- Slumbering Soul Serum
-	[431941] = { duration = 300, isInvis = false }, -- Potion of the Reborn Cheetah
-	[431432] = { duration = 300, isInvis = false, icon = 134842 }, -- Draugth of Shocking Revelations
-	[431925] = { duration = 300, isInvis = false, icon = 236887 }, -- Frontline Potion
-	[453040] = { duration = 300, isInvis = false }, -- Potion Bomb of Speed
-	[453162] = { duration = 300, isInvis = false }, -- Potion Bomb of Recobery
-	[453205] = { duration = 300, isInvis = false }, -- Potion Bomb of Power
-	[431914] = { duration = 300, isInvis = false }, -- Potion of Unwavering Focus
-	[431424] = { duration = 600, isInvis = true }, -- Draught of Silent Footfalls
-	[431419] = { duration = 300, isInvis = false, icon = 236873 }, -- Cavedweller's Delight Heal/Mana Pot counts as combat, -- Potion of Silent Footfalls
-	[431418] = { duration = 300, isInvis = false, icon = 5931166 }, -- Algari Mana Potion
-	[431416] = { duration = 300, isInvis = false, isHealpot = true, icon = 5931169 }, -- Algari Healing Potion
-	[460074] = { duration = 300, isInvis = false, isHealpot = true, icon = 135264 }, -- Grotesque Vial
+
 	-- Off Healing
 	[108281] = { duration = 10, isOffhealing = true, icon = 538564 }, -- Ancestral Guidance
 	[124974] = { duration = 15, isOffhealing = true, icon = 236764 }, -- Nature's Vigil

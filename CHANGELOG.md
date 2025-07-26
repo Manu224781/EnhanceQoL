@@ -1,5 +1,25 @@
 # Changelog
 
+## [3.34.0] – 2025-07-26
+### ✨ Added
+- **Umbral Essentia**
+  - The Shadowmelt Potion is now tracked in the *Potion Tracker*.
+- **Fiber Socket**
+  - Added support for the new *Fiber* socket on the legendary cloak.
+- **Aura Tracker**
+  - Added a **Custom Text** field that can be anchored to **TOP / LEFT / RIGHT / BOTTOM** of the icon.
+  - Custom text can now display calculated values: use `<stack>` as the current stack count, multiply it by a user-defined factor, and optionally clamp it to a minimum.
+### 🔄 Changed
+- **Sell-all-junk**
+  - Now uses Blizzard’s newer, more reliable API.
+- **Talent Reminder – Mega-dungeons**
+  - Mega-dungeons such as *Tazavesh* are handled separately.
+- **Talent Reminder – initial load**
+  - Significantly reduced initialization time.
+### 🐛 Fixed
+- Name-truncation issue in solo-dungeon content.
+- *Aura Tracker* option height was not sized dynamically.
+
 ## [3.33.1] – 2025-07-25
 ### 🐛 Fixed
 - **Taint error when copying character names**

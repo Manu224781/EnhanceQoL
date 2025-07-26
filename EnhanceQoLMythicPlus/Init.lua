@@ -229,7 +229,7 @@ function addon.MythicPlus.functions.addPullButton()
 		if addon.db["PullTimerType"] == 3 or addon.db["PullTimerType"] == 4 then
 			C_ChatInfo.SendAddonMessage("D4", ("PT\t%d\t%d"):format(duration, instanceId), IsInGroup(2) and "INSTANCE_CHAT" or "RAID")
 		end
--- TODO 11.2: use C_ChatInfo.SendChatMessage
+		-- TODO 11.2: use C_ChatInfo.SendChatMessage
 		if not addon.db["noChatOnPullTimer"] then SendChatMessage(("PULL in %ds"):format(duration), "PARTY") end
 
 		-- ticker updates local countdown (also handles chat, optional)
@@ -252,14 +252,14 @@ function addon.MythicPlus.functions.addPullButton()
 					self.spin:Stop()
 					self.ring:SetRotation(0)
 				end
--- TODO 11.2: use C_ChatInfo.SendChatMessage
+				-- TODO 11.2: use C_ChatInfo.SendChatMessage
 
 				if not addon.db["noChatOnPullTimer"] then SendChatMessage(">>PULL NOW<<", "PARTY") end
 				if addon.db["autoKeyStart"] and C_ChallengeMode.GetSlottedKeystoneInfo() then
 					C_ChallengeMode.StartChallengeMode()
 					ChallengesKeystoneFrame:Hide()
 				end
--- TODO 11.2: use C_ChatInfo.SendChatMessage
+			-- TODO 11.2: use C_ChatInfo.SendChatMessage
 			else
 				self.timerCountdown:SetText(self.remaining)
 				if not addon.db["noChatOnPullTimer"] then SendChatMessage(("PULL in %d"):format(self.remaining), "PARTY") end
@@ -275,7 +275,7 @@ function addon.MythicPlus.functions.addPullButton()
 		self.running = false
 		if not MouseIsOver(rcButton) then
 			self.spin:Stop()
--- TODO 11.2: use C_ChatInfo.SendChatMessage
+			-- TODO 11.2: use C_ChatInfo.SendChatMessage
 			self.ring:SetRotation(0)
 		end
 		C_PartyInfo.DoCountdown(0) -- abort Blizzard countdown
@@ -384,19 +384,19 @@ function addon.MythicPlus.functions.removeExistingButton()
 	end
 	addon.MythicPlus.Buttons = {}
 	addon.MythicPlus.nrOfButtons = 0
--- TODO 11.2: remove static mapID entries when C_ChallengeMode.GetMapUIInfo returns mapID
+	-- TODO 11.2: remove static mapID entries when C_ChallengeMode.GetMapUIInfo returns mapID
 end
 
 addon.MythicPlus.variables.portalCompendium = {
 	[120] = {
 		headline = EXPANSION_NAME10,
 		spells = {
-			[445269] = { text = "SV", cId = { [501] = true } },
-			[445416] = { text = "COT", cId = { [502] = true }, mapID = 2343 },
-			[445414] = { text = "DAWN", cId = { [505] = true }, mapID = 2359 },
-			[445417] = { text = "ARAK", cId = { [503] = true }, mapID = 2357 },
+			[445269] = { text = "SV", cId = { [501] = true }, mapID = 2652 },
+			[445416] = { text = "COT", cId = { [502] = true }, mapID = 2663 },
+			[445414] = { text = "DAWN", cId = { [505] = true }, mapID = 2662 },
+			[445417] = { text = "ARAK", cId = { [503] = true }, mapID = 2660 },
 			[1216786] = { text = "FLOOD", cId = { [525] = true }, mapID = 2773 },
-			[1237215] = { text = "ED", cId = { [542] = true } },
+			[1237215] = { text = "ED", cId = { [542] = true }, mapID = 2830 },
 			[445440] = { text = "BREW", cId = { [506] = true }, mapID = 2661 },
 			[445444] = { text = "PSF", cId = { [499] = true }, mapID = 2649 },
 			[445441] = { text = "DFC", cId = { [504] = true }, mapID = 2651 },
@@ -413,11 +413,16 @@ addon.MythicPlus.variables.portalCompendium = {
 	[110] = {
 		headline = EXPANSION_NAME9,
 		spells = {
-			[424197] = { text = "DOTI", cId = { [463] = true, [464] = true } },
-			[393256] = { text = "RLP", cId = { [399] = true } },
-			[393262] = { text = "NO", cId = { [400] = true } },
-			[393267] = { text = "BH", cId = { [405] = true } },
-			[393273] = { text = "AA", cId = { [402] = true } },
+
+			[424197] = {
+				text = "DOTI",
+				cId = { [463] = true, [464] = true },
+				mapID = { [463] = { mapID = 2579, zoneID = 1989 }, [464] = { mapID = 2579, zoneID = 1995 } }, -- Checks for zoneID + mapID for Mega Dungeons},
+			},
+			[393256] = { text = "RLP", cId = { [399] = true }, mapID = 2521 },
+			[393262] = { text = "NO", cId = { [400] = true }, mapID = 2516 },
+			[393267] = { text = "BH", cId = { [405] = true }, mapID = 2520 },
+			[393273] = { text = "AA", cId = { [402] = true }, mapID = 2526 },
 			[393276] = { text = "NELT", cId = { [404] = true } },
 			[393279] = { text = "AV", cId = { [401] = true } },
 			[393283] = { text = "HOI", cId = { [406] = true } },
@@ -437,7 +442,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[354462] = { text = "NW", cId = { [376] = true } },
 			[354463] = { text = "PF", cId = { [379] = true } },
 			[354464] = { text = "MISTS", cId = { [375] = true } },
-			[354465] = { text = "HOA", cId = { [378] = true }, mapID = 1663 },
+			[354465] = { text = "HOA", cId = { [378] = true }, mapID = 2287 },
 			[354466] = { text = "SOA", cId = { [381] = true } },
 			[354467] = { text = "TOP", cId = { [382] = true }, mapID = 2293 },
 			[354468] = { text = "DOS", cId = { [377] = true } },
@@ -445,7 +450,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[367416] = {
 				text = "TAZA",
 				cId = { [391] = true, [392] = true },
-				mapID = { [391] = 1989, [392] = 1990 },
+				mapID = { [391] = { mapID = 2441, zoneID = 1989 }, [392] = { mapID = 2441, zoneID = 1995 } }, -- Checks for zoneID + mapID for Mega Dungeons
 			},
 			[373190] = { text = "CN", isRaid = true }, -- Raids
 			[373192] = { text = "SFO", isRaid = true }, -- Raids

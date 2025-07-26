@@ -3203,7 +3203,7 @@ local function initMisc()
 				end
 			end
 		end
-		if addon.db["sellAllJunk"] and MerchantSellAllJunkButton:IsEnabled() then MerchantSellAllJunkButton:Click() end
+		if addon.db["sellAllJunk"] and C_MerchantFrame.IsSellAllJunkEnabled() then C_MerchantFrame.SellAllJunkItems() end
 	end)
 
 	hooksecurefunc(TalkingHeadFrame, "PlayCurrent", function(self)
@@ -3293,8 +3293,18 @@ local function initUnitFrame()
 	local function TruncateFrameName(cuf)
 		if not addon.db["unitFrameTruncateNames"] then return end
 		if not addon.db["unitFrameMaxNameLength"] then return end
-		if cuf and cuf.name and type(cuf.name.GetText) == "function" and type(cuf.name.SetText) == "function" and cuf.name:GetText() then
-			local name = cuf.name:GetText()
+		if not cuf then return end
+
+		local name
+		if cuf.unit and UnitExists(cuf.unit) then
+			name = UnitName(cuf.unit)
+		elseif cuf.displayedUnit and UnitExists(cuf.displayedUnit) then
+			name = UnitName(cuf.displayedUnit)
+		elseif cuf.name and type(cuf.name.GetText) == "function" then
+			name = cuf.name:GetText()
+		end
+
+		if name and cuf.name and type(cuf.name.SetText) == "function" then
 			-- Remove server names before truncation
 			local shortName = strsplit("-", name)
 			if #shortName > addon.db["unitFrameMaxNameLength"] then shortName = strsub(shortName, 1, addon.db["unitFrameMaxNameLength"]) end
