@@ -15,6 +15,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
 local AceGUI = addon.AceGUI
 
 local anchors = {}
+local ensureAnchor
 local framePools = {}
 local activeBars = {}
 local activeOrder = {}
@@ -22,6 +23,8 @@ local selectedCategory = addon.db["castTrackerSelectedCategory"] or 1
 
 local function UpdateActiveBars(catId)
 	local cat = addon.db.castTrackerCategories and addon.db.castTrackerCategories[catId] or {}
+	local anchor = ensureAnchor(catId)
+	if anchor then anchor:SetSize(cat.width or 200, cat.height or 20) end
 	for _, bar in pairs(activeBars[catId] or {}) do
 		bar.status:SetStatusBarColor(unpack(cat.color or { 1, 0.5, 0, 1 }))
 		bar.icon:SetSize(cat.height or 20, cat.height or 20)
@@ -30,44 +33,81 @@ local function UpdateActiveBars(catId)
 	CastTracker.functions.LayoutBars(catId)
 end
 
-local function ensureAnchor(id)
+ensureAnchor = function(id)
 	if anchors[id] then return anchors[id] end
+
 	local cat = addon.db.castTrackerCategories[id]
 	if not cat then return nil end
-	local a = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
-	a:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background" })
-	a:SetBackdropColor(0, 0, 0, 0.6)
-	a:SetMovable(true)
-	a:EnableMouse(true)
-	a:RegisterForDrag("LeftButton")
-	a:SetScript("OnDragStart", a.StartMoving)
-	a:SetScript("OnDragStop", function(self)
+
+	local anchor = CreateFrame("Frame", "EQOLCastTrackerAnchor" .. id, UIParent, "BackdropTemplate")
+	anchor:SetSize(cat.width or 200, cat.height or 20)
+	anchor:SetBackdrop({ bgFile = "Interface/Tooltips/UI-Tooltip-Background" })
+	anchor:SetBackdropColor(0, 0, 0, 0.6)
+	anchor:SetMovable(true)
+	anchor:EnableMouse(true)
+	anchor:RegisterForDrag("LeftButton")
+
+	anchor.text = anchor:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	anchor.text:SetPoint("CENTER", anchor, "CENTER")
+	anchor.text:SetText(L["DragToPosition"]:format("|cffffd700" .. (cat.name or "") .. "|r"))
+
+	anchor:SetScript("OnDragStart", anchor.StartMoving)
+	anchor:SetScript("OnDragStop", function(self)
 		self:StopMovingOrSizing()
 		local point, _, _, xOfs, yOfs = self:GetPoint()
 		cat.anchor.point = point
 		cat.anchor.x = xOfs
 		cat.anchor.y = yOfs
 	end)
-	if cat.anchor then a:SetPoint(cat.anchor.point, UIParent, cat.anchor.point, cat.anchor.x, cat.anchor.y) end
-	anchors[id] = a
-	return a
+
+	anchor:SetScript("OnShow", function()
+		if cat.anchor then
+			anchor:ClearAllPoints()
+			anchor:SetPoint(cat.anchor.point, UIParent, cat.anchor.point, cat.anchor.x, cat.anchor.y)
+		end
+	end)
+
+	if cat.anchor then
+		anchor:ClearAllPoints()
+		anchor:SetPoint(cat.anchor.point, UIParent, cat.anchor.point, cat.anchor.x, cat.anchor.y)
+	end
+
+	anchors[id] = anchor
+	return anchor
 end
 
 local function applyLockState()
 	for id, anchor in pairs(anchors) do
-		if addon.db.castTrackerEnabled[id] then
-			anchor:Show()
-		else
+		local cat = addon.db.castTrackerCategories[id]
+		if not addon.db.castTrackerEnabled[id] then
 			anchor:Hide()
-		end
-		if addon.db.castTrackerLocked[id] then
+		elseif addon.db.castTrackerLocked[id] then
 			anchor:RegisterForDrag()
 			anchor:SetMovable(false)
 			anchor:EnableMouse(false)
+			anchor:SetScript("OnDragStart", nil)
+			anchor:SetScript("OnDragStop", nil)
+			anchor:SetBackdropColor(0, 0, 0, 0)
+			if anchor.text then anchor.text:Hide() end
+			anchor:Show()
 		else
 			anchor:RegisterForDrag("LeftButton")
 			anchor:SetMovable(true)
 			anchor:EnableMouse(true)
+			anchor:SetScript("OnDragStart", anchor.StartMoving)
+			anchor:SetScript("OnDragStop", function(self)
+				self:StopMovingOrSizing()
+				local point, _, _, xOfs, yOfs = self:GetPoint()
+				cat.anchor.point = point
+				cat.anchor.x = xOfs
+				cat.anchor.y = yOfs
+			end)
+			anchor:SetBackdropColor(0, 0, 0, 0.6)
+			if anchor.text then
+				anchor.text:SetText(L["DragToPosition"]:format("|cffffd700" .. (cat.name or "") .. "|r"))
+				anchor.text:Show()
+			end
+			anchor:Show()
 		end
 	end
 end
