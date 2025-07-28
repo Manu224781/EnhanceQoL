@@ -24,6 +24,22 @@ local activeSourceIndex = {}
 local altToBase = {}
 local spellToCat = {} -- [spellID] = { [catId]=true, ... }
 local updateEventRegistration
+local ReleaseAllBars
+
+local roleNames = {
+    TANK = INLINE_TANK_ICON .. " " .. TANK,
+    HEALER = INLINE_HEALER_ICON .. " " .. HEALER,
+    DAMAGER = INLINE_DAMAGER_ICON .. " " .. DAMAGER,
+}
+
+local function categoryAllowed(cat)
+    if cat.allowedRoles and next(cat.allowedRoles) then
+        local role = UnitGroupRolesAssigned("player")
+        if role == "NONE" then role = addon.variables.unitRole end
+        if not role or not cat.allowedRoles[role] then return false end
+    end
+    return true
+end
 
 -- luacheck: globals ChatFrame_OpenChat UnitTokenFromGUID
 
@@ -69,8 +85,9 @@ end
 
 local function rebuildAltMapping()
 	wipe(altToBase)
-	for _, cat in pairs(addon.db.castTrackerCategories or {}) do
-		for baseId, spell in pairs(cat.spells or {}) do
+        for _, cat in pairs(addon.db.castTrackerCategories or {}) do
+                cat.allowedRoles = cat.allowedRoles or {}
+                for baseId, spell in pairs(cat.spells or {}) do
 			if type(spell) ~= "table" then
 				cat.spells[baseId] = { altIDs = {} }
 				spell = cat.spells[baseId]
@@ -151,22 +168,23 @@ ensureAnchor = function(id)
 end
 
 local function applyLockState()
-	for id, anchor in pairs(anchors) do
-		local cat = addon.db.castTrackerCategories[id]
-		if not addon.db.castTrackerEnabled[id] then
-			anchor:Hide()
-		elseif addon.db.castTrackerLocked[id] then
-			anchor:RegisterForDrag()
-			anchor:SetMovable(false)
-			anchor:EnableMouse(false)
+        for id, anchor in pairs(anchors) do
+                local cat = addon.db.castTrackerCategories[id]
+                if not addon.db.castTrackerEnabled[id] or not categoryAllowed(cat) then
+                        anchor:Hide()
+                        ReleaseAllBars(id)
+                elseif addon.db.castTrackerLocked[id] then
+                        anchor:RegisterForDrag()
+                        anchor:SetMovable(false)
+                        anchor:EnableMouse(false)
 			anchor:SetScript("OnDragStart", nil)
 			anchor:SetScript("OnDragStop", nil)
 			anchor:SetBackdropColor(0, 0, 0, 0)
 			if anchor.text then anchor.text:Hide() end
-			anchor:Show()
-		else
-			anchor:RegisterForDrag("LeftButton")
-			anchor:SetMovable(true)
+                        anchor:Show()
+                else
+                        anchor:RegisterForDrag("LeftButton")
+                        anchor:SetMovable(true)
 			anchor:EnableMouse(true)
 			anchor:SetScript("OnDragStart", anchor.StartMoving)
 			anchor:SetScript("OnDragStop", function(self)
@@ -181,9 +199,9 @@ local function applyLockState()
 				anchor.text:SetText(L["DragToPosition"]:format("|cffffd700" .. (cat.name or "") .. "|r"))
 				anchor.text:Show()
 			end
-			anchor:Show()
-		end
-	end
+                        anchor:Show()
+                end
+        end
 end
 
 local function AcquireBar(catId)
@@ -243,6 +261,18 @@ local function ReleaseBar(catId, bar)
 	CastTracker.functions.LayoutBars(catId)
 end
 
+ReleaseAllBars = function(catId)
+    if activeBars[catId] then
+        local toRelease = {}
+        for _, bar in pairs(activeBars[catId]) do
+            table.insert(toRelease, bar)
+        end
+        for _, bar in ipairs(toRelease) do
+            ReleaseBar(catId, bar)
+        end
+    end
+end
+
 local function getNextCategoryId()
 	local max = 0
 	for id in pairs(addon.db.castTrackerCategories or {}) do
@@ -297,7 +327,8 @@ local function importCategory(encoded)
 	cat.textColor = cat.textColor or addon.db.castTrackerTextColor
 	cat.direction = cat.direction or addon.db.castTrackerBarDirection or "DOWN"
 	if cat.direction ~= "UP" and cat.direction ~= "DOWN" then cat.direction = "DOWN" end
-	cat.spells = cat.spells or {}
+        cat.spells = cat.spells or {}
+        cat.allowedRoles = cat.allowedRoles or {}
 	for sid, sp in pairs(cat.spells) do
 		if type(sp) ~= "table" then
 			cat.spells[sid] = { altIDs = {} }
@@ -520,13 +551,24 @@ local function buildCategoryOptions(container, catId)
 		db.direction = val
 		CastTracker.functions.LayoutBars(catId)
 	end)
-	dirDrop:SetValue(db.direction)
-	dirDrop:SetRelativeWidth(0.4)
-	container:AddChild(dirDrop)
+        dirDrop:SetValue(db.direction)
+        dirDrop:SetRelativeWidth(0.4)
+        container:AddChild(dirDrop)
 
-	container:AddChild(addon.functions.createSpacerAce())
+        local roleDrop = addon.functions.createDropdownAce(L["ShowForRole"], roleNames, nil, function(self, event, key, checked)
+                db.allowedRoles = db.allowedRoles or {}
+                db.allowedRoles[key] = checked or nil
+                applyLockState()
+        end)
+        roleDrop:SetMultiselect(true)
+        for r, val in pairs(db.allowedRoles or {}) do
+                if val then roleDrop:SetItemValue(r, true) end
+        end
+        roleDrop:SetRelativeWidth(0.7)
+        container:AddChild(roleDrop)
+        container:AddChild(addon.functions.createSpacerAce())
 
-	local groupSpells = addon.functions.createContainer("InlineGroup", "Flow")
+        local groupSpells = addon.functions.createContainer("InlineGroup", "Flow")
 	groupSpells:SetTitle(L["CastTrackerSpells"])
 	container:AddChild(groupSpells)
 
@@ -953,9 +995,12 @@ local function HandleCLEU()
 		if unit then
 			_, castTime = getCastInfo(unit)
 		end
-		for catId in pairs(cats) do
-			if addon.db.castTrackerEnabled[catId] then CastTracker.functions.StartBar(baseSpell, sourceGUID, catId, castTime, "cast", nil, spellId) end
-		end
+                for catId in pairs(cats) do
+                        local cat = addon.db.castTrackerCategories[catId]
+                        if addon.db.castTrackerEnabled[catId] and categoryAllowed(cat) then
+                                CastTracker.functions.StartBar(baseSpell, sourceGUID, catId, castTime, "cast", nil, spellId)
+                        end
+                end
 	elseif subevent == "SPELL_CAST_SUCCESS" or subevent == "SPELL_CAST_FAILED" or subevent == "SPELL_INTERRUPT" then
 		local key = sourceGUID .. ":" .. baseSpell
 		local byCat = activeKeyIndex[key]
@@ -985,11 +1030,14 @@ local function HandleUnitChannelStart(unit, castGUID, spellId)
 	local _, castTime = getCastInfo(unit)
 	castTime = castTime or 0
 	local key = sourceGUID .. ":" .. baseSpell
-	for catId in pairs(cats) do
-		local existing = activeBars[catId] and activeBars[catId][key]
-		local suppress = existing and existing.castType == "cast"
-		if addon.db.castTrackerEnabled[catId] then CastTracker.functions.StartBar(baseSpell, sourceGUID, catId, castTime, "channel", suppress, spellId) end
-	end
+        for catId in pairs(cats) do
+                local existing = activeBars[catId] and activeBars[catId][key]
+                local suppress = existing and existing.castType == "cast"
+                local cat = addon.db.castTrackerCategories[catId]
+                if addon.db.castTrackerEnabled[catId] and categoryAllowed(cat) then
+                        CastTracker.functions.StartBar(baseSpell, sourceGUID, catId, castTime, "channel", suppress, spellId)
+                end
+        end
 end
 
 local function HandleUnitChannelStop(unit, castGUID, spellId)
@@ -1044,26 +1092,34 @@ end
 
 function CastTracker.functions.Refresh()
 	rebuildAltMapping()
-	for id, cat in pairs(addon.db.castTrackerCategories or {}) do
-		if cat.direction ~= "UP" and cat.direction ~= "DOWN" then cat.direction = "DOWN" end
-		local a = ensureAnchor(id)
-		a:ClearAllPoints()
-		a:SetPoint(cat.anchor.point, UIParent, cat.anchor.point, cat.anchor.x, cat.anchor.y)
-		UpdateActiveBars(id)
-	end
-	eventFrame:SetScript("OnEvent", function(_, event, ...)
-		if event == "COMBAT_LOG_EVENT_UNFILTERED" then
-			HandleCLEU()
-		elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
-			HandleUnitChannelStart(...)
-		elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
-			HandleUnitChannelStop(...)
-		elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_INTERRUPTED" then
-			HandleUnitSpellcastStop(...)
-		end
-	end)
-	updateEventRegistration()
-	applyLockState()
+        for id, cat in pairs(addon.db.castTrackerCategories or {}) do
+                if cat.direction ~= "UP" and cat.direction ~= "DOWN" then cat.direction = "DOWN" end
+                local a = ensureAnchor(id)
+                a:ClearAllPoints()
+                a:SetPoint(cat.anchor.point, UIParent, cat.anchor.point, cat.anchor.x, cat.anchor.y)
+                UpdateActiveBars(id)
+                if not categoryAllowed(cat) then
+                        ReleaseAllBars(id)
+                end
+        end
+        eventFrame:SetScript("OnEvent", function(_, event, ...)
+                if event == "COMBAT_LOG_EVENT_UNFILTERED" then
+                        HandleCLEU()
+                elseif event == "UNIT_SPELLCAST_CHANNEL_START" then
+                        HandleUnitChannelStart(...)
+                elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+                        HandleUnitChannelStop(...)
+                elseif event == "UNIT_SPELLCAST_STOP" or event == "UNIT_SPELLCAST_INTERRUPTED" then
+                        HandleUnitSpellcastStop(...)
+                elseif event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" or event == "ACTIVE_PLAYER_SPECIALIZATION_CHANGED" then
+                        applyLockState()
+                end
+        end)
+        eventFrame:RegisterEvent("PLAYER_LOGIN")
+        eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+        eventFrame:RegisterEvent("ACTIVE_PLAYER_SPECIALIZATION_CHANGED")
+        updateEventRegistration()
+        applyLockState()
 end
 
 function CastTracker.functions.addCastTrackerOptions(container)
@@ -1095,9 +1151,10 @@ function CastTracker.functions.addCastTrackerOptions(container)
 				color = addon.db.castTrackerBarColor,
 				textSize = addon.db.castTrackerTextSize,
 				textColor = addon.db.castTrackerTextColor,
-				direction = addon.db.castTrackerBarDirection,
-				spells = {},
-			}
+                                direction = addon.db.castTrackerBarDirection,
+                                spells = {},
+                                allowedRoles = {},
+                        }
 			addon.db.castTrackerEnabled[newId] = true
 			addon.db.castTrackerLocked[newId] = false
 			addon.db.castTrackerOrder[newId] = {}
