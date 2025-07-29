@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.36.0] – 2025-07-29
+### ✨ Added
+- **Item Level Position for Bag and Character**
+  - Choose where the item level is shown in Bag/Bank and Characterframe
+
+---
+
 ## [3.35.1] – 2025-07-29
 ### 🔄 Changed
 - Cast Tracker is now disabled by default. Enable it manually to opt in.
