@@ -25,6 +25,7 @@ local anchors = {}
 local currentCatId
 -- forward declaration for functions referenced before definition
 local applyAnchor
+local ShareCategory
 
 local DCP = CreateFrame("Frame", nil, UIParent)
 DCP:SetPoint("CENTER")
@@ -464,10 +465,35 @@ local function buildCategoryOptions(container, catId)
 	local shareBtn = addon.functions.createButtonAce(L["ShareCategory"] or "Share Category", 150, function() ShareCategory(catId) end)
 	group:AddChild(shareBtn)
 
-	local testBtn = addon.functions.createButtonAce(L["Test"] or "Test", 150, function()
-		local first = next(cat.spells)
-		if first then CN:SPELL_UPDATE_COOLDOWN(first) end
-	end)
+       local testBtn = addon.functions.createButtonAce(L["Test"] or "Test", 150, function()
+               ensureAnchor(catId)
+               local tex, name
+               local firstSpell = next(cat.spells)
+               if firstSpell then
+                       tex = C_Spell.GetSpellTexture(firstSpell)
+                       name = C_Spell.GetSpellName(firstSpell)
+               else
+                       local firstItem = next(cat.items)
+                       if firstItem then
+                               tex = select(10, GetItemInfo(firstItem))
+                               name = GetItemInfo(firstItem)
+                       else
+                               local firstPet = next(cat.pets)
+                               if firstPet then
+                                       local idx = GetPetActionIndexByName(firstPet)
+                                       if idx then _,_,tex = GetPetActionInfo(idx) end
+                                       name = firstPet
+                               end
+                       end
+               end
+               tex = tex or "Interface\\Icons\\INV_Misc_QuestionMark"
+               name = name or L["Test"] or "Test"
+               table.insert(animating, { tex, false, name, catId, 0 })
+               if not DCP:GetScript("OnUpdate") then
+                       DCP:SetScript("OnUpdate", OnUpdate)
+                       DCP:Show()
+               end
+       end)
 	group:AddChild(testBtn)
 
 	local delBtn = addon.functions.createButtonAce(L["DeleteCategory"], 150, function()
@@ -645,7 +671,6 @@ function CN.functions.addCooldownNotifyOptions(container)
 	if not ok and tree[1] and tree[1].value then treeGroup:SelectByValue(tree[1].value) end
 end
 
-local ShareCategory -- forward declaration
 
 function exportCategory(catId, encodeMode)
 	local cat = addon.db.cooldownNotifyCategories and addon.db.cooldownNotifyCategories[catId]
