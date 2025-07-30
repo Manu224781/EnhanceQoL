@@ -435,6 +435,7 @@ local function buildCategoryOptions(container, catId)
 		StaticPopup_Show("EQOL_DELETE_CDN_CATEGORY", catName)
 	end)
 	group:AddChild(delBtn)
+	container:DoLayout()
 end
 
 local function buildSpellOptions(container, catId, spellId)
@@ -462,6 +463,7 @@ end
 function CN.functions.addCooldownNotifyOptions(container)
 	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
 	wrapper:SetFullHeight(true)
+	wrapper:SetLayout("Fill")
 	container:AddChild(wrapper)
 
 	local tree = getCategoryTree()
