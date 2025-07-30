@@ -138,7 +138,10 @@ local function OnUpdate(_, update)
 				DCP:SetPoint(anch.point or "CENTER", UIParent, anch.point or "CENTER", anch.x or 0, anch.y or 0)
 				DCP:SetSize(iconSize, iconSize)
 				DCP:Show()
-				if cat.soundReady and cat.soundFile then PlaySoundFile(cat.soundFile, "Master") end
+				if cat.soundReady and cat.soundKey then
+					local file = addon.Aura.sounds[cat.soundKey]
+					if file then PlaySoundFile(file, "Master") end
+				end
 			end
 			local alpha = maxAlpha
 			if runtimer < fadeInTime then
@@ -367,7 +370,18 @@ local function buildCategoryOptions(container, catId)
 	local customTextEdit = addon.functions.createEditboxAce(L["Text"], cat.customText or "", function(_, _, text) cat.customText = text end)
 	group:AddChild(customTextEdit)
 
-	local soundDrop = addon.functions.createDropdownAce(L["SoundFile"], addon.Aura.sounds, nil, function(_, _, key) cat.soundFile = addon.Aura.sounds[key] end)
+	local soundList = {}
+	for sname in pairs(addon.Aura.sounds or {}) do
+		soundList[sname] = sname
+	end
+	local list, order = addon.functions.prepareListForDropdown(soundList)
+	local soundDrop = addon.functions.createDropdownAce(L["SoundFile"], list, order, function(self, _, key)
+		cat.soundKey = key
+		self:SetValue(key)
+		local file = addon.Aura.sounds[key]
+		if file then PlaySoundFile(file, "Master") end
+	end)
+	soundDrop:SetValue(cat.soundKey)
 	group:AddChild(soundDrop)
 
 	local playSoundCB = addon.functions.createCheckboxAce(L["Play sound on ready"], cat.soundReady, function(_, _, val) cat.soundReady = val end)
