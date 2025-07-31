@@ -627,20 +627,22 @@ local function updateBuff(catId, id, changedId, firstScan)
 			frame.cd:SetReverse(false)
 			if buff.showCooldown then
 				local spellInfo = getSpellCooldown(id)
-				local cdStart = spellInfo.startTime
-				local cdDur = spellInfo.duration
-				local cdEnable = spellInfo.isEnabled
-				local modRate = spellInfo.modRate
-				if cdEnable and cdDur and cdDur > 0 and cdStart > 0 and (cdStart + cdDur) > GetTime() then
-					frame.cd:SetCooldown(cdStart, cdDur, modRate)
-					frame.icon:SetDesaturated(true)
-					frame.icon:SetAlpha(0.5)
-					frame.cd:SetScript("OnCooldownDone", CDResetScript)
-				else
-					frame.cd:Clear()
-					frame.cd:SetScript("OnCooldownDone", nil)
-					frame.icon:SetDesaturated(false)
-					frame.icon:SetAlpha(1)
+				if spellInfo then
+					local cdStart = spellInfo.startTime
+					local cdDur = spellInfo.duration
+					local cdEnable = spellInfo.isEnabled
+					local modRate = spellInfo.modRate
+					if cdEnable and cdDur and cdDur > 0 and cdStart > 0 and (cdStart + cdDur) > GetTime() then
+						frame.cd:SetCooldown(cdStart, cdDur, modRate)
+						frame.icon:SetDesaturated(true)
+						frame.icon:SetAlpha(0.5)
+						frame.cd:SetScript("OnCooldownDone", CDResetScript)
+					else
+						frame.cd:Clear()
+						frame.cd:SetScript("OnCooldownDone", nil)
+						frame.icon:SetDesaturated(false)
+						frame.icon:SetAlpha(1)
+					end
 				end
 			else
 				frame.cd:Clear()

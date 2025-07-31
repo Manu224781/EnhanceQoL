@@ -3473,11 +3473,11 @@ local function initUnitFrame()
 end
 
 local function initBagsFrame()
-        addon.functions.InitDBValue("moneyTracker", {})
-        addon.functions.InitDBValue("enableMoneyTracker", false)
-        addon.functions.InitDBValue("showOnlyGoldOnMoney", false)
-        addon.functions.InitDBValue("warbandGold", 0)
-        if addon.db["moneyTracker"][UnitGUID("player")] == nil or type(addon.db["moneyTracker"][UnitGUID("player")]) ~= "table" then addon.db["moneyTracker"][UnitGUID("player")] = {} end
+	addon.functions.InitDBValue("moneyTracker", {})
+	addon.functions.InitDBValue("enableMoneyTracker", false)
+	addon.functions.InitDBValue("showOnlyGoldOnMoney", false)
+	addon.functions.InitDBValue("warbandGold", 0)
+	if addon.db["moneyTracker"][UnitGUID("player")] == nil or type(addon.db["moneyTracker"][UnitGUID("player")]) ~= "table" then addon.db["moneyTracker"][UnitGUID("player")] = {} end
 	local moneyFrame = ContainerFrameCombinedBags.MoneyFrame
 	local otherMoney = {}
 
@@ -3486,31 +3486,31 @@ local function initBagsFrame()
 		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 		GameTooltip:ClearLines()
 
-                local list, total = {}, 0
-                for _, info in pairs(addon.db["moneyTracker"]) do
-                        total = total + (info.money or 0)
-                        table.insert(list, info)
-                end
-                table.sort(list, function(a, b) return (a.money or 0) > (b.money or 0) end)
+		local list, total = {}, 0
+		for _, info in pairs(addon.db["moneyTracker"]) do
+			total = total + (info.money or 0)
+			table.insert(list, info)
+		end
+		table.sort(list, function(a, b) return (a.money or 0) > (b.money or 0) end)
 
-                GameTooltip:AddDoubleLine(L["warbandGold"], addon.functions.formatMoney(addon.db["warbandGold"] or 0, "tracker"))
-                GameTooltip:AddLine(" ")
+		GameTooltip:AddDoubleLine(L["warbandGold"], addon.functions.formatMoney(addon.db["warbandGold"] or 0, "tracker"))
+		GameTooltip:AddLine(" ")
 
-                for _, info in ipairs(list) do
-                        local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[info.class] or { r = 1, g = 1, b = 1 }
-                        local displayName
-                        if info.realm == GetRealmName() or not info.realm or info.realm == "" then
-                                displayName = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, info.name)
+		for _, info in ipairs(list) do
+			local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[info.class] or { r = 1, g = 1, b = 1 }
+			local displayName
+			if info.realm == GetRealmName() or not info.realm or info.realm == "" then
+				displayName = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, info.name)
 			else
 				displayName = string.format("|cff%02x%02x%02x%s-%s|r", col.r * 255, col.g * 255, col.b * 255, info.name, info.realm)
 			end
 			GameTooltip:AddDoubleLine(displayName, addon.functions.formatMoney(info.money, "tracker"))
 		end
 
-                GameTooltip:AddLine(" ")
-                GameTooltip:AddDoubleLine(TOTAL, addon.functions.formatMoney(total, "tracker"))
-                GameTooltip:Show()
-        end
+		GameTooltip:AddLine(" ")
+		GameTooltip:AddDoubleLine(TOTAL, addon.functions.formatMoney(total, "tracker"))
+		GameTooltip:Show()
+	end
 
 	local function HideBagMoneyTooltip()
 		if not addon.db["enableMoneyTracker"] then return end
@@ -4933,8 +4933,10 @@ local eventHandlers = {
 		addon.variables.unitSpec = GetSpecialization()
 		if addon.variables.unitSpec then
 			-- TODO 11.2: use C_SpecializationInfo.GetSpecializationInfo
-			addon.variables.unitSpecName = select(2, GetSpecializationInfo(addon.variables.unitSpec))
-			addon.variables.unitRole = GetSpecializationRole(GetSpecialization())
+			local specId, specName = GetSpecializationInfo(addon.variables.unitSpec)
+			addon.variables.unitSpecName = specName
+			addon.variables.unitRole = GetSpecializationRole(addon.variables.unitSpec)
+			addon.variables.unitSpecId = specId
 		end
 
 		if addon.db["showIlvlOnBagItems"] then
@@ -5200,29 +5202,29 @@ local eventHandlers = {
 		addon.variables.unitSpec = GetSpecialization()
 		if addon.variables.unitSpec then
 			-- TODO 11.2: use C_SpecializationInfo.GetSpecializationInfo
-			addon.variables.unitSpecName = select(2, GetSpecializationInfo(addon.variables.unitSpec))
-			addon.variables.unitRole = GetSpecializationRole(GetSpecialization())
+			local specId, specName = GetSpecializationInfo(addon.variables.unitSpec)
+			addon.variables.unitSpecName = specName
+			addon.variables.unitRole = GetSpecializationRole(addon.variables.unitSpec)
+			addon.variables.unitSpecId = specId
 		end
 
-                addon.db["moneyTracker"][UnitGUID("player")] = {
-                        name = UnitName("player"),
-                        realm = GetRealmName(),
-                        money = GetMoney(),
-                        class = select(2, UnitClass("player")),
-                }
-                addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
-                if addon.ChatIM then addon.ChatIM:BuildSoundTable() end
-        end,
-        ["PLAYER_MONEY"] = function()
-                if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
-                if addon.db["moneyTracker"][UnitGUID("player")]["money"] then addon.db["moneyTracker"][UnitGUID("player")]["money"] = GetMoney() end
-        end,
-        ["ACCOUNT_MONEY"] = function()
-                addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
-        end,
-        ["PLAYER_REGEN_ENABLED"] = function()
-                if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
-        end,
+		addon.db["moneyTracker"][UnitGUID("player")] = {
+			name = UnitName("player"),
+			realm = GetRealmName(),
+			money = GetMoney(),
+			class = select(2, UnitClass("player")),
+		}
+		addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
+		if addon.ChatIM then addon.ChatIM:BuildSoundTable() end
+	end,
+	["PLAYER_MONEY"] = function()
+		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
+		if addon.db["moneyTracker"][UnitGUID("player")]["money"] then addon.db["moneyTracker"][UnitGUID("player")]["money"] = GetMoney() end
+	end,
+	["ACCOUNT_MONEY"] = function() addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account) end,
+	["PLAYER_REGEN_ENABLED"] = function()
+		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
+	end,
 	["PLAYER_UNGHOST"] = function()
 		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
 	end,

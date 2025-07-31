@@ -502,12 +502,15 @@ addon.variables.unitClass = select(2, UnitClass("player"))
 addon.variables.unitClassID = select(3, UnitClass("player"))
 addon.variables.unitPlayerGUID = UnitGUID("player")
 addon.variables.unitSpec = GetSpecialization()
+addon.variables.unitSpecId = nil
 addon.variables.unitSpecName = nil
 addon.variables.unitRole = nil
 if addon.variables.unitSpec then
 	-- TODO 11.2: use C_SpecializationInfo.GetSpecializationInfo
-	addon.variables.unitSpecName = select(2, GetSpecializationInfo(addon.variables.unitSpec))
+	local specId, specName = GetSpecializationInfo(addon.variables.unitSpec)
+	addon.variables.unitSpecName = specName
 	addon.variables.unitRole = GetSpecializationRole(GetSpecialization())
+	addon.variables.unitSpecId = specId
 end
 addon.variables.unitRace = select(2, UnitRace("player"))
 addon.variables.unitName = select(1, UnitName("player"))
