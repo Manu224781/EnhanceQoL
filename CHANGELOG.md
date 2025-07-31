@@ -1,6 +1,12 @@
 # Changelog
 
 ## [3.37.0] – 2025-07-30
+### 🐛 Fixed
+- Catalyst charges weren't display correctly as of close to season end
+
+---
+
+## [3.37.0] – 2025-07-30
 ### ✨ Added
 - **Cooldown Notify**
   - Get a simple popup when your abilities are ready

@@ -9,6 +9,7 @@ addon.saveVariables["unitFrameScale"] = 1 -- Default scale for compact party fra
 addon.gossip = {}
 addon.gossip.variables = {}
 addon.variables = {}
+addon.functions = {}
 addon.general = {}
 addon.general.variables = {}
 -- addon.L = {} -- Language
@@ -548,23 +549,25 @@ addon.variables.itemSlots = {
 
 addon.variables.regionCode = GetCurrentRegion()
 
-local function PatchTS(y, m, dUS, dEU, h)
+function addon.functions.PatchTS(y, m, dUS, dEU, h)
 	local day = (addon.variables.regionCode == 3) and dEU or dUS
 	return time({ year = y, month = m, day = day, hour = h })
 end
-local function IsPatchLive(key) return GetServerTime() >= addon.variables.patchInformations[key] end
+function addon.functions.IsPatchLive(key) return GetServerTime() >= addon.variables.patchInformations[key] end
 
 addon.variables.shouldEnchanted = { [15] = true, [5] = true, [9] = true, [7] = true, [8] = true, [11] = true, [12] = true, [16] = true, [17] = true }
 addon.variables.patchInformations = {
-	horrificVisions = PatchTS(2025, 5, 20, 21, 6),
+	horrificVisions = addon.functions.PatchTS(2025, 5, 20, 21, 6),
+	whispersOfKaresh = addon.functions.PatchTS(2025, 8, 12, 13, 6),
 }
 
 addon.variables.shouldEnchantedChecks = {
 	-- Head
 	[1] = {
 		func = function(ilvl)
-			if ilvl >= 350 and IsPatchLive("horrificVisions") and C_MythicPlus.GetCurrentSeason() == 14 then
+			if ilvl >= 350 and addon.functions.IsPatchLive("horrificVisions") and not addon.functions.IsPatchLive("whispersOfKaresh")  then
 				-- Horrific vision enchant - Only usable during Season 2 of TWW and after Patchday in the Week of 20.05.2025
+				-- and before the Patchday on 12/13.08.2025
 				return true
 			end
 			return false

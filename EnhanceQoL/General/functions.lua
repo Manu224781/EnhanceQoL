@@ -1,6 +1,5 @@
 local addonName, addon = ...
 
-addon.functions = {}
 local AceGUI = LibStub("AceGUI-3.0")
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL")
@@ -1031,14 +1030,21 @@ end
 
 function addon.functions.catalystChecks()
 	local mId = C_MythicPlus.GetCurrentSeason()
-	if mId then
-		if mId == 14 then
-			-- TWW Season 2 - Essence of Kaja’mite
-			addon.variables.catalystID = 3116
-		elseif mId == 15 then
-			-- TWW Season 3 - Ethereal Voidsplinter
-			addon.variables.catalystID = 3269
+	if not mId or mId < 0 then
+		-- calculate by time of Patch release
+		if addon.functions.IsPatchLive("horrificVisions") and not addon.functions.IsPatchLive("whispersOfKaresh") then
+			mId = 14
+		elseif addon.functions.IsPatchLive("whispersOfKaresh") then
+			mId = 15
 		end
+	end
+
+	if mId == 14 then
+		-- TWW Season 2 - Essence of Kaja’mite
+		addon.variables.catalystID = 3116
+	elseif mId == 15 then
+		-- TWW Season 3 - Ethereal Voidsplinter
+		addon.variables.catalystID = 3269
 	end
 	addon.functions.createCatalystFrame()
 end

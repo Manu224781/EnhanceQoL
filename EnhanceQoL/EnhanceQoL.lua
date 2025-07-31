@@ -2127,12 +2127,14 @@ local function addCharacterFrame(container)
 			type = "CheckBox",
 			callback = function(self, _, value)
 				addon.db["showCatalystChargesOnCharframe"] = value
-				if value and addon.variables.catalystID then
-					local cataclystInfo = C_CurrencyInfo.GetCurrencyInfo(addon.variables.catalystID)
-					addon.general.iconFrame.count:SetText(cataclystInfo.quantity)
-					addon.general.iconFrame:Show()
-				else
-					addon.general.iconFrame:Hide()
+				if addon.general and addon.general.iconFrame then
+					if value and addon.variables.catalystID then
+						local cataclystInfo = C_CurrencyInfo.GetCurrencyInfo(addon.variables.catalystID)
+						addon.general.iconFrame.count:SetText(cataclystInfo.quantity)
+						addon.general.iconFrame:Show()
+					else
+						addon.general.iconFrame:Hide()
+					end
 				end
 			end,
 		},
