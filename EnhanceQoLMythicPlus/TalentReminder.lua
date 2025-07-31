@@ -235,14 +235,23 @@ activeBuildFrame:EnableMouse(true)
 activeBuildFrame:RegisterForDrag("LeftButton")
 activeBuildFrame.text = activeBuildFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 activeBuildFrame.text:SetPoint("CENTER")
-activeBuildFrame:SetScript("OnDragStart", activeBuildFrame.StartMoving)
-activeBuildFrame:SetScript("OnDragStop", function(self)
-	self:StopMovingOrSizing()
-	local point, _, _, xOfs, yOfs = self:GetPoint()
-	addon.db["talentReminderActiveBuildPoint"] = point
-	addon.db["talentReminderActiveBuildX"] = xOfs
-	addon.db["talentReminderActiveBuildY"] = yOfs
-end)
+
+local function applyActiveBuildLock()
+       if addon.db["talentReminderActiveBuildLocked"] then
+               activeBuildFrame:SetScript("OnDragStart", nil)
+               activeBuildFrame:SetScript("OnDragStop", nil)
+       else
+               activeBuildFrame:SetScript("OnDragStart", activeBuildFrame.StartMoving)
+               activeBuildFrame:SetScript("OnDragStop", function(self)
+                       self:StopMovingOrSizing()
+                       local point, _, _, xOfs, yOfs = self:GetPoint()
+                       addon.db["talentReminderActiveBuildPoint"] = point
+                       addon.db["talentReminderActiveBuildX"] = xOfs
+                       addon.db["talentReminderActiveBuildY"] = yOfs
+               end)
+       end
+end
+applyActiveBuildLock()
 
 local function restoreActiveBuildPosition()
 	local point = addon.db["talentReminderActiveBuildPoint"]
@@ -255,11 +264,19 @@ local function restoreActiveBuildPosition()
 end
 
 local function updateActiveTalentText()
-	if not (addon.db["talentReminderEnabled"] and addon.db["talentReminderShowActiveBuild"]) then
-		activeBuildFrame:Hide()
-		return
-	end
-	local actTalent = C_ClassTalents.GetLastSelectedSavedConfigID(addon.MythicPlus.variables.currentSpecID)
+       if not (addon.db["talentReminderEnabled"] and addon.db["talentReminderShowActiveBuild"]) then
+               activeBuildFrame:Hide()
+               return
+       end
+       local only = addon.db["talentReminderActiveBuildShowOnly"] or 1
+       if only == 2 and not IsInInstance() then
+               activeBuildFrame:Hide()
+               return
+       elseif only == 3 and not UnitInRaid("player") then
+               activeBuildFrame:Hide()
+               return
+       end
+       local actTalent = C_ClassTalents.GetLastSelectedSavedConfigID(addon.MythicPlus.variables.currentSpecID)
 	if actTalent then
 		local curName = GetConfigName(actTalent)
 
@@ -267,9 +284,10 @@ local function updateActiveTalentText()
 	else
 		activeBuildFrame.text:SetText(string.format("Talentbuild: %s", L["Unknown"]))
 	end
-	activeBuildFrame.text:SetFont(addon.variables.defaultFont, addon.db["talentReminderActiveBuildSize"], "OUTLINE")
-	restoreActiveBuildPosition()
-	activeBuildFrame:Show()
+       activeBuildFrame.text:SetFont(addon.variables.defaultFont, addon.db["talentReminderActiveBuildSize"], "OUTLINE")
+       restoreActiveBuildPosition()
+       applyActiveBuildLock()
+       activeBuildFrame:Show()
 end
 
 addon.MythicPlus.functions.updateActiveTalentText = updateActiveTalentText

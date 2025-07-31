@@ -1166,19 +1166,45 @@ local function addTalentFrame(container)
         end
 
         if addon.db["talentReminderEnabled"] then
-                local sliderSize = addon.functions.createSliderAce(
-                        L["talentReminderActiveBuildTextSize"] .. ": " .. addon.db["talentReminderActiveBuildSize"],
-                        addon.db["talentReminderActiveBuildSize"],
-                        6,
-                        64,
-                        1,
-                        function(self, _, value2)
-                                addon.db["talentReminderActiveBuildSize"] = value2
-                                addon.MythicPlus.functions.updateActiveTalentText()
-                                self:SetLabel(L["talentReminderActiveBuildTextSize"] .. ": " .. value2)
-                        end
-                )
-                groupCore:AddChild(sliderSize)
+               local sliderSize = addon.functions.createSliderAce(
+                       L["talentReminderActiveBuildTextSize"] .. ": " .. addon.db["talentReminderActiveBuildSize"],
+                       addon.db["talentReminderActiveBuildSize"],
+                       6,
+                       64,
+                       1,
+                       function(self, _, value2)
+                               addon.db["talentReminderActiveBuildSize"] = value2
+                               addon.MythicPlus.functions.updateActiveTalentText()
+                               self:SetLabel(L["talentReminderActiveBuildTextSize"] .. ": " .. value2)
+                       end
+               )
+               groupCore:AddChild(sliderSize)
+
+               if addon.db["talentReminderShowActiveBuild"] then
+                       local cbLock = addon.functions.createCheckboxAce(
+                               L["talentReminderLockActiveBuild"],
+                               addon.db["talentReminderActiveBuildLocked"],
+                               function(self, _, value)
+                                       addon.db["talentReminderActiveBuildLocked"] = value
+                                       addon.MythicPlus.functions.updateActiveTalentText()
+                               end
+                       )
+                       groupCore:AddChild(cbLock)
+
+                       local list, order = addon.functions.prepareListForDropdown({
+                               [1] = L["talentReminderShowActiveBuildAlways"],
+                               [2] = L["talentReminderShowActiveBuildInstance"],
+                               [3] = L["talentReminderShowActiveBuildRaid"],
+                       })
+                       local dropShow = addon.functions.createDropdownAce(L["talentReminderShowActiveBuildDropdown"], list, order, function(self, _, value)
+                               addon.db["talentReminderActiveBuildShowOnly"] = value
+                               addon.MythicPlus.functions.updateActiveTalentText()
+                       end)
+                       dropShow:SetValue(addon.db["talentReminderActiveBuildShowOnly"])
+                       dropShow:SetFullWidth(false)
+                       dropShow:SetWidth(200)
+                       groupCore:AddChild(dropShow)
+               end
         end
 
 	if addon.db["talentReminderEnabled"] then
