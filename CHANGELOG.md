@@ -12,7 +12,7 @@
 - **Talent Reminder – Build Info**
   - Displays the name of the currently active talent build.
   - Option to show the text only **outside instances**, only **inside 5-man/Delves**, or only **in raids**.
-
+- **New Soundfile**
 ### 🐛 Fixed
 - Catalyst charges were not shown correctly near the end of the season.
 - Missing variable check in the Aura Tracker cooldown logic caused unnecessary CPU usage; fixed.

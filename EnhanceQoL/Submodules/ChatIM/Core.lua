@@ -20,6 +20,7 @@ LSM:Register("sound", "LightMetallic", ChatIM.soundPath .. "LightMetallic.ogg")
 LSM:Register("sound", "Ping", ChatIM.soundPath .. "Ping.ogg")
 LSM:Register("sound", "Ring", ChatIM.soundPath .. "Ring.ogg")
 LSM:Register("sound", "Sonarr", ChatIM.soundPath .. "Sonarr.ogg")
+LSM:Register("sound", "Cartoon-Bite", "Interface\\AddOns\\" .. parentAddonName .. "\\Sounds\\cartoonbite.ogg")
 
 function ChatIM:BuildSoundTable()
 	local result = {}
