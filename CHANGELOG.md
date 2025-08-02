@@ -3,7 +3,7 @@
 ## [4.0.0] – 2025-08-02
 ### ✨ Added
 - **EnhanceQoL Shared Media**
-  - New sub-module with **200+** voice lines and sounds, published via **LibSharedMedia**.
+  - New sub-module with **200 +** voice lines and sounds, published via **LibSharedMedia**.
   - All sounds are disabled by default; toggle only the ones you need.
 - **Cooldown Notify**
   - Pops up a small alert when an ability is ready.
@@ -15,12 +15,15 @@
 - **Talent Reminder – Build Info**
   - Displays the name of the currently active talent build.
   - Option to show the text **only outside instances**, **only in 5-man/Delves**, or **only in raids**.
+- **Quality-of-Life Options**
+  - **Auto-accept enchanting overwrite** prompts.
+  - **Auto-accept socketing overwrite** prompts.
 ### 🐛 Fixed
 - Catalyst charges were not shown correctly near the end of the season.
 - Missing variable check in Aura Tracker’s cooldown logic caused unnecessary CPU usage — fixed.
 - Frame strata of buffs was **too** high.
 - Cast Tracker now only handles mobs currently **in combat** with the player.
-- Truncation of UnitFrame names also effected nameplates
+- Truncation of UnitFrame names also **affected** nameplates.
 
 ---
 
