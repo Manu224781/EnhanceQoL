@@ -3451,6 +3451,8 @@ local function initUnitFrame()
 		if not addon.db["unitFrameMaxNameLength"] then return end
 		if not cuf then return end
 
+		if cuf.unit and cuf.unit:match("^nameplate") then return end
+
 		local name
 		if cuf.unit and UnitExists(cuf.unit) then
 			name = UnitName(cuf.unit)
