@@ -13,12 +13,16 @@
   - New **Spacing** setting to adjust the gap between icons.
   - Now tracks on-use **trinket cooldowns**.
   - *Show for Difficulty* added to Aura Tracker
+    - Filter for any difficult or the Outside world
 - **Talent Reminder – Build Info**
   - Displays the name of the currently active talent build.
   - Option to show the text **only outside instances**, **only in 5-man/Delves**, or **only in raids**.
 - **Quality-of-Life Options**
   - **Auto-accept enchanting overwrite** prompts.
   - **Auto-accept socketing overwrite** prompts.
+### 🔄 Changed
+- **Gem Helper updated**
+  - Improved the general display of gems per socket
 ### 🐛 Fixed
 - Catalyst charges were not shown correctly near the end of the season.
 - Missing variable check in Aura Tracker’s cooldown logic caused unnecessary CPU usage — fixed.
