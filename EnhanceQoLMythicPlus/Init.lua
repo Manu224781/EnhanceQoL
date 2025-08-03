@@ -69,6 +69,10 @@ addon.functions.InitDBValue("talentReminderActiveBuildY", 0)
 addon.functions.InitDBValue("talentReminderActiveBuildSize", 14)
 addon.functions.InitDBValue("talentReminderActiveBuildLocked", false)
 addon.functions.InitDBValue("talentReminderActiveBuildShowOnly", 1)
+addon.functions.InitDBValue("talentReminderLoadOnReadyCheck", false)
+addon.functions.InitDBValue("talentReminderSoundOnDifference", false)
+addon.functions.InitDBValue("talentReminderUseCustomSound", false)
+addon.functions.InitDBValue("talentReminderCustomSoundFile", "")
 
 addon.MythicPlus = {}
 addon.MythicPlus.functions = {}

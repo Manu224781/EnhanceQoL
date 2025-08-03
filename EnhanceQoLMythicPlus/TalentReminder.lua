@@ -8,6 +8,7 @@ else
 end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_MythicPlus")
+local LSM = LibStub("LibSharedMedia-3.0")
 
 addon.MythicPlus.variables.knownLoadout = {}
 addon.MythicPlus.variables.specNames = {}
@@ -172,7 +173,20 @@ local function showPopup(actTalent, requiredTalent)
 	cancelButton:SetText(CLOSE)
 	cancelButton:SetScript("OnClick", function() deleteFrame(ChangeTalentUIPopup) end)
 
-	if addon.db["talentReminderSoundOnDifference"] and not playedMusic then PlaySound(11466, "Master") end
+	if addon.db["talentReminderSoundOnDifference"] and not playedMusic then
+		if addon.db["talentReminderUseCustomSound"] then
+			local key = addon.db["talentReminderCustomSoundFile"]
+			local soundTable = (addon.ChatIM and addon.ChatIM.availableSounds) or LSM:HashTable("sound")
+			local file = key ~= "" and soundTable and soundTable[key]
+			if file then
+				PlaySoundFile(file, "Master")
+			else
+				PlaySound(11466, "Master")
+			end
+		else
+			PlaySound(11466, "Master")
+		end
+	end
 	reloadFrame:Show()
 	local maxHeight = addon.functions.getHeightOffset(reloadFrame.reqTalent) * -1
 

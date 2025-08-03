@@ -8,6 +8,7 @@ else
 end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_MythicPlus")
+local LSM = LibStub("LibSharedMedia-3.0")
 
 local frameLoad = CreateFrame("Frame")
 
@@ -1165,6 +1166,34 @@ local function addTalentFrame(container)
 		if cbData.desc then desc = cbData.desc end
 		local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], uFunc, desc)
 		groupCore:AddChild(cbElement)
+	end
+
+	if addon.db["talentReminderEnabled"] and addon.db["talentReminderSoundOnDifference"] then
+		local cbCustomSound = addon.functions.createCheckboxAce(L["talentReminderUseCustomSound"], addon.db["talentReminderUseCustomSound"], function(self, _, value)
+			addon.db["talentReminderUseCustomSound"] = value
+			container:ReleaseChildren()
+			addTalentFrame(container)
+		end)
+		groupCore:AddChild(cbCustomSound)
+
+		if addon.db["talentReminderUseCustomSound"] then
+			local soundList = {}
+			if addon.ChatIM and addon.ChatIM.BuildSoundTable and not addon.ChatIM.availableSounds then addon.ChatIM:BuildSoundTable() end
+			local soundTable = (addon.ChatIM and addon.ChatIM.availableSounds) or LSM:HashTable("sound")
+			for name in pairs(soundTable or {}) do
+				soundList[name] = name
+			end
+			local list, order = addon.functions.prepareListForDropdown(soundList)
+			local dropSound = addon.functions.createDropdownAce(L["talentReminderCustomSound"], list, order, function(self, _, val)
+				addon.db["talentReminderCustomSoundFile"] = val
+				self:SetValue(val)
+				local file = soundTable and soundTable[val]
+				if file then PlaySoundFile(file, "Master") end
+			end)
+			dropSound:SetValue(addon.db["talentReminderCustomSoundFile"])
+			groupCore:AddChild(dropSound)
+			groupCore:AddChild(addon.functions.createSpacerAce())
+		end
 	end
 
 	if addon.db["talentReminderEnabled"] then
