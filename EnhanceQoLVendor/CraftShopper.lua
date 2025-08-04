@@ -208,7 +208,7 @@ local function CreateCraftShopperFrame()
 						GameTooltip:SetItemByID(item.itemID)
 						GameTooltip:Show()
 					end)
-					label:SetRelativeWidth(0.55)
+					label:SetRelativeWidth(0.45)
 					label:SetCallback("OnLeave", function() GameTooltip:Hide() end)
 					row:AddChild(label)
 
@@ -218,10 +218,10 @@ local function CreateCraftShopperFrame()
 					qty:SetRelativeWidth(0.25)
 					row:AddChild(qty)
 
-					local searchBtn = AceGUI:Create("Button")
-					searchBtn:SetText("?")
+					local searchBtn = AceGUI:Create("Icon")
 					searchBtn:SetRelativeWidth(0.1)
-					searchBtn:SetWidth(20)
+					searchBtn:SetImage("Interface\\AddOns\\" .. addonName .. "\\Icons\\search.tga")
+					searchBtn:SetImageSize(20, 20)
 					searchBtn:SetCallback("OnClick", function()
 						local itemName, _, quality, _, _, _, _, _, itemEquipLoc, _, _, classID, subclassID = C_Item.GetItemInfo(item.itemID)
 						local qualityFilter = { mapQuality[quality], Enum.AuctionHouseFilter.ExactMatch }
@@ -245,10 +245,26 @@ local function CreateCraftShopperFrame()
 					end)
 					row:AddChild(searchBtn)
 
-					local remove = AceGUI:Create("Button")
-					remove:SetText("X")
+					local buy = AceGUI:Create("Icon")
+					buy:SetRelativeWidth(0.1)
+					buy:SetImage("Interface\\AddOns\\" .. addonName .. "\\Icons\\buy.tga")
+					buy:SetImageSize(20, 20)
+					buy:SetCallback("OnClick", function()
+						C_AuctionHouse.StartCommoditiesPurchase(item.itemID, item.missing)
+
+						-- TODO
+						-- der nächste Call darf erst gemacht werden, wenn COMMODITY_PRICE_UPDATED gesendet wurde vom Server
+						-- Dann sollte für maximal 8s für den Anwender ein Fenster angezeigt werden mit dem Preis für das Item, der name und die quantity danach ist das Fenster weg
+						-- Wenn der Anwender im Fenster auf Accept drückt, dann wird die nächste Zeile ohne Timer ausgeführt und das Item/Menge gekauft
+						-- Dies kann, da wir es programmatisch machen, auch direkt von der Shopping List abgezogen werden
+						C_Timer.After(1, function() C_AuctionHouse.ConfirmCommoditiesPurchase(item.itemID, item.missing) end)
+					end)
+					row:AddChild(buy)
+
+					local remove = AceGUI:Create("Icon")
 					remove:SetRelativeWidth(0.1)
-					remove:SetWidth(20)
+					remove:SetImage("Interface\\AddOns\\" .. addonName .. "\\Icons\\delete.tga")
+					remove:SetImageSize(20, 20)
 					remove:SetCallback("OnClick", function()
 						item.hidden = true
 						frame:Refresh()
@@ -271,6 +287,7 @@ f:RegisterEvent("BAG_UPDATE_DELAYED") -- verzögerter Scan, um Event-Flut zu ver
 f:RegisterEvent("CRAFTINGORDERS_ORDER_PLACEMENT_RESPONSE") -- arg1: error code, 0 on success
 f:RegisterEvent("AUCTION_HOUSE_SHOW")
 f:RegisterEvent("AUCTION_HOUSE_CLOSED")
+f:RegisterEvent("COMMODITY_PRICE_UPDATED")
 
 f:SetScript("OnEvent", function(_, event, arg1)
 	if event == "BAG_UPDATE_DELAYED" then
