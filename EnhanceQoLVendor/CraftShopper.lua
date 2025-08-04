@@ -245,6 +245,7 @@ local function ShowPurchasePopup(item, buyWidget)
 		C_AuctionHouse.CancelCommoditiesPurchase(item.itemID)
 		if popup.ticker then popup.ticker:Cancel() end
 		popup.frame:Hide()
+		f:UnregisterEvent("COMMODITY_PRICE_UPDATED")
 		AceGUI:Release(popup)
 		pendingPurchase = nil
 		buyWidget:SetDisabled(false)
