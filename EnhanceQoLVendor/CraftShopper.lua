@@ -12,6 +12,9 @@ end
 local RANK_TO_USE = 3 -- 1-3: gewünschter Qualitätsrang
 local isRecraftTbl = { false, true } -- erst normale, dann Recrafts
 
+local SCAN_DELAY = 0.3
+local pendingScan
+
 local function isAHBuyable(itemID)
 	if not itemID then return false end
 	local data = C_TooltipInfo.GetItemByID(itemID)
@@ -29,7 +32,7 @@ local function isAHBuyable(itemID)
 	return canAHBuy
 end
 
-function BuildShoppingList()
+local function BuildShoppingList()
 	local need = {} -- [itemID] = fehlende Menge
 
 	for _, isRecraft in ipairs(isRecraftTbl) do
@@ -75,10 +78,27 @@ function BuildShoppingList()
 	end
 end
 
+local function Rescan()
+	pendingScan = nil
+	if not IsResting() then return end
+	BuildShoppingList()
+end
+
+local function ScheduleRescan()
+	if pendingScan then return end
+	pendingScan = C_Timer.NewTimer(SCAN_DELAY, Rescan)
+end
+
 local f = CreateFrame("Frame")
 f:RegisterEvent("TRACKED_RECIPE_UPDATE") -- parameter 1: ID of recipe - parameter 2: tracked true/false
-f:RegisterEvent("BAG_UPDATE_DELAYED") -- Muss noch ein dirtyScan bekommen das nicht zu viele Events generiert werden, sollte auf IsResting begrenzt werden?
+f:RegisterEvent("BAG_UPDATE_DELAYED") -- verzögerter Scan, um Event-Flut zu vermeiden
 
-f:SetScript("OnEvent", function() BuildShoppingList() end)
+f:SetScript("OnEvent", function(_, event)
+	if event == "BAG_UPDATE_DELAYED" then
+		ScheduleRescan()
+	else
+		Rescan()
+	end
+end)
 
 function addon.Vendor.functions.checkList() BuildShoppingList() end
