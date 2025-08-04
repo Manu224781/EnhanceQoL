@@ -149,13 +149,13 @@ local function addToSearchResult(itemID)
 	local name, link, quality, level, minLevel, type, subType = C_Item.GetItemInfo(itemID)
 	local mana = extractManaFromTooltip(link)
 	if name and type and subType and minLevel and mana > 0 and type == Enum.ItemClass.Consumable and subType == Enum.ItemConsumableSubclass.Fooddrink then
-		if not addedItems["" .. itemID] then
-			local buffFood = extractWellFedFromTooltip(link)
-			local formattedKey = name:gsub("%s+", "")
-			result = string.format('{ key = "%s", id = %d, requiredLevel = %d, mana = %d, isBuffFood = ' .. buffFood .. " }", formattedKey, itemID, minLevel, mana)
-			table.insert(resultsAHSearch, result)
-		end
-	end
+                if not addedItems["" .. itemID] then
+                        local buffFood = extractWellFedFromTooltip(link)
+                        local formattedKey = name:gsub("%s+", "")
+                        local result = string.format('{ key = "%s", id = %d, requiredLevel = %d, mana = %d, isBuffFood = ' .. buffFood .. " }", formattedKey, itemID, minLevel, mana)
+                        table.insert(resultsAHSearch, result)
+                end
+        end
 	frame.outputEditBox:SetText(table.concat(resultsAHSearch, ",\n        "))
 end
 
@@ -202,23 +202,23 @@ end
 local function onAuctionHouseEvent(self, event, ...)
 	if executeSearch then
 		if event == "AUCTION_HOUSE_BROWSE_RESULTS_UPDATED" then
-			browseResults = C_AuctionHouse.GetBrowseResults()
-			print(#browseResults)
-			for i = 1, #browseResults do
-				_, link = C_Item.GetItemInfo(browseResults[i].itemKey.itemID)
-				if nil == link then
-					reSearchList[browseResults[i].itemKey.itemID] = true
-				else
-					addToSearchResult(browseResults[i].itemKey.itemID)
-				end
-			end
+                        local browseResults = C_AuctionHouse.GetBrowseResults()
+                        print(#browseResults)
+                        for i = 1, #browseResults do
+                                local _, link = C_Item.GetItemInfo(browseResults[i].itemKey.itemID)
+                                if nil == link then
+                                        reSearchList[browseResults[i].itemKey.itemID] = true
+                                else
+                                        addToSearchResult(browseResults[i].itemKey.itemID)
+                                end
+                        end
 		end
 	end
 end
 
 local function onGetItemInfoReceived(...)
-	itemID, success = ...
-	if success == true and reSearchList[itemID] == true then addToSearchResult(itemID) end
+        local itemID, success = ...
+        if success == true and reSearchList[itemID] == true then addToSearchResult(itemID) end
 end
 
 local function onEvent(self, event, ...)
