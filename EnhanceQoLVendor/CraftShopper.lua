@@ -65,12 +65,20 @@ function BuildShoppingList()
 		local owned = C_Item.GetItemCount(itemID, true) -- inkl. Bank
 		local missing = math.max(want.qty - owned, 0)
 		if missing > 0 then
-            local canBuy = ""
-            if want.canAHBuy then canBuy = " - Buy in AH" end
-			local info = C_Item.GetItemInfo(itemID)
-			print(("[%s]   fehlt: %d%s"):format(info or ("ItemID " .. itemID), missing, canBuy))
+			local canBuy = ""
+			if want.canAHBuy then
+				canBuy = " - Buy in AH"
+				local info = C_Item.GetItemInfo(itemID)
+				print(("[%s]   fehlt: %d%s"):format(info or ("ItemID " .. itemID), missing, canBuy))
+			end
 		end
 	end
 end
+
+local f = CreateFrame("Frame")
+f:RegisterEvent("TRACKED_RECIPE_UPDATE") -- parameter 1: ID of recipe - parameter 2: tracked true/false
+f:RegisterEvent("BAG_UPDATE_DELAYED") -- Muss noch ein dirtyScan bekommen das nicht zu viele Events generiert werden, sollte auf IsResting begrenzt werden?
+
+f:SetScript("OnEvent", function() BuildShoppingList() end)
 
 function addon.Vendor.functions.checkList() BuildShoppingList() end
