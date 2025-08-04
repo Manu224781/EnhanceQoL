@@ -22,6 +22,7 @@ local isRecraftTbl = { false, true } -- erst normale, dann Recrafts
 local SCAN_DELAY = 0.3
 local pendingScan
 local scanRunning
+local pendingPurchase -- data for a running AH commodities purchase
 
 local function isAHBuyable(itemID)
 	if not itemID then return false end
@@ -113,6 +114,106 @@ local mapQuality = {
 	[4] = Enum.AuctionHouseFilter.EpicQuality,
 	[5] = Enum.AuctionHouseFilter.LegendaryQuality,
 }
+
+-- Shows a small confirmation window for a pending commodity purchase.
+-- Displays a spinner and countdown while waiting for the price from the server.
+-- When the price is known, the user can confirm or cancel the buy.
+local function ShowPurchasePopup(item, buyWidget)
+	if pendingPurchase then return end -- do not allow multiple parallel purchases
+
+	buyWidget:SetDisabled(true)
+
+	local popup = AceGUI:Create("Window")
+	popup:SetTitle("Confirm purchase")
+	popup:SetWidth(250)
+	popup:SetHeight(150)
+	popup:SetLayout("List")
+	popup:EnableResize(false)
+
+	local text = AceGUI:Create("Label")
+	text:SetFullWidth(true)
+	text:SetJustifyH("CENTER")
+	text:SetText("Waiting for price...")
+	popup:AddChild(text)
+	popup.text = text
+
+	local timerLabel = AceGUI:Create("Label")
+	timerLabel:SetFullWidth(true)
+	timerLabel:SetJustifyH("CENTER")
+	popup:AddChild(timerLabel)
+	popup.timerLabel = timerLabel
+
+	local btnGroup = AceGUI:Create("SimpleGroup")
+	btnGroup:SetFullWidth(true)
+	btnGroup:SetLayout("Flow")
+	popup:AddChild(btnGroup)
+
+	local buyBtn = AceGUI:Create("Button")
+	buyBtn:SetText("Buy now")
+	buyBtn:SetRelativeWidth(0.5)
+	buyBtn:SetDisabled(true)
+	btnGroup:AddChild(buyBtn)
+	popup.buyBtn = buyBtn
+
+	local cancelBtn = AceGUI:Create("Button")
+	cancelBtn:SetText("Cancel")
+	cancelBtn:SetRelativeWidth(0.5)
+	btnGroup:AddChild(cancelBtn)
+
+	local spinner = CreateFrame("Frame", nil, popup.frame, "LoadingSpinnerTemplate")
+	spinner:SetPoint("TOP", popup.frame, "TOP", 0, -25)
+	spinner:SetSize(24, 24)
+	spinner:Show()
+	popup.spinner = spinner
+
+	popup.remaining = 15
+	timerLabel:SetText(("Time remaining: %ds"):format(popup.remaining))
+	popup.ticker = C_Timer.NewTicker(1, function()
+		popup.remaining = popup.remaining - 1
+		if popup.remaining <= 0 then
+			cancelBtn:Fire("OnClick")
+		else
+			timerLabel:SetText(("Time remaining: %ds"):format(popup.remaining))
+		end
+	end)
+
+	buyBtn:SetCallback("OnClick", function()
+		C_AuctionHouse.ConfirmCommoditiesPurchase(item.itemID, item.missing)
+		if popup.ticker then popup.ticker:Cancel() end
+		popup.frame:Hide()
+		AceGUI:Release(popup)
+		pendingPurchase = nil
+		item.hidden = true
+		if addon.Vendor.CraftShopper.frame then addon.Vendor.CraftShopper.frame:Refresh() end
+		buyWidget:SetDisabled(false)
+	end)
+
+	cancelBtn:SetCallback("OnClick", function()
+		C_AuctionHouse.CancelCommoditiesPurchase(item.itemID)
+		if popup.ticker then popup.ticker:Cancel() end
+		popup.frame:Hide()
+		AceGUI:Release(popup)
+		pendingPurchase = nil
+		buyWidget:SetDisabled(false)
+	end)
+
+	pendingPurchase = {
+		item = item,
+		popup = popup,
+		buyWidget = buyWidget,
+	}
+end
+
+local function UpdatePurchasePopup(itemID)
+	if not pendingPurchase or pendingPurchase.item.itemID ~= itemID then return end
+
+	local itemName = C_Item.GetItemInfo(itemID)
+	local pricePer = C_AuctionHouse.GetCurrentCommodityPricePerUnit(itemID) or 0
+	local total = pricePer * pendingPurchase.item.missing
+	pendingPurchase.popup.text:SetText(("%s x%d\n%s"):format(itemName or ("item:" .. itemID), pendingPurchase.item.missing, GetMoneyString(total)))
+	pendingPurchase.popup.buyBtn:SetDisabled(false)
+	if pendingPurchase.popup.spinner then pendingPurchase.popup.spinner:Hide() end
+end
 
 local function CreateCraftShopperFrame()
 	if addon.Vendor.CraftShopper.frame then return addon.Vendor.CraftShopper.frame end
@@ -250,14 +351,9 @@ local function CreateCraftShopperFrame()
 					buy:SetImage("Interface\\AddOns\\" .. addonName .. "\\Icons\\buy.tga")
 					buy:SetImageSize(20, 20)
 					buy:SetCallback("OnClick", function()
+						if pendingPurchase then return end
 						C_AuctionHouse.StartCommoditiesPurchase(item.itemID, item.missing)
-
-						-- TODO
-						-- der nächste Call darf erst gemacht werden, wenn COMMODITY_PRICE_UPDATED gesendet wurde vom Server
-						-- Dann sollte für maximal 8s für den Anwender ein Fenster angezeigt werden mit dem Preis für das Item, der name und die quantity danach ist das Fenster weg
-						-- Wenn der Anwender im Fenster auf Accept drückt, dann wird die nächste Zeile ohne Timer ausgeführt und das Item/Menge gekauft
-						-- Dies kann, da wir es programmatisch machen, auch direkt von der Shopping List abgezogen werden
-						C_Timer.After(1, function() C_AuctionHouse.ConfirmCommoditiesPurchase(item.itemID, item.missing) end)
+						ShowPurchasePopup(item, buy)
 					end)
 					row:AddChild(buy)
 
@@ -305,6 +401,8 @@ f:SetScript("OnEvent", function(_, event, arg1)
 		ui:Refresh()
 	elseif event == "AUCTION_HOUSE_CLOSED" then
 		if addon.Vendor.CraftShopper.frame then addon.Vendor.CraftShopper.frame.frame:Hide() end
+	elseif event == "COMMODITY_PRICE_UPDATED" then
+		UpdatePurchasePopup(arg1)
 	else
 		Rescan()
 	end
