@@ -48,3 +48,7 @@ L["vendorCraftingExpansions"] = "Include crafting materials (grouped by expansio
 
 L["vendorSellNext"] = "Sell next"
 L["vendorWillBeSold"] = "Marked for sale"
+
+L["vendorCraftShopperSearchAH"] = "Search Auction House"
+L["vendorCraftShopperBuyItems"] = "Buy items"
+L["vendorCraftShopperHideFromList"] = "Hide from list"
