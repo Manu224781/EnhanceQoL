@@ -7,6 +7,10 @@
 - **Tooltip**
   - Shows the item count from the Warband Bank.
 
+### 🔄 Changed
+
+- Updated the TOC files for the new 11.2 performance improvements
+
 ### ❌ Removed
 
 - Deprecated code that became obsolete with patch 11.2.

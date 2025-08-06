@@ -23,7 +23,7 @@
 ..\EnhanceQoL\libs\LibOpenRaid\lib.xml
 
 Init.lua
-locales.xml
+locales\[TextLocale].lua
 
 CooldownTracker.lua
 DungeonPortal.lua

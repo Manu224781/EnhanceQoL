@@ -21,6 +21,6 @@
 ## Globe-Main: EnhanceQoL
 
 Init.lua
-locales.xml
+locales\[TextLocale].lua
 
 EnhanceQoLMouse.lua

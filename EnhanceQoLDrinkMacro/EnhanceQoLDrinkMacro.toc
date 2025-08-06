@@ -20,7 +20,7 @@
 ## LoadOnDemand: 1
 
 Init.lua
-locales.xml
+locales\[TextLocale].lua
 
 Drinks.lua
 FoodReminder.lua

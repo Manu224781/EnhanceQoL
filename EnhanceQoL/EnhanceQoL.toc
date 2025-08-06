@@ -25,7 +25,7 @@
 
 libs\LibStub\LibStub.lua
 libs\AceLocale-3.0\AceLocale-3.0.xml
-locales.xml
+locales\[TextLocale].lua
 Init.lua
 
 libs\CallbackHandler-1.0\CallbackHandler-1.0.lua

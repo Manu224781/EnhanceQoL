@@ -22,7 +22,7 @@
 ## Globe-Main: EnhanceQoL
 
 Init.lua
-locales.xml
+locales\[TextLocale].lua
 
 EnhanceQoLVendor.lua
 CraftShopper.lua

@@ -20,7 +20,7 @@
 ## LoadOnDemand: 1
 ## Globe-Main: EnhanceQoL
 
-locales.xml
+locales\[TextLocale].lua
 EnhanceQoLSharedMedia.lua
 Init.lua
 UI.lua
