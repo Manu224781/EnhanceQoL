@@ -561,7 +561,7 @@ function addon.functions.updateAllowedDrinks()
 	local UnitLevel = UnitLevel
 	local UnitPowerMax = UnitPowerMax
 	local UnitRace = UnitRace
-	local IsSpellKnown = IsSpellKnown
+        local IsSpellInSpellBook = C_SpellBook.IsSpellInSpellBook
 	local tinsert = table.insert
 	local newItem = addon.functions.newItem
 	local db = addon.db
@@ -600,8 +600,7 @@ function addon.functions.updateAllowedDrinks()
 				and not (isEarthen and not drink.isEarthenFood)
 				and not (drink.earthenOnly and not isEarthen)
 				and not (drink.earthenOnly and drink.isGem and ignoreGems)
-				-- TODO 11.2: migrate IsSpellKnown to C_SpellBook.IsSpellInSpellBook
-				and not (drink.isSpell and not IsSpellKnown(drink.id))
+                                and not (drink.isSpell and not IsSpellInSpellBook(drink.id))
 			then
 				if drink.isMageFood and preferMage then
 					tinsert(filtered, 1, newItem(drink.id, drink.desc, drink.isSpell))

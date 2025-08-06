@@ -66,8 +66,6 @@ L["TooltipShowItemID"] = "在工具提示中显示物品ID"
 
 L["TooltipShowItemCount"] = "在提示框中显示物品数量"
 L["TooltipShowSeperateItemCount"] = "按位置分开显示物品数量"
--- TODO 11.2: remove Reagentbank localization
-L["Reagentbank"] = "材料银行"
 L["Bank"] = "银行"
 L["Bag"] = "背包"
 L["Itemcount"] = "物品数量"

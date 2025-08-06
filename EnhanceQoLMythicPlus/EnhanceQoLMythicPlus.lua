@@ -226,16 +226,14 @@ local function createButtons()
 					if addon.MythicPlus.variables.breakIt then
 						self:Cancel()
 						C_PartyInfo.DoCountdown(0)
-						-- TODO 11.2: use C_ChatInfo.SendChatMessage
-						if addon.db["noChatOnPullTimer"] == false then SendChatMessage("PULL Canceled", "Party") end
+                                                if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage("PULL Canceled", "PARTY") end
 						C_ChatInfo.SendAddonMessage("D4", ("PT\t%s\t%d"):format(0, instanceId), IsInGroup(2) and "INSTANCE_CHAT" or "RAID")
 					end
 
 					if x == 0 then
 						self:Cancel()
-						-- TODO 11.2: use C_ChatInfo.SendChatMessage
-						addon.MythicPlus.variables.handled = false
-						if addon.db["noChatOnPullTimer"] == false then SendChatMessage(">>PULL NOW<<", "Party") end
+                                                addon.MythicPlus.variables.handled = false
+                                                if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage(">>PULL NOW<<", "PARTY") end
 						if addon.db["autoKeyStart"] == false then
 							addon.MythicPlus.Buttons["PullTimer"]:SetText(L["PullTimer"])
 						elseif addon.db["autoKeyStart"] and nil ~= C_ChallengeMode.GetSlottedKeystoneInfo() then
@@ -257,11 +255,10 @@ local function createButtons()
 							else
 								addon.MythicPlus.Buttons["PullTimer"]:SetText(L["Pull"] .. " (" .. x .. ")")
 							end
-							-- TODO 11.2: use C_ChatInfo.SendChatMessage
-						end
-						if addon.MythicPlus.variables.breakIt == false then
-							if addon.db["noChatOnPullTimer"] == false then SendChatMessage(format("PULL in %ds", x), "Party") end
-						end
+                                                end
+                                                if addon.MythicPlus.variables.breakIt == false then
+                                                        if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage(format("PULL in %ds", x), "PARTY") end
+                                                end
 					end
 					x = x - 1
 				end)

@@ -248,8 +248,8 @@ local function checkShow()
 end
 
 function addon.Drinks.functions.updateRole()
-	healerRole = GetSpecializationRole(GetSpecialization()) == "HEALER" or false
-	checkShow()
+healerRole = GetSpecializationRole(C_SpecializationInfo.GetSpecialization()) == "HEALER" or false
+checkShow()
 end
 
 local frameLoad = CreateFrame("Frame")
@@ -261,16 +261,16 @@ frameLoad:RegisterEvent("PLAYER_UPDATE_RESTING")
 frameLoad:RegisterEvent("GROUP_ROSTER_UPDATE")
 
 frameLoad:SetScript("OnEvent", function(self, event)
-	if event == "PLAYER_LOGIN" then
-		healerRole = GetSpecializationRole(GetSpecialization()) == "HEALER" or false
-	elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
-		healerRole = GetSpecializationRole(GetSpecialization()) == "HEALER" or false
-	elseif event == "PLAYER_UPDATE_RESTING" and IsResting() then
-		queuedFollower = false
-	end
-	if IsResting() or IsInLFGDungeon() then
-		checkShow()
-	else
-		removeBRFrame()
-	end
+if event == "PLAYER_LOGIN" then
+healerRole = GetSpecializationRole(C_SpecializationInfo.GetSpecialization()) == "HEALER" or false
+elseif event == "ACTIVE_TALENT_GROUP_CHANGED" then
+healerRole = GetSpecializationRole(C_SpecializationInfo.GetSpecialization()) == "HEALER" or false
+elseif event == "PLAYER_UPDATE_RESTING" and IsResting() then
+queuedFollower = false
+end
+if IsResting() or IsInLFGDungeon() then
+checkShow()
+else
+removeBRFrame()
+end
 end)

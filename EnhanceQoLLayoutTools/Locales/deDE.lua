@@ -72,8 +72,6 @@ L["TooltipShowItemID"] = "Item-ID im Tooltip anzeigen"
 
 L["TooltipShowItemCount"] = "Gegenstandszahl im Tooltip anzeigen"
 L["TooltipShowSeperateItemCount"] = "Gegenstandszahl pro Standort getrennt anzeigen"
--- TODO 11.2: remove Reagentbank localization
-L["Reagentbank"] = "Materiallager"
 L["Bank"] = "Bank"
 L["Bag"] = "Tasche"
 L["Itemcount"] = "Gegenstandszahl"

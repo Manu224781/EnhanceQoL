@@ -17,40 +17,17 @@ addon.MythicPlus.variables.seasonMapInfo = {}
 addon.MythicPlus.variables.seasonMapHash = {}
 
 local function createSeasonInfo()
-	addon.MythicPlus.variables.seasonMapInfo = {}
-	addon.MythicPlus.variables.seasonMapHash = {}
-	local cModeIDs = C_ChallengeMode.GetMapTable()
-	local cModeIDLookup = {}
-	for _, id in ipairs(cModeIDs) do
-		cModeIDLookup[id] = true
-	end
-
-	for _, section in pairs(addon.MythicPlus.variables.portalCompendium) do
-		for spellID, data in pairs(section.spells) do
-			if data.mapID and data.cId then
-				for cId in pairs(data.cId) do
-					if cModeIDLookup[cId] then
-						local mID
-						if type(data.mapID) == "table" then
-							if type(data.mapID[cId]) == "table" then
-								mID = data.mapID[cId].mapID .. "_" .. data.mapID[cId].zoneID
-							else
-								mID = data.mapID[cId]
-							end
-						else
-							mID = data.mapID
-						end
-						if mID and not addon.MythicPlus.variables.seasonMapHash[mID] then
-							local mapName = C_ChallengeMode.GetMapUIInfo(cId)
-							table.insert(addon.MythicPlus.variables.seasonMapInfo, { name = mapName, id = mID })
-							addon.MythicPlus.variables.seasonMapHash[mID] = true
-						end
-					end
-				end
-			end
-		end
-	end
-	table.sort(addon.MythicPlus.variables.seasonMapInfo, function(a, b) return a.name < b.name end)
+        addon.MythicPlus.variables.seasonMapInfo = {}
+        addon.MythicPlus.variables.seasonMapHash = {}
+        local cModeIDs = C_ChallengeMode.GetMapTable()
+        for _, id in ipairs(cModeIDs) do
+                local mapName, _, _, _, _, mapID = C_ChallengeMode.GetMapUIInfo(id)
+                if mapID and not addon.MythicPlus.variables.seasonMapHash[mapID] then
+                        table.insert(addon.MythicPlus.variables.seasonMapInfo, { name = mapName, id = mapID })
+                        addon.MythicPlus.variables.seasonMapHash[mapID] = true
+                end
+        end
+        table.sort(addon.MythicPlus.variables.seasonMapInfo, function(a, b) return a.name < b.name end)
 end
 
 function addon.MythicPlus.functions.getAllLoadouts()
@@ -340,14 +317,8 @@ local function checkLoadout(isReadycheck)
 		if #addon.MythicPlus.variables.seasonMapInfo == 0 then createSeasonInfo() end
 		local _, _, difficulty, _, _, _, _, mapID = GetInstanceInfo()
 
-		if difficulty == 23 and mapID then
-			if not addon.MythicPlus.variables.seasonMapHash[mapID] then
-				-- try combined MapID with zoneID
-				local zoneID = C_Map.GetBestMapForUnit("player")
-				if addon.MythicPlus.variables.seasonMapHash[mapID .. "_" .. zoneID] then mapID = mapID .. "_" .. zoneID end
-			end
-
-			if addon.MythicPlus.variables.seasonMapHash[mapID] and addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID] then
+                if difficulty == 23 and mapID then
+                        if addon.MythicPlus.variables.seasonMapHash[mapID] and addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID] then
 				local reqTalent = addon.db["talentReminderSettings"][addon.variables.unitPlayerGUID][addon.MythicPlus.variables.currentSpecID][mapID]
 				if
 					reqTalent

@@ -720,19 +720,13 @@ local function CreateFilterMenu()
 					end
 
 					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-					if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-						-- TODO 11.2: NUM_BANKGENERIC_SLOTS removed
-						-- TODO 11.2: NUM_BANKGENERIC_SLOTS removed
-						if NUM_BANKGENERIC_SLOTS then
-							for slot = 1, NUM_BANKGENERIC_SLOTS do
-								local itemButton = _G["BankFrameItem" .. slot]
-								if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-							end
-						end
-					end
-					-- TODO 11.2: AccountBankPanel will be removed
-					if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
-					if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+                                        if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
+                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                                        local itemButton = _G["BankFrameItem" .. slot]
+                                                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+                                                end
+                                        end
+                                        if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 
 					UpdateResetButton()
 				end)
@@ -779,18 +773,13 @@ local function CreateFilterMenu()
 					end
 
 					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-					if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-						-- TODO 11.2: NUM_BANKGENERIC_SLOTS removed
-						if NUM_BANKGENERIC_SLOTS then
-							for slot = 1, NUM_BANKGENERIC_SLOTS do
-								local itemButton = _G["BankFrameItem" .. slot]
-								if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-							end
-						end
-					end
-					-- TODO 11.2: AccountBankPanel will be removed
-					if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
-					if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+                                        if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
+                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                                        local itemButton = _G["BankFrameItem" .. slot]
+                                                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+                                                end
+                                        end
+                                        if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 
 					UpdateResetButton()
 					self:ClearFocus()
@@ -867,19 +856,13 @@ local function CreateFilterMenu()
 			addon.functions.updateBags(cframe)
 		end
 
-		--TODO remove this after Patch 11.2 release in August 2025
-		if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-			-- TODO 11.2: NUM_BANKGENERIC_SLOTS removed
-			if NUM_BANKGENERIC_SLOTS then
-				for slot = 1, NUM_BANKGENERIC_SLOTS do
-					local itemButton = _G["BankFrameItem" .. slot]
-					if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-				end
-			end
-		end
-		-- TODO 11.2: AccountBankPanel will be removed
-		if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
-		if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+                if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
+                        for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                local itemButton = _G["BankFrameItem" .. slot]
+                                if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+                        end
+                end
+                if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 
 		UpdateResetButton()
 	end)
@@ -903,18 +886,13 @@ local function ToggleFilterMenu(self)
 		addon.functions.updateBags(frame)
 	end
 
-	if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-		-- TODO 11.2: NUM_BANKGENERIC_SLOTS removed
-		if NUM_BANKGENERIC_SLOTS then
-			for slot = 1, NUM_BANKGENERIC_SLOTS do
-				local itemButton = _G["BankFrameItem" .. slot]
-				if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-			end
-		end
-	end
-	-- TODO 11.2: AccountBankPanel will be removed
-	if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
-	if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+        if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
+                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                        local itemButton = _G["BankFrameItem" .. slot]
+                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+                end
+        end
+        if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 end
 
 local function InitializeFilterUI()
@@ -935,21 +913,10 @@ function addon.functions.updateBags(frame)
 	end
 	if not frame:IsShown() then return end
 
-	--TODO AccountBankPanel is removed in 11.2 - Feature has to be removed everywhere after release
-	if frame:GetName() == "AccountBankPanel" then
-		for itemButton in frame:EnumerateValidItems() do
-			if addon.db["showIlvlOnBankFrame"] then
-				local bag = itemButton:GetBankTabID()
-				local slot = itemButton:GetContainerSlotID()
-				if bag and slot then updateButtonInfo(itemButton, bag, slot, frame:GetName()) end
-			elseif itemButton.ItemLevelText then
-				itemButton.ItemLevelText:Hide()
-			end
-		end
-	elseif frame:GetName() == "BankPanel" then
-		for itemButton in frame:EnumerateValidItems() do
-			if addon.db["showIlvlOnBankFrame"] then
-				local bag = itemButton:GetBankTabID()
+        if frame:GetName() == "BankPanel" then
+                for itemButton in frame:EnumerateValidItems() do
+                        if addon.db["showIlvlOnBankFrame"] then
+                                local bag = itemButton:GetBankTabID()
 				local slot = itemButton:GetContainerSlotID()
 				if bag and slot then updateButtonInfo(itemButton, bag, slot, frame:GetName()) end
 			elseif itemButton.ItemLevelText then

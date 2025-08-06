@@ -73,8 +73,6 @@ L["TooltipShowItemID"] = "Mostrar ID do item na dica de tela"
 
 L["TooltipShowItemCount"] = "Mostrar contagem de itens na dica de ferramenta"
 L["TooltipShowSeperateItemCount"] = "Mostrar contagem de itens separada por local"
--- TODO 11.2: remove Reagentbank localization
-L["Reagentbank"] = "Banco de Reagentes"
 L["Bank"] = "Banco"
 L["Bag"] = "Bolsa"
 L["Itemcount"] = "Contagem de itens"

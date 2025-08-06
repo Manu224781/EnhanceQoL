@@ -66,8 +66,6 @@ L["TooltipShowItemID"] = "Mostrar ID de objeto en el tooltip"
 
 L["TooltipShowItemCount"] = "Mostrar cantidad de objetos en el tooltip"
 L["TooltipShowSeperateItemCount"] = "Mostrar cantidad de objetos por ubicación"
--- TODO 11.2: remove Reagentbank localization
-L["Reagentbank"] = "Banco de componentes"
 L["Bank"] = "Banco"
 L["Bag"] = "Bolsa"
 L["Itemcount"] = "Cantidad de objetos"

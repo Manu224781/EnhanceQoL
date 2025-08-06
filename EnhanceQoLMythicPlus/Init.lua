@@ -240,8 +240,7 @@ function addon.MythicPlus.functions.addPullButton()
 		if addon.db["PullTimerType"] == 3 or addon.db["PullTimerType"] == 4 then
 			C_ChatInfo.SendAddonMessage("D4", ("PT\t%d\t%d"):format(duration, instanceId), IsInGroup(2) and "INSTANCE_CHAT" or "RAID")
 		end
-		-- TODO 11.2: use C_ChatInfo.SendChatMessage
-		if not addon.db["noChatOnPullTimer"] then SendChatMessage(("PULL in %ds"):format(duration), "PARTY") end
+                if not addon.db["noChatOnPullTimer"] then C_ChatInfo.SendChatMessage(("PULL in %ds"):format(duration), "PARTY") end
 
 		-- ticker updates local countdown (also handles chat, optional)
 		self.ticker = C_Timer.NewTicker(1, function(t)
@@ -263,18 +262,15 @@ function addon.MythicPlus.functions.addPullButton()
 					self.spin:Stop()
 					self.ring:SetRotation(0)
 				end
-				-- TODO 11.2: use C_ChatInfo.SendChatMessage
-
-				if not addon.db["noChatOnPullTimer"] then SendChatMessage(">>PULL NOW<<", "PARTY") end
+                                if not addon.db["noChatOnPullTimer"] then C_ChatInfo.SendChatMessage(">>PULL NOW<<", "PARTY") end
 				if addon.db["autoKeyStart"] and C_ChallengeMode.GetSlottedKeystoneInfo() then
 					C_ChallengeMode.StartChallengeMode()
 					ChallengesKeystoneFrame:Hide()
 				end
-			-- TODO 11.2: use C_ChatInfo.SendChatMessage
-			else
-				self.timerCountdown:SetText(self.remaining)
-				if not addon.db["noChatOnPullTimer"] then SendChatMessage(("PULL in %d"):format(self.remaining), "PARTY") end
-			end
+                        else
+                                self.timerCountdown:SetText(self.remaining)
+                                if not addon.db["noChatOnPullTimer"] then C_ChatInfo.SendChatMessage(("PULL in %d"):format(self.remaining), "PARTY") end
+                        end
 		end)
 		self.running = true
 	end
@@ -286,11 +282,10 @@ function addon.MythicPlus.functions.addPullButton()
 		self.running = false
 		if not MouseIsOver(rcButton) then
 			self.spin:Stop()
-			-- TODO 11.2: use C_ChatInfo.SendChatMessage
-			self.ring:SetRotation(0)
-		end
-		C_PartyInfo.DoCountdown(0) -- abort Blizzard countdown
-		if not addon.db["noChatOnPullTimer"] then SendChatMessage("PULL Canceled", "PARTY") end
+                        self.ring:SetRotation(0)
+                end
+                C_PartyInfo.DoCountdown(0) -- abort Blizzard countdown
+                if not addon.db["noChatOnPullTimer"] then C_ChatInfo.SendChatMessage("PULL Canceled", "PARTY") end
 	end
 
 	rcButton:RegisterForClicks("RightButtonDown", "LeftButtonDown")
@@ -395,32 +390,29 @@ function addon.MythicPlus.functions.removeExistingButton()
 	end
 	addon.MythicPlus.Buttons = {}
 	addon.MythicPlus.nrOfButtons = 0
-	-- TODO 11.2: remove static mapID entries when C_ChallengeMode.GetMapUIInfo returns mapID
 end
 
 addon.MythicPlus.variables.portalCompendium = {
 	[120] = {
 		headline = EXPANSION_NAME10,
 		spells = {
-			[445269] = { text = "SV", cId = { [501] = true }, mapID = 2652 },
-			[445416] = { text = "COT", cId = { [502] = true }, mapID = 2663 },
-			[445414] = { text = "DAWN", cId = { [505] = true }, mapID = 2662 },
-			[445417] = { text = "ARAK", cId = { [503] = true }, mapID = 2660 },
-			[1216786] = { text = "FLOOD", cId = { [525] = true }, mapID = 2773 },
-			[1237215] = { text = "ED", cId = { [542] = true }, mapID = 2830 },
-			[445440] = { text = "BREW", cId = { [506] = true }, mapID = 2661 },
-			[445444] = { text = "PSF", cId = { [499] = true }, mapID = 2649 },
-			[445441] = { text = "DFC", cId = { [504] = true }, mapID = 2651 },
-			[445443] = { text = "ROOK", cId = { [500] = true }, mapID = 2648 },
+			[445269] = { text = "SV", cId = { [501] = true } },
+			[445416] = { text = "COT", cId = { [502] = true } },
+			[445414] = { text = "DAWN", cId = { [505] = true } },
+			[445417] = { text = "ARAK", cId = { [503] = true } },
+			[1216786] = { text = "FLOOD", cId = { [525] = true } },
+			[1237215] = { text = "ED", cId = { [542] = true } },
+			[445440] = { text = "BREW", cId = { [506] = true } },
+			[445444] = { text = "PSF", cId = { [499] = true } },
+			[445441] = { text = "DFC", cId = { [504] = true } },
+			[445443] = { text = "ROOK", cId = { [500] = true } },
 			[448126] = { text = "ENGI", isToy = true, toyID = 221966, isEngineering = true },
 			[446540] = { text = "DORN", isClassTP = "MAGE" },
 			[446534] = { text = "DORN", isMagePortal = true },
 			[1226482] = { text = "LOU", isRaid = true },
 			[1223041] = { text = "HS", isItem = true, itemID = 234389, isRaid = true, icon = 3718248, map = 2406 },
 			[1239155] = { text = "MFO", isRaid = true },
-			[467470] = { text = "DELVE", isToy = true, toyID = 230850 },
-		},
-	},
+			[467470] = { text = "DELVE", isToy = true, toyID = 230850 }}},
 	[110] = {
 		headline = EXPANSION_NAME9,
 		spells = {
@@ -428,12 +420,10 @@ addon.MythicPlus.variables.portalCompendium = {
 			[424197] = {
 				text = "DOTI",
 				cId = { [463] = true, [464] = true },
-				mapID = { [463] = { mapID = 2579, zoneID = 1989 }, [464] = { mapID = 2579, zoneID = 1995 } }, -- Checks for zoneID + mapID for Mega Dungeons},
-			},
-			[393256] = { text = "RLP", cId = { [399] = true }, mapID = 2521 },
-			[393262] = { text = "NO", cId = { [400] = true }, mapID = 2516 },
-			[393267] = { text = "BH", cId = { [405] = true }, mapID = 2520 },
-			[393273] = { text = "AA", cId = { [402] = true }, mapID = 2526 },
+			[393256] = { text = "RLP", cId = { [399] = true } },
+			[393262] = { text = "NO", cId = { [400] = true } },
+			[393267] = { text = "BH", cId = { [405] = true } },
+			[393273] = { text = "AA", cId = { [402] = true } },
 			[393276] = { text = "NELT", cId = { [404] = true } },
 			[393279] = { text = "AV", cId = { [401] = true } },
 			[393283] = { text = "HOI", cId = { [406] = true } },
@@ -444,24 +434,21 @@ addon.MythicPlus.variables.portalCompendium = {
 			[386379] = { text = "ENGI", isToy = true, toyID = 198156, isEngineering = true },
 			-- Valdrakken (Dragonflight)
 			[395277] = { text = "Vald", isClassTP = "MAGE" },
-			[395289] = { text = "Vald", isMagePortal = true },
-		},
-	},
+			[395289] = { text = "Vald", isMagePortal = true }}},
 	[100] = {
 		headline = EXPANSION_NAME8,
 		spells = {
 			[354462] = { text = "NW", cId = { [376] = true } },
 			[354463] = { text = "PF", cId = { [379] = true } },
 			[354464] = { text = "MISTS", cId = { [375] = true } },
-			[354465] = { text = "HOA", cId = { [378] = true }, mapID = 2287 },
+			[354465] = { text = "HOA", cId = { [378] = true } },
 			[354466] = { text = "SOA", cId = { [381] = true } },
-			[354467] = { text = "TOP", cId = { [382] = true }, mapID = 2293 },
+			[354467] = { text = "TOP", cId = { [382] = true } },
 			[354468] = { text = "DOS", cId = { [377] = true } },
 			[354469] = { text = "SD", cId = { [380] = true } },
 			[367416] = {
 				text = "TAZA",
 				cId = { [391] = true, [392] = true },
-				mapID = { [391] = { mapID = 2441, zoneID = 1989 }, [392] = { mapID = 2441, zoneID = 1995 } }, -- Checks for zoneID + mapID for Mega Dungeons
 			},
 			[373190] = { text = "CN", isRaid = true }, -- Raids
 			[373192] = { text = "SFO", isRaid = true }, -- Raids
@@ -469,21 +456,19 @@ addon.MythicPlus.variables.portalCompendium = {
 			[324031] = { text = "ENGI", isToy = true, toyID = 172924, isEngineering = true },
 			-- Oribos (Shadowlands)
 			[344587] = { text = "Orib", isClassTP = "MAGE" },
-			[344597] = { text = "Orib", isMagePortal = true },
-		},
-	},
+			[344597] = { text = "Orib", isMagePortal = true }}},
 	[90] = {
 		headline = EXPANSION_NAME7,
 		spells = {
 			[410071] = { text = "FH", cId = { [245] = true } },
 			[410074] = { text = "UR", cId = { [251] = true } },
-			[373274] = { text = "WORK", cId = { [369] = true, [370] = true }, mapID = 2097 },
+			[373274] = { text = "WORK", cId = { [369] = true, [370] = true } },
 			[424167] = { text = "WM", cId = { [248] = true } },
 			[424187] = { text = "AD", cId = { [244] = true } },
 			[445418] = { text = "SIEG", faction = FACTION_ALLIANCE, cId = { [353] = true } },
 			[464256] = { text = "SIEG", faction = FACTION_HORDE, cId = { [353] = true } },
-			[467553] = { text = "ML", faction = FACTION_ALLIANCE, cId = { [247] = true }, mapID = 1594 },
-			[467555] = { text = "ML", faction = FACTION_HORDE, cId = { [247] = true }, mapID = 1594 },
+			[467553] = { text = "ML", faction = FACTION_ALLIANCE, cId = { [247] = true } },
+			[467555] = { text = "ML", faction = FACTION_HORDE, cId = { [247] = true } },
 			[299083] = { text = "ENGI", isToy = true, toyID = 168807, isEngineering = true },
 			[299084] = { text = "ENGI", isToy = true, toyID = 168808, isEngineering = true },
 			-- Boralus (BfA)
@@ -492,9 +477,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			-- Dazar'alor (BfA)
 			[281404] = { text = "Daza", isClassTP = "MAGE", faction = FACTION_HORDE },
 			[281402] = { text = "Daza", isMagePortal = true, faction = FACTION_HORDE },
-			[396591] = { text = "HS", isItem = true, itemID = 202046, isHearthstone = true, icon = 2203919 },
-		},
-	},
+			[396591] = { text = "HS", isItem = true, itemID = 202046, isHearthstone = true, icon = 2203919 }}},
 	[80] = {
 		headline = EXPANSION_NAME6,
 		spells = {
@@ -508,9 +491,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[222695] = { text = "HS", isToy = true, toyID = 140192, isHearthstone = true, icon = 1444943 },
 			-- Dalaran (Broken Isles, Legion)
 			[224869] = { text = "DalB", isClassTP = "MAGE" },
-			[224871] = { text = "DalB", isMagePortal = true },
-		},
-	},
+			[224871] = { text = "DalB", isMagePortal = true }}},
 	[70] = {
 		headline = EXPANSION_NAME5,
 		spells = {
@@ -536,9 +517,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[176248] = { text = "STORM", isClassTP = "MAGE", faction = FACTION_ALLIANCE },
 			[176246] = { text = "STORM", isMagePortal = true, faction = FACTION_ALLIANCE },
 			[176242] = { text = "WARS", isClassTP = "MAGE", faction = FACTION_HORDE },
-			[176244] = { text = "WARS", isMagePortal = true, faction = FACTION_HORDE },
-		},
-	},
+			[176244] = { text = "WARS", isMagePortal = true, faction = FACTION_HORDE }}},
 	[60] = {
 		headline = EXPANSION_NAME4,
 		spells = {
@@ -553,9 +532,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[131204] = { text = "TJS", cId = { [2] = true } },
 			[87215] = { text = "ENGI", isToy = true, toyID = 87215, isEngineering = true }, -- spellID ist noch falsch
 			[120145] = { text = "DALA", isClassTP = "MAGE" },
-			[120146] = { text = "DALA", isMagePortal = true },
-		},
-	},
+			[120146] = { text = "DALA", isMagePortal = true }}},
 	[50] = {
 		headline = EXPANSION_NAME3,
 		spells = {
@@ -566,9 +543,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[88344] = { text = "TolB", isClassTP = "MAGE", faction = FACTION_ALLIANCE },
 			[88345] = { text = "TolB", isMagePortal = true, faction = FACTION_ALLIANCE },
 			[88346] = { text = "TolB", isClassTP = "MAGE", faction = FACTION_HORDE },
-			[88347] = { text = "TolB", isMagePortal = true, faction = FACTION_HORDE },
-		},
-	},
+			[88347] = { text = "TolB", isMagePortal = true, faction = FACTION_HORDE }}},
 	[40] = {
 		headline = EXPANSION_NAME2,
 		spells = {
@@ -576,9 +551,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[73324] = { text = "HS", isItem = true, itemID = 52251, isHearthstone = true, icon = 133308 },
 			-- Dalaran (Northrend, WotLK)
 			[53140] = { text = "DalN", isClassTP = "MAGE" },
-			[53142] = { text = "DalN", isMagePortal = true },
-		},
-	},
+			[53142] = { text = "DalN", isMagePortal = true }}},
 	[30] = {
 		headline = EXPANSION_NAME1,
 		spells = {
@@ -590,8 +563,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[32266] = { text = "Exod", isMagePortal = true, faction = FACTION_ALLIANCE }, -- Portal: Exodar
 			[32272] = { text = "SMC", isClassTP = "MAGE", faction = FACTION_HORDE }, -- Teleport: Silvermoon
 			[32267] = { text = "SMC", isMagePortal = true, faction = FACTION_HORDE }, -- Portal: Silvermoon
-		},
-	},
+		}},
 	[20] = {
 		headline = EXPANSION_NAME0,
 		spells = {
@@ -609,9 +581,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[3563] = { text = "UC", isClassTP = "MAGE", faction = FACTION_HORDE },
 			[11418] = { text = "UC", isMagePortal = true, faction = FACTION_HORDE },
 			[3566] = { text = "ThBl", isClassTP = "MAGE", faction = FACTION_HORDE },
-			[11420] = { text = "ThBl", isMagePortal = true, faction = FACTION_HORDE },
-		},
-	},
+			[11420] = { text = "ThBl", isMagePortal = true, faction = FACTION_HORDE }}},
 	[10] = {
 		headline = CLASS,
 		spells = {
@@ -620,14 +590,10 @@ addon.MythicPlus.variables.portalCompendium = {
 			[50977] = { text = "CLASS", isClassTP = "DEATHKNIGHT" },
 			[556] = { text = "CLASS", isClassTP = "SHAMAN" },
 			[126892] = { text = "CLASS", isClassTP = "MONK" },
-			[265225] = { text = "RACE", isRaceTP = "DarkIronDwarf" },
-		},
-	},
+			[265225] = { text = "RACE", isRaceTP = "DarkIronDwarf" }}},
 	[11] = {
 		headline = HOME,
-		spells = {},
-	},
-}
+		spells = {}}}
 
 -- Pre-Stage all icon to have less calls to LUA API
 local RANDOM_HS_ID = 999999
@@ -669,8 +635,7 @@ local hearthstoneID = {
 			else
 				return false
 			end
-		end,
-	}, -- Draenic Hologem
+		end}, -- Draenic Hologem
 
 	-- Covenent Hearthstones
 	{ isToy = true, icon = 3257748, id = 184353, spellID = 345393, achievementID = 15242 }, -- Kyrian Hearthstone
@@ -717,9 +682,7 @@ function addon.MythicPlus.functions.setRandomHearthstone()
 			isToy = hs.isToy or false,
 			toyID = hs.id,
 			isHearthstone = true,
-			icon = hs.icon,
-		},
-	}
+			icon = hs.icon}}
 end
 
 addon.MythicPlus.variables.collapseFrames = {
@@ -729,5 +692,4 @@ addon.MythicPlus.variables.collapseFrames = {
 	{ frame = CampaignQuestObjectiveTracker },
 	{ frame = QuestObjectiveTracker },
 	{ frame = ProfessionsRecipeTracker },
-	{ frame = WorldQuestObjectiveTracker },
-}
+	{ frame = WorldQuestObjectiveTracker }}

@@ -264,24 +264,6 @@ local function checkUnit(tooltip)
 	checkAdditionalTooltip(tooltip)
 end
 
-local function CheckReagentBankCount(itemID)
-	-- TODO 11.2: Remove this function as Reagent Bank is removed
-	-- TODO 11.2: IsReagentBankUnlocked removed
-	if not IsReagentBankUnlocked then return end
-	-- TODO 11.2: IsReagentBankUnlocked removed
-	local count = 0
-	if IsReagentBankUnlocked() then
-		for i = 1, C_Container.GetContainerNumSlots(REAGENTBANK_CONTAINER) do
-			local itemInSlot = C_Container.GetContainerItemID(REAGENTBANK_CONTAINER, i)
-			if itemInSlot == itemID then
-				local info = C_Container.GetContainerItemInfo(REAGENTBANK_CONTAINER, i)
-				count = count + info.stackCount
-			end
-		end
-	end
-	return count
-end
-
 local function checkItem(tooltip, id, name, guid)
 	local first = true
 	if addon.db["TooltipShowItemID"] then
@@ -315,11 +297,9 @@ local function checkItem(tooltip, id, name, guid)
 	end
 	if addon.db["TooltipShowItemCount"] then
 		if id then
-			-- TODO 11.2: remove reagent bank counting
-			local rBankCount = CheckReagentBankCount(id) or 0
-			local bagCount = C_Item.GetItemCount(id)
-			local bankCount = C_Item.GetItemCount(id, true)
-			local totalCount = rBankCount + bankCount
+                        local bagCount = C_Item.GetItemCount(id)
+                        local bankCount = C_Item.GetItemCount(id, true) - bagCount
+                        local totalCount = bagCount + bankCount
 
 			if addon.db["TooltipShowSeperateItemCount"] then
 				if bagCount > 0 then
@@ -331,23 +311,16 @@ local function checkItem(tooltip, id, name, guid)
 					end
 					tooltip:AddDoubleLine(L["Bag"], bagCount)
 				end
-				if bankCount > 0 then
-					if first then
-						tooltip:AddLine(" ")
-						first = false
-					end
-					tooltip:AddDoubleLine(L["Bank"], bankCount)
-				end
-				if rBankCount > 0 then
-					if first then
-						tooltip:AddLine(" ")
-						first = false
-					end
-					tooltip:AddDoubleLine(L["Reagentbank"], rBankCount)
-				end
-			else
-				tooltip:AddDoubleLine(L["Itemcount"], totalCount)
-			end
+                                if bankCount > 0 then
+                                        if first then
+                                                tooltip:AddLine(" ")
+                                                first = false
+                                        end
+                                        tooltip:AddDoubleLine(L["Bank"], bankCount)
+                                end
+                        else
+                                tooltip:AddDoubleLine(L["Itemcount"], totalCount)
+                        end
 		end
 	end
 	if addon.db["TooltipItemHideType"] == 1 then return end -- only hide when ON

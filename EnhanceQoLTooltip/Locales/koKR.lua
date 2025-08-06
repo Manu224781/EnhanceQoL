@@ -63,8 +63,6 @@ L["TooltipShowItemID"] = "툴팁에 아이템 ID 표시"
 
 L["TooltipShowItemCount"] = "툴팁에 아이템 개수 표시"
 L["TooltipShowSeperateItemCount"] = "위치별로 분리된 아이템 개수 표시"
--- TODO 11.2: remove Reagentbank localization
-L["Reagentbank"] = "재료 은행"
 L["Bank"] = "은행"
 L["Bag"] = "가방"
 L["Itemcount"] = "아이템 개수"

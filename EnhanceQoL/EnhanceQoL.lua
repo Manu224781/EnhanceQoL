@@ -78,7 +78,7 @@ local function skipRolecheck()
 	if addon.db["groupfinderSkipRoleSelectOption"] == 1 then
 		local tank, healer, dps = false, false, false
 		local role = UnitGroupRolesAssigned("player")
-		if role == "NONE" then role = GetSpecializationRole(GetSpecialization()) end
+                if role == "NONE" then role = GetSpecializationRole(C_SpecializationInfo.GetSpecialization()) end
 		if role == "TANK" then
 			tank = true
 		elseif role == "DAMAGER" then
@@ -1840,26 +1840,22 @@ local function addBagFrame(container)
 					if frame:IsShown() then addon.functions.updateBags(frame) end
 				end
 				if ContainerFrameCombinedBags:IsShown() then addon.functions.updateBags(ContainerFrameCombinedBags) end
-				if value then
-					if BankFrame:IsShown() then
-						--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-						if NUM_BANKGENERIC_SLOTS then
-							for slot = 1, NUM_BANKGENERIC_SLOTS do
-								local itemButton = _G["BankFrameItem" .. slot]
-								if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-							end
-						end
-					end
-				else
-					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-					if NUM_BANKGENERIC_SLOTS then
-						for slot = 1, NUM_BANKGENERIC_SLOTS do
-							local itemButton = _G["BankFrameItem" .. slot]
-							if itemButton and itemButton.ItemLevelText then itemButton.ItemLevelText:Hide() end
-						end
-					end
-				end
-				if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+                                if value then
+                                        if BankFrame:IsShown() then
+                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                                        local itemButton = _G["BankFrameItem" .. slot]
+                                                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+                                                end
+                                        end
+                                else
+                                        if BankFrame:IsShown() then
+                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                                        local itemButton = _G["BankFrameItem" .. slot]
+                                                        if itemButton and itemButton.ItemLevelText then itemButton.ItemLevelText:Hide() end
+                                                end
+                                        end
+                                end
+                                if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 			end,
 		},
 		{
@@ -1881,26 +1877,22 @@ local function addBagFrame(container)
 			type = "CheckBox",
 			callback = function(self, _, value)
 				addon.db["showIlvlOnBankFrame"] = value
-				if value then
-					if BankFrame:IsShown() then
-						--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-						if NUM_BANKGENERIC_SLOTS then
-							for slot = 1, NUM_BANKGENERIC_SLOTS do
-								local itemButton = _G["BankFrameItem" .. slot]
-								if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-							end
-						end
-					end
-				else
-					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-					if NUM_BANKGENERIC_SLOTS then
-						for slot = 1, NUM_BANKGENERIC_SLOTS do
-							local itemButton = _G["BankFrameItem" .. slot]
-							if itemButton and itemButton.ItemLevelText then itemButton.ItemLevelText:Hide() end
-						end
-					end
-				end
-				if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+                                if value then
+                                        if BankFrame:IsShown() then
+                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                                        local itemButton = _G["BankFrameItem" .. slot]
+                                                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
+                                                end
+                                        end
+                                else
+                                        if BankFrame:IsShown() then
+                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
+                                                        local itemButton = _G["BankFrameItem" .. slot]
+                                                        if itemButton and itemButton.ItemLevelText then itemButton.ItemLevelText:Hide() end
+                                                end
+                                        end
+                                end
+                                if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 			end,
 		},
 		{
@@ -1927,9 +1919,7 @@ local function addBagFrame(container)
 					if frame:IsShown() then addon.functions.updateBags(frame) end
 				end
 				if ContainerFrameCombinedBags:IsShown() then addon.functions.updateBags(ContainerFrameCombinedBags) end
-				--TODO AccountBankPanel is removed in 11.2 - Feature has to be removed everywhere after release
-				if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
-				if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+                                if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 			end,
 		},
 	}
@@ -4062,7 +4052,7 @@ local function initUI()
 
 		local _, specIcon
 
-		local curSpec = GetSpecialization()
+                local curSpec = C_SpecializationInfo.GetSpecialization()
 
 		if GetLootSpecialization() == 0 and curSpec then
 			_, _, _, specIcon = GetSpecializationInfoForClassID(addon.variables.unitClassID, curSpec)
@@ -4174,9 +4164,9 @@ local function initUI()
 
 		local container = CreateFrame("Frame", nil, lootSpec, "BackdropTemplate")
 		container:SetPoint("TOPLEFT", 10, -10)
-		if nil == GetSpecialization() then return end
+                if nil == C_SpecializationInfo.GetSpecialization() then return end
 
-		local _, curSpecName = GetSpecializationInfoForClassID(addon.variables.unitClassID, GetSpecialization())
+                local _, curSpecName = GetSpecializationInfoForClassID(addon.variables.unitClassID, C_SpecializationInfo.GetSpecialization())
 		local totalSpecs = C_SpecializationInfo.GetNumSpecializationsForClassID(addon.variables.unitClassID)
 		local row = CreateRadioRow(container, 0, string.format(LOOT_SPECIALIZATION_DEFAULT, curSpecName), 0)
 		for i = 1, totalSpecs do
@@ -4336,12 +4326,6 @@ local function initCharacter()
 	hooksecurefunc("MerchantFrame_UpdateBuybackInfo", updateBuybackButtonInfo)
 	hooksecurefunc("EquipmentFlyout_DisplayButton", function(button) updateFlyoutButtonInfo(button) end)
 
-	--TODO AccountBankPanel is removed in 11.2 - Feature has to be removed everywhere after release
-	if _G.AccountBankPanel then
-		hooksecurefunc(AccountBankPanel, "GenerateItemSlotsForSelectedTab", addon.functions.updateBags)
-		hooksecurefunc(AccountBankPanel, "RefreshAllItemsForSelectedTab", addon.functions.updateBags)
-		hooksecurefunc(AccountBankPanel, "UpdateSearchResults", addon.functions.updateBags)
-	end
 	--! Required WoW 11.2 so hard check for _G.BankPanel is enough
 	if _G.BankPanel then
 		hooksecurefunc(BankPanel, "GenerateItemSlotsForSelectedTab", addon.functions.updateBags)
@@ -5011,10 +4995,9 @@ end
 
 local eventHandlers = {
 	["ACTIVE_PLAYER_SPECIALIZATION_CHANGED"] = function(arg1)
-		addon.variables.unitSpec = GetSpecialization()
+        addon.variables.unitSpec = C_SpecializationInfo.GetSpecialization()
 		if addon.variables.unitSpec then
-			-- TODO 11.2: use C_SpecializationInfo.GetSpecializationInfo
-			local specId, specName = GetSpecializationInfo(addon.variables.unitSpec)
+                   local specId, specName = C_SpecializationInfo.GetSpecializationInfo(addon.variables.unitSpec)
 			addon.variables.unitSpecName = specName
 			addon.variables.unitRole = GetSpecializationRole(addon.variables.unitSpec)
 			addon.variables.unitSpecId = specId
@@ -5025,8 +5008,6 @@ local eventHandlers = {
 			for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
 				addon.functions.updateBags(frame)
 			end
-			--TODO AccountBankPanel is removed in 11.2 - Feature has to be removed everywhere after release
-			if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
 			if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 		end
 	end,
@@ -5082,19 +5063,6 @@ local eventHandlers = {
 			if wOpen then return end
 			wOpen = true
 			addon.functions.checkForContainer()
-		end
-	end,
-	-- TODO 11.2: remove BANKFRAME_OPENED handler once legacy support is dropped
-	["BANKFRAME_OPENED"] = function()
-		if not addon.db["showIlvlOnBankFrame"] then return end
-		--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-		if NUM_BANKGENERIC_SLOTS then
-			C_Timer.After(0, function()
-				for slot = 1, NUM_BANKGENERIC_SLOTS do
-					local itemButton = _G["BankFrameItem" .. slot]
-					if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-				end
-			end)
 		end
 	end,
 	["CURRENCY_DISPLAY_UPDATE"] = function(arg1)
@@ -5211,8 +5179,6 @@ local eventHandlers = {
 				for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
 					addon.functions.updateBags(frame)
 				end
-				--TODO AccountBankPanel is removed in 11.2 - Feature has to be removed everywhere after release
-				if _G.AccountBankPanel and _G.AccountBankPanel:IsShown() then addon.functions.updateBags(_G.AccountBankPanel) end
 				if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 			end)
 		end
@@ -5281,10 +5247,9 @@ local eventHandlers = {
 	end,
 	["PLAYER_LOGIN"] = function()
 		if addon.db["enableMinimapButtonBin"] then addon.functions.toggleButtonSink() end
-		addon.variables.unitSpec = GetSpecialization()
+        addon.variables.unitSpec = C_SpecializationInfo.GetSpecialization()
 		if addon.variables.unitSpec then
-			-- TODO 11.2: use C_SpecializationInfo.GetSpecializationInfo
-			local specId, specName = GetSpecializationInfo(addon.variables.unitSpec)
+                   local specId, specName = C_SpecializationInfo.GetSpecializationInfo(addon.variables.unitSpec)
 			addon.variables.unitSpecName = specName
 			addon.variables.unitRole = GetSpecializationRole(addon.variables.unitSpec)
 			addon.variables.unitSpecId = specId
