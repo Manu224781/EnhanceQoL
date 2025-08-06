@@ -1637,9 +1637,9 @@ function UnitInfoManager.GetPlayerFullInfo()
 
     local specId = 0
     if (getSpecializationVersion() == CONST_SPECIALIZATION_VERSION_MODERN) then
-        local selectedSpecialization = C_SpecializationInfo.GetSpecialization()
+        local selectedSpecialization = GetSpecialization()
         if (selectedSpecialization) then
-            specId = C_SpecializationInfo.GetSpecializationInfo(selectedSpecialization) or 0
+            specId = GetSpecializationInfo(selectedSpecialization) or 0
         end
     end
     table.insert(playerInfo, specId)
@@ -1664,9 +1664,9 @@ function UnitInfoManager.OnPlayerTalentChanged()
     local specId = 0
 
     if (getSpecializationVersion() == CONST_SPECIALIZATION_VERSION_MODERN) then
-        local selectedSpecialization = C_SpecializationInfo.GetSpecialization()
+        local selectedSpecialization = GetSpecialization()
         if (selectedSpecialization) then
-            specId = C_SpecializationInfo.GetSpecializationInfo(selectedSpecialization) or 0
+            specId = GetSpecializationInfo(selectedSpecialization) or 0
         end
     end
 

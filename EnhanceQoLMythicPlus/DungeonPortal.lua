@@ -14,6 +14,7 @@ local cModeIDs
 local portalSpells = {}
 local allSpells = {} --  for Cooldown checking
 local mapInfo = {}
+local mapIDInfo = {} -- TODO 11.2: remove mapIDInfo after new mapID from GetMapUIInfo
 local selectedMapId
 local faction = select(2, UnitFactionGroup("player"))
 local checkCooldown
@@ -65,15 +66,16 @@ local function getCurrentSeasonPortal()
 		cModeIDLookup[id] = true
 	end
 
-        local filteredPortalSpells = {}
-        local filteredMapInfo = {}
+	local filteredPortalSpells = {}
+	local filteredMapInfo = {}
+	local filteredMapID = {}
 
 	for _, section in pairs(addon.MythicPlus.variables.portalCompendium) do
 		for spellID, data in pairs(section.spells) do
 			if data.cId then
 				for cId in pairs(data.cId) do
 					if cModeIDLookup[cId] then
-                                                local mapName, _, _, texture, backgroundTexture, mapID = C_ChallengeMode.GetMapUIInfo(cId)
+						local mapName, _, _, texture, backgroundTexture = C_ChallengeMode.GetMapUIInfo(cId)
 
 						filteredPortalSpells[spellID] = {
 							text = data.text,
@@ -82,24 +84,31 @@ local function getCurrentSeasonPortal()
 						if data.faction then
 							filteredPortalSpells[spellID].faction = data.faction
 							if data.faction == faction then
-                                                                filteredMapInfo[cId] = {
-                                                                        text = data.text,
-                                                                        spellId = spellID,
-                                                                        mapName = mapName,
-                                                                        texture = texture,
-                                                                        background = backgroundTexture,
-                                                                        mapID = mapID,
-                                                                }
+								filteredMapInfo[cId] = {
+									text = data.text,
+									spellId = spellID,
+									mapName = mapName,
+									texture = texture,
+									background = backgroundTexture,
+								}
 							end
 						else
-                                                        filteredMapInfo[cId] = {
-                                                                text = data.text,
-                                                                spellId = spellID,
-                                                                mapName = mapName,
-                                                                texture = texture,
-                                                                background = backgroundTexture,
-                                                                mapID = mapID,
-                                                        }
+							filteredMapInfo[cId] = {
+								text = data.text,
+								spellId = spellID,
+								mapName = mapName,
+								texture = texture,
+								background = backgroundTexture,
+							}
+						end
+						if data.mapID then
+							if type(data.mapID) == "table" then
+								for _, mID in pairs(data.mapID) do
+									filteredMapID[mID] = cId
+								end
+							else
+								filteredMapID[data.mapID] = cId
+							end
 						end
 						break
 					end
@@ -115,7 +124,8 @@ local function getCurrentSeasonPortal()
 		end
 	end
 	portalSpells = filteredPortalSpells
-        mapInfo = filteredMapInfo
+	mapInfo = filteredMapInfo
+	mapIDInfo = filteredMapID -- TODO 11.2: remove mapIDInfo once mapID param is used
 end
 
 local isKnown = {}
@@ -187,7 +197,7 @@ local function CreatePortalButtonsWithCooldown(frame, spells)
 	local favorites = {}
 	local others = {}
 	for spellID, data in pairs(spells) do
-                local known = C_SpellBook.IsSpellInSpellBook(spellID)
+		local known = C_SpellBook.IsSpellInSpellBook(spellID)
 		local isFavorite = favoriteLookup[spellID]
 		local passes = (not data.faction or data.faction == faction)
 		if addon.db["portalHideMissing"] then passes = passes and known end
@@ -413,7 +423,7 @@ local function CreatePortalCompendium(frame, compendium)
 		local sortedSpells = {}
 		if not addon.db["teleportsCompendiumHide" .. section.headline] then
 			for spellID, data in pairs(section.spells) do
-                            local known = (C_SpellBook.IsSpellInSpellBook(spellID) and not data.isToy)
+				local known = (C_SpellBook.IsSpellInSpellBook(spellID) and not data.isToy)
 					or (hasEngineering and data.toyID and not data.isHearthstone and isToyUsable(data.toyID))
 					or (data.isItem and GetItemCount(data.itemID) > 0)
 					or (data.isHearthstone and isToyUsable(data.toyID))
@@ -959,7 +969,8 @@ local function updateKeystoneInfo()
 					icon:SetTexture(mapData.texture or "Interface\\ICONS\\INV_Misc_QuestionMark")
 					button.icon = icon
 
-                                        if mapData.spellId and C_SpellBook.IsSpellInSpellBook(mapData.spellId) then
+					-- Überprüfen, ob der Zauber bekannt ist
+					if mapData.spellId and C_SpellBook.IsSpellInSpellBook(mapData.spellId) then
 						local cooldownData = C_Spell.GetSpellCooldown(mapData.spellId)
 						if cooldownData and cooldownData.isEnabled then
 							button:EnableMouse(true) -- Aktiviert Klicks
@@ -1181,12 +1192,7 @@ GameTooltip:HookScript("OnShow", function(self)
 				if searchResultInfo then
 					local mapData = C_LFGList.GetActivityInfoTable(searchResultInfo.activityIDs[1])
 					if mapData then
-                                                for cId, info in pairs(mapInfo) do
-                                                        if info.mapID == mapData.mapID then
-                                                                selectedMapId = cId
-                                                                break
-                                                        end
-                                                end
+						if mapIDInfo[mapData.mapID] then selectedMapId = mapIDInfo[mapData.mapID] end
 					end
 				end
 			end

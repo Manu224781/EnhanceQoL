@@ -4326,7 +4326,6 @@ local function initCharacter()
 	hooksecurefunc("MerchantFrame_UpdateBuybackInfo", updateBuybackButtonInfo)
 	hooksecurefunc("EquipmentFlyout_DisplayButton", function(button) updateFlyoutButtonInfo(button) end)
 
-	--! Required WoW 11.2 so hard check for _G.BankPanel is enough
 	if _G.BankPanel then
 		hooksecurefunc(BankPanel, "GenerateItemSlotsForSelectedTab", addon.functions.updateBags)
 		hooksecurefunc(BankPanel, "RefreshAllItemsForSelectedTab", addon.functions.updateBags)

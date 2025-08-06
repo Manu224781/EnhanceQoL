@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.1.0] – 2025-08-06
+
+### ✨ Added
+
+- **Tooltip**
+  - Shows the item count from the Warband Bank.
+
+### ❌ Removed
+
+- Deprecated code that became obsolete with patch 11.2.
+
+---
+
 ## [4.0.0] – 2025-08-05
 
 ### ✨ Added

@@ -297,9 +297,10 @@ local function checkItem(tooltip, id, name, guid)
 	end
 	if addon.db["TooltipShowItemCount"] then
 		if id then
-                        local bagCount = C_Item.GetItemCount(id)
-                        local bankCount = C_Item.GetItemCount(id, true) - bagCount
-                        local totalCount = bagCount + bankCount
+			local bagCount = C_Item.GetItemCount(id)
+			local bankCount = C_Item.GetItemCount(id, true) - bagCount
+			local accountCount = C_Item.GetItemCount(id, true, false, false, true) - bankCount - bagCount -- last true = AccountBank
+			local totalCount = bagCount + bankCount + accountCount
 
 			if addon.db["TooltipShowSeperateItemCount"] then
 				if bagCount > 0 then
@@ -311,16 +312,23 @@ local function checkItem(tooltip, id, name, guid)
 					end
 					tooltip:AddDoubleLine(L["Bag"], bagCount)
 				end
-                                if bankCount > 0 then
-                                        if first then
-                                                tooltip:AddLine(" ")
-                                                first = false
-                                        end
-                                        tooltip:AddDoubleLine(L["Bank"], bankCount)
-                                end
-                        else
-                                tooltip:AddDoubleLine(L["Itemcount"], totalCount)
-                        end
+				if bankCount > 0 then
+					if first then
+						tooltip:AddLine(" ")
+						first = false
+					end
+					tooltip:AddDoubleLine(L["Bank"], bankCount)
+				end
+				if accountCount > 0 then
+					if first then
+						tooltip:AddLine(" ")
+						first = false
+					end
+					tooltip:AddDoubleLine(ACCOUNT_BANK_PANEL_TITLE, accountCount)
+				end
+			else
+				tooltip:AddDoubleLine(L["Itemcount"], totalCount)
+			end
 		end
 	end
 	if addon.db["TooltipItemHideType"] == 1 then return end -- only hide when ON

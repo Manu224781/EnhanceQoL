@@ -363,9 +363,9 @@ function openRaidLib.GetPlayerSpecId()
         return 0
     end
 
-    local spec = C_SpecializationInfo.GetSpecialization()
+    local spec = GetSpecialization()
     if (spec) then
-        local specId = C_SpecializationInfo.GetSpecializationInfo(spec)
+        local specId = GetSpecializationInfo(spec)
         if (specId and specId > 0) then
             return specId
         end
@@ -635,7 +635,7 @@ end
 local getSpellListAsHashTableFromSpellBook = function()
     local completeListOfSpells = {}
     --this line might not be compatible with classic
-    local specId, specName, _, specIconTexture = C_SpecializationInfo.GetSpecializationInfo(C_SpecializationInfo.GetSpecialization())
+    local specId, specName, _, specIconTexture = GetSpecializationInfo(GetSpecialization())
     --local classNameLoc, className, classId = UnitClass("player") --not in use
     local locPlayerRace, playerRace, playerRaceId = UnitRace("player")
 
@@ -1162,7 +1162,7 @@ openRaidLib.specAttribute = {
 
 function openRaidLib.Util.GetPlayerSpellList()
     local completeListOfSpells = {}
-    local specId, specName, _, specIconTexture = C_SpecializationInfo.GetSpecializationInfo(C_SpecializationInfo.GetSpecialization())
+    local specId, specName, _, specIconTexture = GetSpecializationInfo(GetSpecialization())
     local locPlayerRace, playerRace, playerRaceId = UnitRace("player")
     local generalIndex = Enum.SpellBookSkillLineIndex and Enum.SpellBookSkillLineIndex.General or CONST_SPELLBOOK_GENERAL_TABID
     local tabName, tabTexture, offset, numSpells, isGuild, offspecId = GetSpellTabInfo(generalIndex) --CONST_SPELLBOOK_GENERAL_TABID

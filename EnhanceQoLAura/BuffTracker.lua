@@ -275,7 +275,7 @@ local function categoryAllowed(cat)
 	if cat.allowedSpecs and next(cat.allowedSpecs) then
 		local specIndex = addon.variables.unitSpec
 		if not specIndex then return false end
-                local currentSpecID = C_SpecializationInfo.GetSpecializationInfo(specIndex)
+		local currentSpecID = C_SpecializationInfo.GetSpecializationInfo(specIndex)
 		if not cat.allowedSpecs[currentSpecID] then return false end
 	end
 	if cat.allowedRoles and next(cat.allowedRoles) then
@@ -293,7 +293,7 @@ local function buffAllowed(buff)
 	if buff.allowedSpecs and next(buff.allowedSpecs) then
 		local specIndex = addon.variables.unitSpec
 		if not specIndex then return false end
-                local currentSpecID = C_SpecializationInfo.GetSpecializationInfo(specIndex)
+		local currentSpecID = C_SpecializationInfo.GetSpecializationInfo(specIndex)
 		if not buff.allowedSpecs[currentSpecID] then return false end
 	end
 	if buff.allowedRoles and next(buff.allowedRoles) then
@@ -1020,7 +1020,7 @@ function updateBuff(catId, id, changedId, firstScan)
 			if displayAura and not wasShown and frame:IsShown() and not firstScan then playBuffSound(catId, id, triggeredId) end
 		else
 			local icon = buff.icon
-                        local shouldSecure = buff.castOnClick and C_SpellBook.IsSpellInSpellBook(id)
+			local shouldSecure = buff.castOnClick and C_SpellBook.IsSpellInSpellBook(id)
 			local showTimer = buff.showTimerText
 			if showTimer == nil then showTimer = addon.db["buffTrackerShowTimerText"] end
 			if showTimer == nil then showTimer = true end
@@ -2373,13 +2373,13 @@ function addon.Aura.functions.buildBuffOptions(container, catId, buffId)
 	wrapper:AddChild(instDrop)
 	wrapper:AddChild(addon.functions.createSpacerAce())
 
-        if C_SpellBook.IsSpellInSpellBook(buffId) then
-                local cbCast = addon.functions.createCheckboxAce(L["buffTrackerCastOnClick"], buff.castOnClick, function(_, _, val)
-                        buff.castOnClick = val
-                        scanBuffs()
-                end)
-                wrapper:AddChild(cbCast)
-        end
+	-- if C_SpellBook.IsSpellInSpellBook(buffId) then
+	--         local cbCast = addon.functions.createCheckboxAce(L["buffTrackerCastOnClick"], buff.castOnClick, function(_, _, val)
+	--                 buff.castOnClick = val
+	--                 scanBuffs()
+	--         end)
+	--         wrapper:AddChild(cbCast)
+	-- end
 
 	if buff.trackType ~= "ITEM" and buff.trackType ~= "ENCHANT" then
 		buff.altIDs = buff.altIDs or {}

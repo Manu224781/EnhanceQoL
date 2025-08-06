@@ -719,14 +719,7 @@ local function CreateFilterMenu()
 						addon.functions.updateBags(frame)
 					end
 
-					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-                                        if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
-                                                        local itemButton = _G["BankFrameItem" .. slot]
-                                                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-                                                end
-                                        end
-                                        if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+					if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 
 					UpdateResetButton()
 				end)
@@ -772,14 +765,7 @@ local function CreateFilterMenu()
 						addon.functions.updateBags(frame)
 					end
 
-					--TODO Removed global variable in Patch 11.2 - has to be removed everywhere when patch is released
-                                        if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-                                                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
-                                                        local itemButton = _G["BankFrameItem" .. slot]
-                                                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-                                                end
-                                        end
-                                        if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+					if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 
 					UpdateResetButton()
 					self:ClearFocus()
@@ -856,13 +842,7 @@ local function CreateFilterMenu()
 			addon.functions.updateBags(cframe)
 		end
 
-                if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-                        for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
-                                local itemButton = _G["BankFrameItem" .. slot]
-                                if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-                        end
-                end
-                if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+		if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 
 		UpdateResetButton()
 	end)
@@ -886,13 +866,7 @@ local function ToggleFilterMenu(self)
 		addon.functions.updateBags(frame)
 	end
 
-        if BankFrame and BankFrame:IsShown() and addon.db["showIlvlOnBankFrame"] then
-                for slot = 1, C_Container.GetContainerNumSlots(BANK_CONTAINER) do
-                        local itemButton = _G["BankFrameItem" .. slot]
-                        if itemButton then addon.functions.updateBank(itemButton, -1, slot) end
-                end
-        end
-        if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
+	if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 end
 
 local function InitializeFilterUI()
@@ -913,10 +887,10 @@ function addon.functions.updateBags(frame)
 	end
 	if not frame:IsShown() then return end
 
-        if frame:GetName() == "BankPanel" then
-                for itemButton in frame:EnumerateValidItems() do
-                        if addon.db["showIlvlOnBankFrame"] then
-                                local bag = itemButton:GetBankTabID()
+	if frame:GetName() == "BankPanel" then
+		for itemButton in frame:EnumerateValidItems() do
+			if addon.db["showIlvlOnBankFrame"] then
+				local bag = itemButton:GetBankTabID()
 				local slot = itemButton:GetContainerSlotID()
 				if bag and slot then updateButtonInfo(itemButton, bag, slot, frame:GetName()) end
 			elseif itemButton.ItemLevelText then

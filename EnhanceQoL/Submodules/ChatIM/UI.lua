@@ -431,7 +431,7 @@ function ChatIM:CreateTab(sender, isBN, bnetID, battleTag)
 			if tab and tab.isBN and tab.bnetID then
 				BNSendWhisper(tab.bnetID, txt)
 			else
-                               C_ChatInfo.SendChatMessage(txt, "WHISPER", nil, tgt)
+				C_ChatInfo.SendChatMessage(txt, "WHISPER", nil, tgt)
 			end
 		end
 	end)

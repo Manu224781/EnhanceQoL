@@ -226,14 +226,14 @@ local function createButtons()
 					if addon.MythicPlus.variables.breakIt then
 						self:Cancel()
 						C_PartyInfo.DoCountdown(0)
-                                                if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage("PULL Canceled", "PARTY") end
+						if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage("PULL Canceled", "PARTY") end
 						C_ChatInfo.SendAddonMessage("D4", ("PT\t%s\t%d"):format(0, instanceId), IsInGroup(2) and "INSTANCE_CHAT" or "RAID")
 					end
 
 					if x == 0 then
 						self:Cancel()
-                                                addon.MythicPlus.variables.handled = false
-                                                if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage(">>PULL NOW<<", "PARTY") end
+						addon.MythicPlus.variables.handled = false
+						if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage(">>PULL NOW<<", "PARTY") end
 						if addon.db["autoKeyStart"] == false then
 							addon.MythicPlus.Buttons["PullTimer"]:SetText(L["PullTimer"])
 						elseif addon.db["autoKeyStart"] and nil ~= C_ChallengeMode.GetSlottedKeystoneInfo() then
@@ -255,10 +255,10 @@ local function createButtons()
 							else
 								addon.MythicPlus.Buttons["PullTimer"]:SetText(L["Pull"] .. " (" .. x .. ")")
 							end
-                                                end
-                                                if addon.MythicPlus.variables.breakIt == false then
-                                                        if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage(format("PULL in %ds", x), "PARTY") end
-                                                end
+						end
+						if addon.MythicPlus.variables.breakIt == false then
+							if addon.db["noChatOnPullTimer"] == false then C_ChatInfo.SendChatMessage(format("PULL in %ds", x), "PARTY") end
+						end
 					end
 					x = x - 1
 				end)
