@@ -33,6 +33,22 @@ local exportCategory
 for _, cat in pairs(addon.db.cooldownNotifyCategories or {}) do
 	if cat.useAdvancedTracking == nil then cat.useAdvancedTracking = true end
 	cat.spells = cat.spells or {}
+	local tmp = {}
+	for id, info in pairs(cat.spells) do
+		local num = tonumber(id)
+		if num then
+			if type(info) == "table" then
+				if not info.trackType and num < 0 then info.trackType = "ITEM" end
+				if not info.slot and num < 0 then info.slot = -num end
+				tmp[num] = info
+			elseif num < 0 then
+				tmp[num] = { trackType = "ITEM", slot = -num }
+			else
+				tmp[num] = true
+			end
+		end
+	end
+	cat.spells = tmp
 	cat.ignoredSpells = cat.ignoredSpells or {}
 end
 
@@ -269,6 +285,18 @@ local function applyLockState()
 	end
 end
 
+-- Throttle trinket cooldown checks to coalesce rapid events
+local trinketUpdatePending = false
+local function scheduleTrinketUpdate()
+	if trinketUpdatePending then return end
+	trinketUpdatePending = true
+	C_Timer.After(0.10, function()
+		trinketUpdatePending = false
+		CN:SPELL_UPDATE_COOLDOWN(-13)
+		CN:SPELL_UPDATE_COOLDOWN(-14)
+	end)
+end
+
 local function updateEventRegistration()
 	local anyEnabled
 	for _, enabled in pairs(addon.db.cooldownNotifyEnabled or {}) do
@@ -282,12 +310,16 @@ local function updateEventRegistration()
 			DCP:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 			DCP:RegisterEvent("PLAYER_LOGIN")
 			DCP:RegisterEvent("SPELLS_CHANGED")
+			DCP:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+			DCP:RegisterEvent("BAG_UPDATE_COOLDOWN")
 		end
 	else
 		if DCP:IsEventRegistered("SPELL_UPDATE_COOLDOWN") then
 			DCP:UnregisterEvent("SPELL_UPDATE_COOLDOWN")
 			DCP:UnregisterEvent("PLAYER_LOGIN")
 			DCP:UnregisterEvent("SPELLS_CHANGED")
+			DCP:UnregisterEvent("PLAYER_EQUIPMENT_CHANGED")
+			DCP:UnregisterEvent("BAG_UPDATE_COOLDOWN")
 		end
 	end
 end
@@ -334,27 +366,49 @@ function CN:SPELL_UPDATE_COOLDOWN(spellID)
 				end
 			end
 		end
+		scheduleTrinketUpdate()
 		return
 	end
 	local found = false
 	for catId, cat in pairs(addon.db.cooldownNotifyCategories or {}) do
 		if addon.db.cooldownNotifyEnabled[catId] then
+			local entry = cat.spells and cat.spells[spellID]
 			if
-				(cat.useAdvancedTracking ~= false and cat.spells and cat.spells[spellID])
-				or (cat.useAdvancedTracking == false and playerSpells[spellID] and not (cat.ignoredSpells and cat.ignoredSpells[spellID]))
+				(cat.useAdvancedTracking ~= false and entry)
+				or (cat.useAdvancedTracking == false and (playerSpells[spellID] or spellID < 0) and not (cat.ignoredSpells and cat.ignoredSpells[spellID]))
 			then
-				local cd = C_Spell.GetSpellCooldown(spellID)
-				if cd and cd.isEnabled ~= 0 and cd.duration and cd.duration > 2 then
-					local key = spellID .. ":" .. catId
-					cooldowns[key] = {
-						start = cd.startTime,
-						duration = cd.duration,
-						texture = C_Spell.GetSpellTexture(spellID),
-						name = C_Spell.GetSpellName(spellID),
-						catId = catId,
-						id = spellID,
-					}
-					found = true
+				if (type(entry) == "table" and entry.trackType == "ITEM") or spellID < 0 then
+					local slot = (type(entry) == "table" and entry.slot) or -spellID
+					local start, duration, enabled = GetInventoryItemCooldown("player", slot)
+					if enabled and duration and duration > 2 then
+						local key = spellID .. ":" .. catId
+						local texture = GetInventoryItemTexture("player", slot)
+						local itemID = GetInventoryItemID and GetInventoryItemID("player", slot)
+						local name = itemID and GetItemInfo(itemID)
+						cooldowns[key] = {
+							start = start,
+							duration = duration,
+							texture = texture,
+							name = name,
+							catId = catId,
+							id = spellID,
+						}
+						found = true
+					end
+				else
+					local cd = C_Spell.GetSpellCooldown(spellID)
+					if cd and cd.isEnabled ~= 0 and cd.duration and cd.duration > 2 then
+						local key = spellID .. ":" .. catId
+						cooldowns[key] = {
+							start = cd.startTime,
+							duration = cd.duration,
+							texture = C_Spell.GetSpellTexture(spellID),
+							name = C_Spell.GetSpellName(spellID),
+							catId = catId,
+							id = spellID,
+						}
+						found = true
+					end
 				end
 			end
 		end
@@ -380,9 +434,28 @@ function CN:PLAYER_LOGIN()
 			end
 		end
 	end
+	scheduleTrinketUpdate()
 end
 
 function CN:SPELLS_CHANGED() BuildPlayerSpellList() end
+
+function CN:PLAYER_EQUIPMENT_CHANGED(slot)
+	if slot == 13 or slot == 14 then scheduleTrinketUpdate() end
+end
+
+function CN:BAG_UPDATE_COOLDOWN() scheduleTrinketUpdate() end
+
+function CN.functions.addTrinketCooldown(catId, slot)
+	local cat = addon.db.cooldownNotifyCategories[catId]
+	if not cat then return end
+	cat.spells = cat.spells or {}
+	local id = -slot
+	cat.spells[id] = { trackType = "ITEM", slot = slot }
+	addon.db.cooldownNotifySounds[catId] = addon.db.cooldownNotifySounds[catId] or {}
+	addon.db.cooldownNotifySoundsEnabled[catId] = addon.db.cooldownNotifySoundsEnabled[catId] or {}
+	addon.db.cooldownNotifySounds[catId][id] = addon.db.cooldownNotifyDefaultSound
+	addon.db.cooldownNotifySoundsEnabled[catId][id] = false
+end
 
 CN.frame = DCP
 
@@ -399,11 +472,22 @@ local function getCategoryTree()
 		end
 		table.sort(spells)
 		for _, spellId in ipairs(spells) do
-			local info = C_Spell.GetSpellInfo(spellId)
+			local text, icon
+			if spellId < 0 then
+				local slot = -spellId
+				local itemID = GetInventoryItemID("player", slot)
+				local name = itemID and GetItemInfo(itemID)
+				text = name or tostring(spellId)
+				icon = GetInventoryItemTexture("player", slot)
+			else
+				local info = C_Spell.GetSpellInfo(spellId)
+				text = info and info.name or tostring(spellId)
+				icon = info and info.iconID
+			end
 			table.insert(node.children, {
 				value = catId .. "\001" .. spellId,
-				text = info and info.name or tostring(spellId),
-				icon = info and info.iconID,
+				text = text,
+				icon = icon,
 			})
 		end
 		table.insert(tree, node)
@@ -515,11 +599,15 @@ local function buildCategoryOptions(container, catId)
 	local spellEdit = addon.functions.createEditboxAce(L["AddSpellID"], nil, function(self, _, text)
 		local id = tonumber(text)
 		if id then
-			cat.spells[id] = true
-			addon.db.cooldownNotifySounds[catId] = addon.db.cooldownNotifySounds[catId] or {}
-			addon.db.cooldownNotifySoundsEnabled[catId] = addon.db.cooldownNotifySoundsEnabled[catId] or {}
-			addon.db.cooldownNotifySounds[catId][id] = addon.db.cooldownNotifyDefaultSound
-			addon.db.cooldownNotifySoundsEnabled[catId][id] = false
+			if id < 0 then
+				CN.functions.addTrinketCooldown(catId, -id)
+			else
+				cat.spells[id] = true
+				addon.db.cooldownNotifySounds[catId] = addon.db.cooldownNotifySounds[catId] or {}
+				addon.db.cooldownNotifySoundsEnabled[catId] = addon.db.cooldownNotifySoundsEnabled[catId] or {}
+				addon.db.cooldownNotifySounds[catId][id] = addon.db.cooldownNotifyDefaultSound
+				addon.db.cooldownNotifySoundsEnabled[catId][id] = false
+			end
 			refreshTree(catId)
 			container:ReleaseChildren()
 			buildCategoryOptions(container, catId)
@@ -528,6 +616,22 @@ local function buildCategoryOptions(container, catId)
 	end)
 	spellEdit:SetRelativeWidth(0.6)
 	group:AddChild(spellEdit)
+
+	local trinket13Btn = addon.functions.createButtonAce(L["TrackTrinketSlot"]:format(13), 150, function()
+		CN.functions.addTrinketCooldown(catId, 13)
+		refreshTree(catId)
+		container:ReleaseChildren()
+		buildCategoryOptions(container, catId)
+	end)
+	group:AddChild(trinket13Btn)
+
+	local trinket14Btn = addon.functions.createButtonAce(L["TrackTrinketSlot"]:format(14), 150, function()
+		CN.functions.addTrinketCooldown(catId, 14)
+		refreshTree(catId)
+		container:ReleaseChildren()
+		buildCategoryOptions(container, catId)
+	end)
+	group:AddChild(trinket14Btn)
 
 	local exportBtn = addon.functions.createButtonAce(L["ExportCategory"], 150, function()
 		local data = exportCategory(catId)
@@ -562,8 +666,15 @@ local function buildCategoryOptions(container, catId)
 		local tex, name
 		local firstSpell = next(cat.spells)
 		if firstSpell then
-			tex = C_Spell.GetSpellTexture(firstSpell)
-			name = C_Spell.GetSpellName(firstSpell)
+			if firstSpell < 0 then
+				local slot = -firstSpell
+				tex = GetInventoryItemTexture("player", slot)
+				local itemID = GetInventoryItemID("player", slot)
+				name = itemID and GetItemInfo(itemID)
+			else
+				tex = C_Spell.GetSpellTexture(firstSpell)
+				name = C_Spell.GetSpellName(firstSpell)
+			end
 		end
 		tex = tex or "Interface\\Icons\\INV_Misc_QuestionMark"
 		name = name or L["Test"] or "Test"
@@ -631,9 +742,16 @@ local function buildSpellOptions(container, catId, spellId)
 	wrapper:SetFullHeight(true)
 	container:AddChild(wrapper)
 
-	local info = C_Spell.GetSpellInfo(spellId)
-	local name = info and info.name or tostring(spellId)
-	local label = addon.functions.createLabelAce(name .. " (" .. spellId .. ")")
+	local name
+	if spellId < 0 then
+		local slot = -spellId
+		local itemID = GetInventoryItemID("player", slot)
+		name = L["TrinketSlot"]:format(slot == 13 and 1 or 2)
+	else
+		local info = C_Spell.GetSpellInfo(spellId)
+		name = (info and info.name or tostring(spellId)) .. " (" .. spellId .. ")"
+	end
+	local label = addon.functions.createLabelAce(name)
 	wrapper:AddChild(label)
 
 	addon.db.cooldownNotifySounds[catId] = addon.db.cooldownNotifySounds[catId] or {}
@@ -819,6 +937,22 @@ function importCategory(encoded)
 	cat.holdTime = cat.holdTime or 0
 	cat.showName = cat.showName ~= false
 	cat.spells = cat.spells or {}
+	local tmp = {}
+	for id, info in pairs(cat.spells) do
+		local num = tonumber(id)
+		if num then
+			if type(info) == "table" then
+				if not info.trackType and num < 0 then info.trackType = "ITEM" end
+				if not info.slot and num < 0 then info.slot = -num end
+				tmp[num] = info
+			elseif num < 0 then
+				tmp[num] = { trackType = "ITEM", slot = -num }
+			else
+				tmp[num] = true
+			end
+		end
+	end
+	cat.spells = tmp
 	cat.ignoredSpells = cat.ignoredSpells or {}
 	local newId = 1
 	for id in pairs(addon.db.cooldownNotifyCategories) do

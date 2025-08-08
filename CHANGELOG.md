@@ -2,8 +2,14 @@
 
 ## [4.2.0] – 2025-08-07
 
+### ✨ Added
+- **CooldownNotfiy** now tracks Trinkets
+- Option to hide zone change text
+
 ### 🔄 Changed
 - Performance improvements in **Aura Tracker**
+- Performance improvements in **Cast Tracker**
+- Performance improvements in **Mouse Trail**
 
 ### 🐛 Fixed
 
