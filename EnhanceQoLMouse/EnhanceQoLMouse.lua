@@ -11,12 +11,18 @@ local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Mouse")
 
 local AceGUI = addon.AceGUI
 
+-- Hotpath locals & constants
+local GetCursorPosition = GetCursorPosition
+local TEX_MOUSE = "Interface\\AddOns\\" .. addonName .. "\\Icons\\Mouse.tga"
+local TEX_DOT = "Interface\\AddOns\\" .. addonName .. "\\Icons\\Dot.tga"
+local TEX_TRAIL = "Interface\\AddOns\\" .. addonName .. "\\Icons\\MouseTrail.tga"
+
 local MaxActuationPoint = 1 -- Minimaler Bewegungsabstand für Trail-Elemente
 local MaxActuationPointSq = MaxActuationPoint * MaxActuationPoint
 local duration = 0.3 -- Lebensdauer der Trail-Elemente in Sekunden
 local Density = 0.02 -- Zeitdichte für neue Elemente
 local ElementCap = 28 -- Maximale Anzahl von Trail-Elementen
-local PastCursorX, PastCursorY, PresentCursorX, PresentCursorY = 0, 0, 0, 0
+local PastCursorX, PastCursorY, PresentCursorX, PresentCursorY = nil, nil, nil, nil
 
 local trailPool = {}
 local activeCount = 0
@@ -56,7 +62,7 @@ local trailPresets = {
 
 local function createTrailElement()
 	local tex = UIParent:CreateTexture(nil)
-	tex:SetTexture("Interface\\AddOns\\" .. addonName .. "\\Icons\\MouseTrail.tga")
+	tex:SetTexture(TEX_TRAIL)
 	tex:SetBlendMode("ADD")
 
 	local ag = tex:CreateAnimationGroup()
@@ -85,25 +91,30 @@ local function applyPreset(presetName)
 	Density = preset.Density
 	ElementCap = preset.ElementCap
 
-	trailPool = {}
-	activeCount = 0
-
-	for i = 1, ElementCap do
-		local tex = createTrailElement()
-		tex:Hide()
-		trailPool[i] = tex
+	-- Reuse existing pool; create or trim to match ElementCap
+	local poolSize = #trailPool
+	if poolSize < ElementCap then
+		for i = poolSize + 1, ElementCap do
+			local tex = createTrailElement()
+			tex:Hide()
+			trailPool[i] = tex
+		end
+	elseif poolSize > ElementCap then
+		for i = poolSize, ElementCap + 1, -1 do
+			trailPool[i] = nil
+		end
 	end
 end
 
 local timeAccumulator = 0
 
-local function UpdateMouseTrail(delta)
+local function UpdateMouseTrail(delta, cursorX, cursorY, effectiveScale)
 	-- Delta = Zeit seit letztem Frame
 
 	-- Ersten Maus-Frame sauber initialisieren
-	if not PresentCursorX then
-		PresentCursorX, PresentCursorY = GetCursorPosition()
-		return -- nichts weiter tun, wir haben jetzt erst mal nur eine "Start-Position"
+	if PresentCursorX == nil then
+		PresentCursorX, PresentCursorY = cursorX, cursorY
+		return -- Startposition gesetzt
 	end
 
 	-- Zeit hochzählen
@@ -111,7 +122,7 @@ local function UpdateMouseTrail(delta)
 
 	-- Aktuelle Mausposition holen, Distanz ermitteln
 	PastCursorX, PastCursorY = PresentCursorX, PresentCursorY
-	PresentCursorX, PresentCursorY = GetCursorPosition()
+	PresentCursorX, PresentCursorY = cursorX, cursorY
 
 	local dx = PresentCursorX - PastCursorX
 	local dy = PresentCursorY - PastCursorY
@@ -126,8 +137,7 @@ local function UpdateMouseTrail(delta)
 			trailPool[#trailPool] = nil
 			activeCount = activeCount + 1
 
-			local scale = UIParent:GetEffectiveScale()
-			element:SetPoint("CENTER", UIParent, "BOTTOMLEFT", PresentCursorX / scale, PresentCursorY / scale)
+			element:SetPoint("CENTER", UIParent, "BOTTOMLEFT", PresentCursorX / effectiveScale, PresentCursorY / effectiveScale)
 
 			local color = addon.db["mouseTrailColor"]
 			if color then
@@ -157,11 +167,11 @@ local function createMouseRing()
 			self:ClearAllPoints()
 			self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
 
-			if addon.db["mouseTrailEnabled"] then UpdateMouseTrail(delta) end
+			if addon.db["mouseTrailEnabled"] then UpdateMouseTrail(delta, x, y, scale) end
 		end)
 
 		local texture1 = imageFrame:CreateTexture(nil, "BACKGROUND")
-		texture1:SetTexture("Interface\\AddOns\\" .. addonName .. "\\Icons\\Mouse.tga")
+		texture1:SetTexture(TEX_MOUSE)
 		texture1:SetSize(addon.db["mouseRingSize"], addon.db["mouseRingSize"])
 		texture1:SetPoint("CENTER", imageFrame, "CENTER", 0, 0)
 		local color = addon.db["mouseRingColor"]
@@ -175,7 +185,7 @@ local function createMouseRing()
 		local texture2
 		if not addon.db["mouseRingHideDot"] then
 			texture2 = imageFrame:CreateTexture(nil, "BACKGROUND")
-			texture2:SetTexture("Interface\\AddOns\\" .. addonName .. "\\Icons\\Dot.tga")
+			texture2:SetTexture(TEX_DOT)
 			texture2:SetSize(10, 10)
 			texture2:SetPoint("CENTER", imageFrame, "CENTER", 0, 0)
 		end
@@ -230,7 +240,7 @@ local function addGeneralFrame(container)
 					end
 				elseif addon.mousePointer and not value then
 					local dot = addon.mousePointer:CreateTexture(nil, "BACKGROUND")
-					dot:SetTexture("Interface\\AddOns\\" .. addonName .. "\\Icons\\Dot.tga")
+					dot:SetTexture(TEX_DOT)
 					dot:SetSize(10, 10)
 					dot:SetPoint("CENTER", addon.mousePointer, "CENTER", 0, 0)
 					addon.mousePointer.dot = dot

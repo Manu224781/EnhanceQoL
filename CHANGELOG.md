@@ -5,6 +5,7 @@
 ### 🔄 Changed
 - Performance improvements in **Aura Tracker**
 - Performance improvements in **Cast Tracker**
+- Performance improvements in **Mouse Trail**
 
 ### 🐛 Fixed
 
