@@ -4,6 +4,7 @@
 
 ### 🔄 Changed
 - Performance improvements in **Aura Tracker**
+- Performance improvements in **Cast Tracker**
 
 ### 🐛 Fixed
 

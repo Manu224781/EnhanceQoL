@@ -12,7 +12,24 @@ addon.Aura.CastTracker = addon.Aura.CastTracker or {}
 local CastTracker = addon.Aura.CastTracker
 CastTracker.functions = CastTracker.functions or {}
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
+
 local AceGUI = addon.AceGUI
+
+-- Hotpath locals to reduce global lookups
+local wipe, pairs, ipairs = wipe, pairs, ipairs
+local tinsert, tremove = table.insert, table.remove
+local band = bit.band
+local GetTime = GetTime
+local UnitGUID = UnitGUID
+local UnitPlayerControlled = UnitPlayerControlled
+local UnitThreatSituation = UnitThreatSituation
+local UnitGroupRolesAssigned = UnitGroupRolesAssigned
+local UnitCastingInfo = UnitCastingInfo
+local UnitChannelInfo = UnitChannelInfo
+local C_NamePlate_GetNamePlates = C_NamePlate.GetNamePlates
+local unpack = unpack
+local math_floor = math.floor
+local DEFAULT_BAR_COLOR = { 1, 0.5, 0, 1 }
 
 local anchors = {}
 local ensureAnchor
@@ -23,6 +40,9 @@ local activeKeyIndex = {}
 local activeSourceIndex = {}
 local altToBase = {}
 local spellToCat = {} -- [spellID] = { [catId]=true, ... }
+local RequestLayout
+local _ensureDriver
+local _activeBarCount = 0
 
 local function resolveSpellCats(spellId)
 	local base = spellId
@@ -91,7 +111,7 @@ local function GetUnitFromGUID(targetGUID)
 	local unit = UnitTokenFromGUID(targetGUID)
 	if unit then return unit end
 
-	for _, plate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+	for _, plate in ipairs(C_NamePlate_GetNamePlates() or {}) do
 		local plateUnit = plate.namePlateUnitToken
 		if plateUnit and UnitGUID(plateUnit) == targetGUID then return plateUnit end
 	end
@@ -129,6 +149,44 @@ local function rebuildAltMapping()
 	end
 	rebuildSpellIndex()
 end
+-- Apply style to a bar only when something actually changed
+local function ensureBarStyle(bar, db)
+	local width = db.width or 200
+	local height = db.height or 20
+	-- size (bar + icon)
+	if bar._w ~= width or bar._h ~= height then
+		bar:SetSize(width, height)
+		bar.icon:SetSize(height, height)
+		bar._w, bar._h = width, height
+	end
+	-- anchor icon once
+	if not bar._iconAnchored then
+		bar.icon:SetPoint("RIGHT", bar, "LEFT", -2, 0)
+		bar._iconAnchored = true
+	end
+	-- fonts
+	local fontSize = db.textSize or addon.db.castTrackerTextSize
+	if bar._fontSize ~= fontSize then
+		bar.text:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
+		bar.time:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
+		bar._fontSize = fontSize
+	end
+	-- text color
+	local tcol = db.textColor or addon.db.castTrackerTextColor
+	local tr, tg, tb, ta = tcol[1], tcol[2], tcol[3], tcol[4]
+	if bar._tr ~= tr or bar._tg ~= tg or bar._tb ~= tb or bar._ta ~= ta then
+		bar.text:SetTextColor(tr, tg, tb, ta)
+		bar.time:SetTextColor(tr, tg, tb, ta)
+		bar._tr, bar._tg, bar._tb, bar._ta = tr, tg, tb, ta
+	end
+	-- status bar color
+	local scol = db.color or addon.db.castTrackerBarColor or DEFAULT_BAR_COLOR
+	local cr, cg, cb, ca = scol[1], scol[2], scol[3], scol[4]
+	if bar._cr ~= cr or bar._cg ~= cg or bar._cb ~= cb or bar._ca ~= ca then
+		bar.status:SetStatusBarColor(cr, cg, cb, ca)
+		bar._cr, bar._cg, bar._cb, bar._ca = cr, cg, cb, ca
+	end
+end
 local selectedCategory = addon.db["castTrackerSelectedCategory"] or 1
 local treeGroup
 
@@ -137,18 +195,10 @@ local function UpdateActiveBars(catId)
 	local anchor = ensureAnchor(catId)
 	if anchor then anchor:SetSize(cat.width or 200, cat.height or 20) end
 	for _, bar in pairs(activeBars[catId] or {}) do
-		bar.status:SetStatusBarColor(unpack(cat.color or { 1, 0.5, 0, 1 }))
 		if bar.background then bar.background:SetColorTexture(0, 0, 0, 1) end
-		bar.icon:SetSize(cat.height or 20, cat.height or 20)
-		bar:SetSize(cat.width or 200, cat.height or 20)
-		local fontSize = cat.textSize or addon.db.castTrackerTextSize
-		local tcol = cat.textColor or addon.db.castTrackerTextColor
-		bar.text:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
-		bar.time:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
-		bar.text:SetTextColor(tcol[1], tcol[2], tcol[3], tcol[4])
-		bar.time:SetTextColor(tcol[1], tcol[2], tcol[3], tcol[4])
+		ensureBarStyle(bar, cat)
 	end
-	CastTracker.functions.LayoutBars(catId)
+	RequestLayout(catId)
 end
 
 ensureAnchor = function(id)
@@ -234,7 +284,7 @@ end
 local function AcquireBar(catId)
 	framePools[catId] = framePools[catId] or {}
 	local pool = framePools[catId]
-	local bar = table.remove(pool)
+	local bar = tremove(pool)
 	if not bar then
 		bar = CreateFrame("Frame", nil, ensureAnchor(catId))
 		bar:SetFrameStrata("MEDIUM")
@@ -253,16 +303,13 @@ local function AcquireBar(catId)
 		bar.time = bar:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 		bar.time:SetPoint("RIGHT", -4, 0)
 		bar.time:SetJustifyH("RIGHT")
+		bar.icon:SetPoint("RIGHT", bar, "LEFT", -2, 0)
+		bar._iconAnchored = true
 	end
 	if bar.background then bar.background:SetColorTexture(0, 0, 0, 1) end
 	bar:SetParent(ensureAnchor(catId))
 	local cat = addon.db.castTrackerCategories and addon.db.castTrackerCategories[catId] or {}
-	local fontSize = cat.textSize or addon.db.castTrackerTextSize
-	local tcol = cat.textColor or addon.db.castTrackerTextColor
-	bar.text:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
-	bar.time:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
-	bar.text:SetTextColor(tcol[1], tcol[2], tcol[3], tcol[4])
-	bar.time:SetTextColor(tcol[1], tcol[2], tcol[3], tcol[4])
+	ensureBarStyle(bar, cat)
 	bar:Show()
 	return bar
 end
@@ -283,12 +330,14 @@ local function ReleaseBar(catId, bar)
 	end
 	for i, b in ipairs(activeOrder[catId]) do
 		if b == bar then
-			table.remove(activeOrder[catId], i)
+			tremove(activeOrder[catId], i)
 			break
 		end
 	end
-	table.insert(framePools[catId], bar)
-	CastTracker.functions.LayoutBars(catId)
+	tinsert(framePools[catId], bar)
+	RequestLayout(catId)
+	_activeBarCount = math.max(0, _activeBarCount - 1)
+	_ensureDriver()
 end
 
 ReleaseAllBars = function(catId)
@@ -925,9 +974,9 @@ end
 local TEXT_INTERVAL = 0.07
 local VALUE_INTERVAL = 0
 
-local function BarUpdate(self, elapsed)
+local function BarUpdate(self, elapsed, now)
 	if VALUE_INTERVAL == 0 or (self._valAcc or 0) >= VALUE_INTERVAL then
-		local now = GetTime()
+		now = now or GetTime()
 		if now >= self.finish then
 			ReleaseBar(self.catId, self)
 			return
@@ -948,7 +997,7 @@ local function BarUpdate(self, elapsed)
 	if self._txtAcc >= TEXT_INTERVAL then
 		self._txtAcc = 0
 		local r = self._lastRemaining
-		local tenths = math.floor(r * 10 + 0.5)
+		local tenths = math_floor(r * 10 + 0.5)
 		if tenths ~= self._lastTenths then
 			self.time:SetFormattedText("%.1f", r)
 			self._lastTenths = tenths
@@ -979,6 +1028,44 @@ function CastTracker.functions.LayoutBars(catId)
 	end
 end
 
+-- Coalesce layouts to once per frame
+local _layoutPending, _layoutCats = false, {}
+function RequestLayout(catId)
+	_layoutCats[catId] = true
+	if _layoutPending then return end
+	_layoutPending = true
+	C_Timer.After(0, function()
+		_layoutPending = false
+		for id in pairs(_layoutCats) do
+			CastTracker.functions.LayoutBars(id)
+			_layoutCats[id] = nil
+		end
+	end)
+end
+
+-- Single driver to update all active bars (reduces per-frame handlers)
+local _updateDriver = CreateFrame("Frame")
+local _driverRunning = false
+function _ensureDriver()
+	if _activeBarCount > 0 then
+		if not _driverRunning then
+			_driverRunning = true
+			_updateDriver:SetScript("OnUpdate", function(_, elapsed)
+				local frameNow = GetTime()
+				for catId, order in pairs(activeOrder) do
+					for i = #order, 1, -1 do
+						local bar = order[i]
+						BarUpdate(bar, elapsed, frameNow)
+					end
+				end
+			end)
+		end
+	elseif _driverRunning then
+		_driverRunning = false
+		_updateDriver:SetScript("OnUpdate", nil)
+	end
+end
+
 function CastTracker.functions.StartBar(spellId, sourceGUID, catId, overrideCastTime, castType, suppressSound, triggerId, destGUID)
 	local spellData = C_Spell.GetSpellInfo(spellId)
 	local altSpellData
@@ -998,12 +1085,14 @@ function CastTracker.functions.StartBar(spellId, sourceGUID, catId, overrideCast
 	activeOrder[catId] = activeOrder[catId] or {}
 	framePools[catId] = framePools[catId] or {}
 	local key = sourceGUID .. ":" .. spellId
+	local wasNewBar = false
 	local bar = activeBars[catId][key]
 	if not bar then
 		bar = AcquireBar(catId)
 		activeBars[catId][key] = bar
 		bar.owner = key
-		table.insert(activeOrder[catId], bar)
+		tinsert(activeOrder[catId], bar)
+		wasNewBar = true
 	end
 	activeKeyIndex[key] = activeKeyIndex[key] or {}
 	activeKeyIndex[key][catId] = bar
@@ -1024,26 +1113,20 @@ function CastTracker.functions.StartBar(spellId, sourceGUID, catId, overrideCast
 			bar.text:SetText(name)
 		end
 	end
-	local fontSize = db.textSize or addon.db.castTrackerTextSize
-	local tcol = db.textColor or addon.db.castTrackerTextColor
-	bar.text:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
-	bar.time:SetFont(addon.variables.defaultFont, fontSize, "OUTLINE")
-	bar.text:SetTextColor(tcol[1], tcol[2], tcol[3], tcol[4])
-	bar.time:SetTextColor(tcol[1], tcol[2], tcol[3], tcol[4])
+	ensureBarStyle(bar, db)
 	bar.status:SetMinMaxValues(0, castTime)
 	if castType == "channel" then
 		bar.status:SetValue(castTime)
 	else
 		bar.status:SetValue(0)
 	end
-	bar.status:SetStatusBarColor(unpack(db.color or { 1, 0.5, 0, 1 }))
-	bar.icon:SetSize(db.height or 20, db.height or 20)
-	bar.icon:SetPoint("RIGHT", bar, "LEFT", -2, 0)
-	bar:SetSize(db.width or 200, db.height or 20)
 	bar.start = GetTime()
 	bar.finish = bar.start + castTime
-	bar:SetScript("OnUpdate", BarUpdate)
-	CastTracker.functions.LayoutBars(catId)
+	if wasNewBar then
+		_activeBarCount = _activeBarCount + 1
+		_ensureDriver()
+	end
+	RequestLayout(catId)
 	local soundKey
 	if not suppressSound and addon.db.castTrackerSoundsEnabled[catId] and addon.db.castTrackerSoundsEnabled[catId][spellId] then
 		soundKey = addon.db.castTrackerSounds[catId] and addon.db.castTrackerSounds[catId][spellId]
@@ -1065,8 +1148,8 @@ CastTracker.functions.UpdateActiveBars = UpdateActiveBars
 
 local function HandleCLEU()
 	local _, subevent, _, sourceGUID, _, sourceFlags, _, destGUID, _, _, _, spellId = CombatLogGetCurrentEventInfo()
-	local baseSpell, cats = resolveSpellCats(spellId)
 	if subevent == "SPELL_CAST_START" then
+		local baseSpell, cats = resolveSpellCats(spellId)
 		if not cats then return end
 		local castTime
 		local unit = GetUnitFromGUID(sourceGUID)
@@ -1078,17 +1161,15 @@ local function HandleCLEU()
 			end
 			if not threat or threat == 0 then return end
 		end
-
-		if unit then
-			_, castTime = getCastInfo(unit)
-			local tgt = unit .. "target"
-			if UnitExists(tgt) then destGUID = UnitGUID(tgt) end
-		end
+		_, castTime = getCastInfo(unit)
+		local tgt = unit .. "target"
+		if UnitExists(tgt) then destGUID = UnitGUID(tgt) end
 		for catId in pairs(cats) do
 			local cat = addon.db.castTrackerCategories[catId]
 			if addon.db.castTrackerEnabled[catId] and categoryAllowed(cat) then CastTracker.functions.StartBar(baseSpell, sourceGUID, catId, castTime, "cast", nil, spellId, destGUID) end
 		end
 	elseif subevent == "SPELL_CAST_SUCCESS" or subevent == "SPELL_CAST_FAILED" or subevent == "SPELL_INTERRUPT" then
+		local baseSpell = resolveSpellCats(spellId)
 		local key = sourceGUID .. ":" .. baseSpell
 		local byCat = activeKeyIndex[key]
 		if byCat then
