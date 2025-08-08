@@ -2,6 +2,9 @@
 
 ## [4.2.0] – 2025-08-07
 
+### ✨ Added
+- **CooldownNotfiy** now tracks Trinkets
+
 ### 🔄 Changed
 - Performance improvements in **Aura Tracker**
 - Performance improvements in **Cast Tracker**
