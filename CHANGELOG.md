@@ -5,6 +5,7 @@
 ### ✨ Added
 - **Cooldown Notify** can now track on-use **trinket** cooldowns.
 - Option to hide zone-change text.
+- 62 new **Sounds**
 
 ### 🔄 Changed
 - Performance improvements in **Aura Tracker**.

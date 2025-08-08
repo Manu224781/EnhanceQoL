@@ -66,7 +66,7 @@ Dance
 Deebuff;180;"[[pbas -60]]";Debuff
 Deecurse;180;;Decurse
 Defensive;180;"[[pbas -20]]"
-Dispell;185;"[[pbas -60]]"
+Dispel;185;"[[pbas -60]]"
 Dodge;180;"[[pbas -60]]"
 Dot
 Don't;180;"[[pbas -60]]"
@@ -95,7 +95,6 @@ Grip;180;"[[pbas -60]]"
 Hide
 Immunity;180
 In;180;"[[pbas -60]]"
-Intermission;180
 Interrupt;170;"[[pbas -60]]"
 Invis
 Invisibility;180;"[[pbas -60]]"
@@ -160,6 +159,82 @@ Weapon Oil;180;"[[pbas -60]]";Weapon Oil
 Winds;180;"[[pbas -60]]"
 Wrong Talents;180;"[[pbas -50]]";Wrong Talents
 Yellow;180;"[[pbas -60]]"
+
+# --- Core utility & mechanics ---
+Silence;180;"[[pbas -60]]"
+Soothe;180;"[[pbas -60]]"
+Dispel;185;"[[pbas -60]]"
+Dispel Magic;185;"[[pbas -60]]";Dispel Magic
+Dispel Curse;185;"[[pbas -60]]";Dispel Curse
+Dispel Poison;185;"[[pbas -60]]";Dispel Poison
+Dispel Disease;185;"[[pbas -60]]";Dispel Disease
+Personal;180;"[[pbas -60]]"
+Defensives;180;"[[pbas -60]]"
+Externals;180;"[[pbas -60]]"
+Use cooldowns;180;"[[pbas -60]]";Use cooldowns
+Hold cooldowns;180;"[[pbas -60]]";Hold cooldowns
+Stop DPS;180;"[[pbas -60]]";Stop DPS
+Hard stop;180;"[[pbas -60]]";Hard stop
+Wipe;180;"[[pbas -60]]"
+Reset;180;"[[pbas -60]]"
+Execute;180;"[[pbas -60]]"
+Priority target;180;"[[pbas -60]]";Priority Target
+
+# --- Positions / Directions ---
+Front;180;"[[pbas -60]]"
+Forward;180;"[[pbas -60]]"
+Behind;180;"[[pbas -60]]"
+Center;180;"[[pbas -60]]"
+Middle;180;"[[pbas -60]]"
+Edge;180;"[[pbas -60]]"
+Corner;180;"[[pbas -60]]"
+North;180;"[[pbas -60]]"
+South;180;"[[pbas -60]]"
+East;180;"[[pbas -60]]"
+West;180;"[[pbas -60]]"
+Northeast;180;"[[pbas -60]]"
+Northwest;180;"[[pbas -60]]"
+Southeast;180;"[[pbas -60]]"
+Southwest;180;"[[pbas -60]]"
+Upstairs;180;"[[pbas -60]]"
+Downstairs;180;"[[pbas -60]]"
+Portal;180;"[[pbas -60]]"
+Sidestep;180;"[[pbas -60]]"
+Safe;180;"[[pbas -60]]"
+Unsafe;180;"[[pbas -60]]"
+Safe zone;180;"[[pbas -60]]";Safe zone
+
+# --- Movement / soak details ---
+Cone;180;"[[pbas -60]]"
+Meteor;180;"[[pbas -60]]"
+Orbs;180;"[[pbas -60]]"
+Tornadoes;180;"[[pbas -60]]"
+Swirlies;180;"[[pbas -60]]"
+Donut;180;"[[pbas -60]]"
+Pizza slice;180;"[[pbas -60]]";Pizza slice
+Puddles;180;"[[pbas -60]]"
+Lines;180;"[[pbas -60]]"
+
+# --- Roles / Healer-Tank-DPS ---
+Healers;180;"[[pbas -60]]"
+Tanks;180;"[[pbas -60]]"
+DPS;180;"[[pbas -60]]"
+Taunt swap;180;"[[pbas -60]]";Taunt swap
+
+# --- Pull / Phasen ---
+Pull in five;180;"[[pbas -60]]";Pull in five
+Pull in ten;180;"[[pbas -60]]";Pull in ten
+Phase;180;"[[pbas -60]]"
+Phase two;180;"[[pbas -60]]";Phase two
+Intermission;180;"[[pbas -60]]"
+
+# --- Consumables / mana ---
+Healthstone;180;"[[pbas -60]]"
+Health Potion;180;"[[pbas -60]]";Health Potion
+Mana Potion;180;"[[pbas -60]]";Mana Potion
+Drink;180;"[[pbas -60]]"
+OOM;180;"[[pbas -60]]"
+
 # Abilities
 
 # DK
