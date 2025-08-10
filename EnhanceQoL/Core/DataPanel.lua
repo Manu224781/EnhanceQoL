@@ -157,6 +157,13 @@ function DataPanel.Create(id)
 	end
 
 	panels[id] = panel
+
+	if info.streams then
+		for _, name in ipairs(info.streams) do
+			panel:AddStream(name)
+		end
+	end
+
 	return panel
 end
 
@@ -236,13 +243,8 @@ initFrame:SetScript("OnEvent", function(self)
 	local panelsDB = addon.db.dataPanels or {}
 	addon.db.dataPanels = panelsDB
 
-	for id, info in pairs(panelsDB) do
-		local panel = DataPanel.Create(id)
-		if info.streams then
-			for _, streamName in ipairs(info.streams) do
-				panel:AddStream(streamName)
-			end
-		end
+	for id in pairs(panelsDB) do
+		DataPanel.Create(id)
 	end
 
 	self:UnregisterEvent("PLAYER_LOGIN")
