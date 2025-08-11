@@ -28,6 +28,17 @@ local function abbreviateName(name)
 	return name
 end
 
+local function abbreviateNumber(num)
+	num = math.floor(num or 0)
+	if num >= 1000000 then
+		return string.format("%.1fm", num / 1000000):gsub("%.0m", "m")
+	elseif num >= 1000 then
+		return string.format("%.1fk", num / 1000):gsub("%.0k", "k")
+	else
+		return tostring(num)
+	end
+end
+
 local function createGroupFrame(groupConfig)
 	local frame = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
 	frame:SetSize(220, barHeight)
@@ -178,11 +189,11 @@ local function createGroupFrame(groupConfig)
 
 			bar.name:SetText(abbreviateName(p.name))
 			if (self.metric == "dps" or self.metric == "hps") and p.total then
-				local rate = BreakUpLargeNumbers(math.floor(p.value))
-				local total = BreakUpLargeNumbers(math.floor(p.total))
+				local rate = abbreviateNumber(p.value)
+				local total = abbreviateNumber(p.total)
 				bar.value:SetText(rate .. " (" .. total .. ")")
 			else
-				bar.value:SetText(BreakUpLargeNumbers(math.floor(p.value)))
+				bar.value:SetText(abbreviateNumber(p.value))
 			end
 		end
 
