@@ -67,12 +67,12 @@ local function addGeneralFrame(container)
 	wrapper:AddChild(groupGroup)
 
 	local metricNames = {
-		damagePerFight = L["Damage Per Fight"],
+		dps = L["DPS"],
 		damageOverall = L["Damage Overall"],
 		healingPerFight = L["Healing Per Fight"],
 		healingOverall = L["Healing Overall"],
 	}
-	local metricOrder = { "damagePerFight", "damageOverall", "healingPerFight", "healingOverall" }
+	local metricOrder = { "dps", "damageOverall", "healingPerFight", "healingOverall" }
 
 	for i, cfg in ipairs(addon.db["combatMeterGroups"]) do
 		local row = addon.functions.createContainer("SimpleGroup", "Flow")
@@ -111,4 +111,4 @@ addon.functions.InitDBValue("combatMeterHistory", {})
 addon.functions.InitDBValue("combatMeterAlwaysShow", false)
 addon.functions.InitDBValue("combatMeterUpdateRate", 0.2)
 addon.functions.InitDBValue("combatMeterFontSize", 12)
-addon.functions.InitDBValue("combatMeterGroups", { { type = "damagePerFight", point = "CENTER", x = 0, y = 0 } })
+addon.functions.InitDBValue("combatMeterGroups", { { type = "dps", point = "CENTER", x = 0, y = 0 } })

@@ -15,7 +15,7 @@ local groupFrames = {}
 local ticker
 
 local metricNames = {
-	damagePerFight = L["Damage Per Fight"],
+	dps = L["DPS"],
 	damageOverall = L["Damage Overall"],
 	healingPerFight = L["Healing Per Fight"],
 	healingOverall = L["Healing Overall"],
@@ -138,7 +138,7 @@ local function createGroupFrame(groupConfig)
 			for guid, data in pairs(addon.CombatMeter.players) do
 				if groupUnits[guid] then
 					local value
-					if self.metric == "damagePerFight" then
+					if self.metric == "dps" then
 						value = data.damage / duration
 					else
 						value = data.healing / duration
