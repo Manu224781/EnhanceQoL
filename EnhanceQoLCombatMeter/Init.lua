@@ -30,18 +30,24 @@ local function addGeneralFrame(container)
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
 	wrapper:AddChild(groupCore)
 
-	local cbEnabled = addon.functions.createCheckboxAce(L["Enabled"], addon.db["combatMeterEnabled"], function(self, _, value)
-		addon.db["combatMeterEnabled"] = value
-		addon.CombatMeter.functions.toggle(value)
-	end)
-	groupCore:AddChild(cbEnabled)
+        local cbEnabled = addon.functions.createCheckboxAce(L["Enabled"], addon.db["combatMeterEnabled"], function(self, _, value)
+                addon.db["combatMeterEnabled"] = value
+                addon.CombatMeter.functions.toggle(value)
+        end)
+        groupCore:AddChild(cbEnabled)
 
-	local sliderRate = addon.functions.createSliderAce(L["Update Rate"] .. ": " .. addon.db["combatMeterUpdateRate"], addon.db["combatMeterUpdateRate"], 0.05, 1, 0.05, function(self, _, val)
-		addon.db["combatMeterUpdateRate"] = val
-		addon.CombatMeter.functions.setUpdateRate(val)
-		self:SetLabel(L["Update Rate"] .. ": " .. string.format("%.2f", val))
-	end)
-	groupCore:AddChild(sliderRate)
+        local cbAlwaysShow = addon.functions.createCheckboxAce(L["Always Show"], addon.db["combatMeterAlwaysShow"], function(self, _, value)
+                addon.db["combatMeterAlwaysShow"] = value
+                if addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+        end)
+        groupCore:AddChild(cbAlwaysShow)
+
+        local sliderRate = addon.functions.createSliderAce(L["Update Rate"] .. ": " .. addon.db["combatMeterUpdateRate"], addon.db["combatMeterUpdateRate"], 0.05, 1, 0.05, function(self, _, val)
+                addon.db["combatMeterUpdateRate"] = val
+                addon.CombatMeter.functions.setUpdateRate(val)
+                self:SetLabel(L["Update Rate"] .. ": " .. string.format("%.2f", val))
+        end)
+        groupCore:AddChild(sliderRate)
 
 	local btnReset = addon.functions.createButtonAce(L["Reset"], nil, function()
 		if SlashCmdList and SlashCmdList["EQOLCM"] then SlashCmdList["EQOLCM"]("reset") end
