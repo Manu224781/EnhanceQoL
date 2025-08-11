@@ -106,10 +106,45 @@ local function createGroupFrame(groupConfig)
 	dragHandle:SetPoint("TOPRIGHT")
 	dragHandle:EnableMouse(true)
 	dragHandle:RegisterForDrag("LeftButton")
-	dragHandle:SetScript("OnDragStart", function(self) self:GetParent():StartMoving() end)
+	-- Drag outline (ghost border showing the maximum footprint based on Max Bars)
+	local dragOutline = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+	dragOutline:EnableMouse(false)
+	dragOutline:SetFrameStrata("TOOLTIP")
+	dragOutline:SetBackdrop({
+		bgFile = "Interface\\Buttons\\WHITE8x8",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		edgeSize = 12,
+		insets = { left = 3, right = 3, top = 3, bottom = 3 },
+	})
+	dragOutline:SetBackdropColor(1, 1, 1, 0.04)
+	dragOutline:SetBackdropBorderColor(1, 0.82, 0, 0.9) -- golden-ish
+	dragOutline:Hide()
+
+	local function refreshDragOutline()
+		local maxBars = groupConfig.maxBars or DEFAULT_MAX_BARS
+		local maxHeight = 16 + maxBars * barHeight
+		dragOutline:ClearAllPoints()
+		dragOutline:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+		dragOutline:SetSize(frameWidth, maxHeight)
+	end
+
+	function frame:ShowOutline()
+		refreshDragOutline()
+		dragOutline:Show()
+	end
+
+	function frame:HideOutline() dragOutline:Hide() end
+
+	dragHandle:SetScript("OnDragStart", function(self)
+		local parent = self:GetParent()
+		addon.CombatMeter.functions.showOutlinesAll()
+		parent:StartMoving()
+	end)
+
 	dragHandle:SetScript("OnDragStop", function(self)
 		local parent = self:GetParent()
 		parent:StopMovingOrSizing()
+		addon.CombatMeter.functions.hideOutlinesAll()
 		local point, _, _, xOfs, yOfs = parent:GetPoint()
 		groupConfig.point = point
 		groupConfig.x = xOfs
@@ -193,6 +228,10 @@ local function createGroupFrame(groupConfig)
 			if bar.total then bar.total:SetFont(NUMBER_FONT_PATH, size, outline) end
 			if bar.rate then bar.rate:SetFont(NUMBER_FONT_PATH, size, outline) end
 		end
+	end
+
+	function frame:RefreshDragOutline()
+		if dragOutline:IsShown() then refreshDragOutline() end
 	end
 
 	function frame:Update(groupUnits)
@@ -313,7 +352,10 @@ local function createGroupFrame(groupConfig)
 			local p = list[i]
 			local bar = getBar(i)
 			bar:Show()
-			bar:SetMinMaxValues(0, maxValue)
+			if bar._max ~= maxValue then
+				bar:SetMinMaxValues(0, maxValue)
+				bar._max = maxValue
+			end
 			bar:SetValue(p.value)
 
 			local _, class = GetPlayerInfoByGUID(p.guid)
@@ -412,6 +454,21 @@ local function UpdateAllFrames()
 	end
 end
 addon.CombatMeter.functions.UpdateBars = UpdateAllFrames
+
+local function showOutlinesAll()
+	for _, frame in ipairs(groupFrames) do
+		if frame:IsShown() and frame.ShowOutline then frame:ShowOutline() end
+	end
+end
+
+local function hideOutlinesAll()
+	for _, frame in ipairs(groupFrames) do
+		if frame.HideOutline then frame:HideOutline() end
+	end
+end
+
+addon.CombatMeter.functions.showOutlinesAll = showOutlinesAll
+addon.CombatMeter.functions.hideOutlinesAll = hideOutlinesAll
 
 local controller = CreateFrame("Frame")
 addon.CombatMeter.uiFrame = controller
