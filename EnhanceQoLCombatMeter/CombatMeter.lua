@@ -108,33 +108,37 @@ local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceNam
 		return
 	end
 
-        if missIdx then
-                local missType = select(missIdx[1], ...)
-                if missType ~= "ABSORB" then return end
-                if not destGUID or band(destFlags or 0, groupMask) == 0 then return end
-                local amount = select(missIdx[2], ...)
-                if not amount or amount <= 0 then return end
-                local info = lastAbsorbSourceByDest[destGUID]
-                local healGUID, healName = (info and info.guid) or destGUID, (info and info.name) or destName
-                local p = acquirePlayer(cm.players, healGUID, healName)
-                local o = acquirePlayer(cm.overallPlayers, healGUID, healName)
-                p.healing = p.healing + amount
-                o.healing = o.healing + amount
-                return
-        end
+	if missIdx then
+		local missType = select(missIdx[1], ...)
+		if missType ~= "ABSORB" then return end
+		if not destGUID or band(destFlags or 0, groupMask) == 0 then return end
+		local amount = select(missIdx[2], ...)
+		if not amount or amount <= 0 then return end
+		local info = lastAbsorbSourceByDest[destGUID]
+		local healGUID, healName = (info and info.guid) or destGUID, (info and info.name) or destName
+		local p = acquirePlayer(cm.players, healGUID, healName)
+		local o = acquirePlayer(cm.overallPlayers, healGUID, healName)
+		p.healing = p.healing + amount
+		o.healing = o.healing + amount
+		return
+	end
 
-        if subevent == "SPELL_ABSORBED" then
-                local start = argc - 7
-                local absorberGUID, absorberName, absorberFlags, _, _, _, _, absorbedAmount = select(start, ...)
-                if not absorberGUID or type(absorberFlags) ~= "number" or band(absorberFlags, groupMask) == 0 then return end
-                lastAbsorbSourceByDest[destGUID] = { guid = absorberGUID, name = absorberName }
-                if not absorbedAmount or absorbedAmount <= 0 then return end
-                local p = acquirePlayer(cm.players, absorberGUID, absorberName)
-                local o = acquirePlayer(cm.overallPlayers, absorberGUID, absorberName)
-                p.healing = p.healing + absorbedAmount
-                o.healing = o.healing + absorbedAmount
-                return
-        end
+	if subevent == "SPELL_ABSORBED" then
+		-- SPELL_ABSORBED tail layout has **9** stable fields:
+		-- absorberGUID, absorberName, absorberFlags, absorberRaidFlags,
+		-- absorbingSpellID, absorbingSpellName, absorbingSpellSchool,
+		-- absorbedAmount, absorbedCritical
+		local start = argc - 8
+		local absorberGUID, absorberName, absorberFlags, _, _, _, _, absorbedAmount, absorbedCritical = select(start, ...)
+		if not absorberGUID or type(absorberFlags) ~= "number" or band(absorberFlags, groupMask) == 0 then return end
+		lastAbsorbSourceByDest[destGUID] = { guid = absorberGUID, name = absorberName }
+		if not absorbedAmount or absorbedAmount <= 0 then return end
+		local p = acquirePlayer(cm.players, absorberGUID, absorberName)
+		local o = acquirePlayer(cm.overallPlayers, absorberGUID, absorberName)
+		p.healing = p.healing + absorbedAmount
+		o.healing = o.healing + absorbedAmount
+		return
+	end
 end
 
 local function handleEvent(self, event)
@@ -143,12 +147,12 @@ local function handleEvent(self, event)
 		cm.fightStartTime = GetTime()
 		releasePlayers(cm.players)
 		wipe(lastAbsorbSourceByDest)
-        elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" then
-                if not cm.inCombat then return end
-                cm.inCombat = false
-                cm.fightDuration = GetTime() - cm.fightStartTime
-                cm.overallDuration = cm.overallDuration + cm.fightDuration
-                local fight = { duration = cm.fightDuration, players = {} }
+	elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" then
+		if not cm.inCombat then return end
+		cm.inCombat = false
+		cm.fightDuration = GetTime() - cm.fightStartTime
+		cm.overallDuration = cm.overallDuration + cm.fightDuration
+		local fight = { duration = cm.fightDuration, players = {} }
 		for guid, data in pairs(cm.players) do
 			fight.players[guid] = {
 				guid = guid,
