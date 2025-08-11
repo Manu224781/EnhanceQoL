@@ -18,6 +18,7 @@ Optional fields:
 - `filter` – return `false` to skip a row.
 - `actions` – table of custom callbacks exposed to consumers.
 - `settings` – default configuration values for the stream.
+- `OnClick` – function or table of button-specific handlers used for the panel button.
 
 ## Registering a stream
 
@@ -35,7 +36,7 @@ EnhanceQoL.DataHub.RegisterStream(provider)
 1. Copy `Streams/Template.lua` to a new file inside the `Streams/` directory and rename it.
 2. Fill in the required fields with values appropriate for your data.
 3. Implement the `collect` function to gather data and populate `ctx.rows` using `ctx.acquireRow`.
-4. Optionally add `filter`, `actions`, or `settings`.
+4. Optionally add `filter`, `actions`, `settings`, or `OnClick`.
 5. Register the provider using `EnhanceQoL.DataHub.RegisterStream` during addon startup.
 
 Once registered, the DataHub will invoke `collect` at the interval defined by `poll` and distribute snapshot updates to any subscribers. Streams may then be added to panels with `/eqolpanel add <panel> <stream>`.

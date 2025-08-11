@@ -148,6 +148,7 @@ function DataHub:RegisterStream(name, opts)
 		nextPoll = GetTime(),
 		meta = provider, -- keep original provider for UI/metadata
 	}
+	if provider and provider.OnClick then stream.snapshot.OnClick = provider.OnClick end
 	hub.streams[name] = stream
 	hub.eventsByStream[name] = {}
 

@@ -152,9 +152,12 @@ function DataPanel.Create(id, name)
 			if s.OnMouseLeave then s.OnMouseLeave(b) end
 			GameTooltip:Hide()
 		end)
-		button:SetScript("OnClick", function(b, ...)
+		button:RegisterForClicks("AnyUp")
+		button:SetScript("OnClick", function(b, btn, ...)
 			local s = b.slot
-			if s.OnClick then s.OnClick(b, ...) end
+			local fn = s.OnClick
+			if type(fn) == "table" then fn = fn[btn] end
+			if fn then fn(b, btn, ...) end
 		end)
 
 		self.order[#self.order + 1] = name
@@ -174,7 +177,7 @@ function DataPanel.Create(id, name)
 			data.tooltip = payload.tooltip
 			data.OnMouseEnter = payload.OnMouseEnter
 			data.OnMouseLeave = payload.OnMouseLeave
-			data.OnClick = payload.OnClick
+			if payload.OnClick ~= nil then data.OnClick = payload.OnClick end
 		end
 
 		data.unsub = DataHub:Subscribe(name, cb)
