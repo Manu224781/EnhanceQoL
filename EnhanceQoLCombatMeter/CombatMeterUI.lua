@@ -138,12 +138,15 @@ local function createGroupFrame(groupConfig)
 			for guid, data in pairs(addon.CombatMeter.players) do
 				if groupUnits[guid] then
 					local value
+					local total
 					if self.metric == "dps" then
 						value = data.damage / duration
+						total = data.damage
 					else
 						value = data.healing / duration
+						total = data.healing
 					end
-					table.insert(list, { guid = guid, name = data.name, value = value })
+					table.insert(list, { guid = guid, name = data.name, value = value, total = total })
 					if value > maxValue then maxValue = value end
 				end
 			end
@@ -174,7 +177,13 @@ local function createGroupFrame(groupConfig)
 			bar.icon:SetTexture(icon)
 
 			bar.name:SetText(abbreviateName(p.name))
-			bar.value:SetText(BreakUpLargeNumbers(math.floor(p.value)))
+			if (self.metric == "dps" or self.metric == "hps") and p.total then
+				local rate = BreakUpLargeNumbers(math.floor(p.value))
+				local total = BreakUpLargeNumbers(math.floor(p.total))
+				bar.value:SetText(rate .. " (" .. total .. ")")
+			else
+				bar.value:SetText(BreakUpLargeNumbers(math.floor(p.value)))
+			end
 		end
 
 		for i = #list + 1, #self.bars do
