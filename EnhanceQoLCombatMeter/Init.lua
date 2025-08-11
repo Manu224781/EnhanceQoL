@@ -24,8 +24,13 @@ addon.functions.addToTree(nil, {
 })
 
 local function addGeneralFrame(container)
+	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
+	scroll:SetFullWidth(true)
+	scroll:SetFullHeight(true)
+	container:AddChild(scroll)
+
 	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
-	container:AddChild(wrapper)
+	scroll:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
 	wrapper:AddChild(groupCore)
@@ -142,6 +147,7 @@ local function addGeneralFrame(container)
 		addGeneralFrame(container)
 	end)
 	groupGroup:AddChild(addDrop)
+	scroll:DoLayout()
 end
 
 function addon.CombatMeter.functions.treeCallback(container, group)
