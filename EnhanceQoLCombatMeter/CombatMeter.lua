@@ -96,6 +96,23 @@ end
 
 frame:SetScript("OnEvent", handleEvent)
 
+function addon.CombatMeter.functions.getOverallStats()
+	local duration = addon.CombatMeter.overallDuration
+	if duration <= 0 then duration = 1 end
+	local results = {}
+	for guid, data in pairs(addon.CombatMeter.overallPlayers) do
+		results[guid] = {
+			guid = guid,
+			name = data.name,
+			damage = data.damage,
+			healing = data.healing,
+			dps = data.damage / duration,
+			hps = data.healing / duration,
+		}
+	end
+	return results, duration
+end
+
 function addon.CombatMeter.functions.toggle(enabled)
 	if enabled then
 		frame:RegisterEvent("PLAYER_REGEN_DISABLED")

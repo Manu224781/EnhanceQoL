@@ -7,6 +7,7 @@ else
 end
 
 local config = addon.db
+config["combatMeterShowOverall"] = config["combatMeterShowOverall"] or false
 local bars = {}
 local barHeight = 20
 local specIcons = {}
@@ -97,19 +98,13 @@ local function abbreviateName(name)
 end
 
 local function UpdateBars()
-	if not (addon.CombatMeter.inCombat or config["combatMeterAlwaysShow"]) then
+	local showOverall = config["combatMeterShowOverall"]
+	if not (addon.CombatMeter.inCombat or config["combatMeterAlwaysShow"] or showOverall) then
 		frame:Hide()
 		return
 	end
 	frame:Show()
-
-	local duration
-	if addon.CombatMeter.inCombat then
-		duration = GetTime() - addon.CombatMeter.fightStartTime
-	else
-		duration = addon.CombatMeter.fightDuration
-	end
-	if duration <= 0 then duration = 1 end
+	dragHandle.text:SetText(showOverall and "Combat Meter (Overall)" or "Combat Meter")
 
 	local groupUnits = {}
 	if IsInRaid() then
@@ -130,16 +125,35 @@ local function UpdateBars()
 
 	local list = {}
 	local maxValue = 0
-	for guid, data in pairs(addon.CombatMeter.players) do
-		local unit = groupUnits[guid]
-		if unit then
-			data.dps = data.damage / duration
-			data.hps = data.healing / duration
-			table.insert(list, data)
-			local value = math.max(data.dps, data.hps)
-			if value > maxValue then maxValue = value end
+
+	if showOverall then
+		local data, duration = addon.CombatMeter.functions.getOverallStats()
+		for guid, p in pairs(data) do
+			if groupUnits[guid] then
+				table.insert(list, p)
+				local value = math.max(p.dps, p.hps)
+				if value > maxValue then maxValue = value end
+			end
+		end
+	else
+		local duration
+		if addon.CombatMeter.inCombat then
+			duration = GetTime() - addon.CombatMeter.fightStartTime
+		else
+			duration = addon.CombatMeter.fightDuration
+		end
+		if duration <= 0 then duration = 1 end
+		for guid, data in pairs(addon.CombatMeter.players) do
+			if groupUnits[guid] then
+				data.dps = data.damage / duration
+				data.hps = data.healing / duration
+				table.insert(list, data)
+				local value = math.max(data.dps, data.hps)
+				if value > maxValue then maxValue = value end
+			end
 		end
 	end
+
 	if maxValue == 0 then maxValue = 1 end
 	table.sort(list, function(a, b) return math.max(a.dps, a.hps) > math.max(b.dps, b.hps) end)
 
@@ -177,6 +191,14 @@ local function UpdateBars()
 end
 
 addon.CombatMeter.functions.UpdateBars = UpdateBars
+
+dragHandle:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+dragHandle:SetScript("OnMouseUp", function(self, button)
+	if button == "RightButton" then
+		config["combatMeterShowOverall"] = not config["combatMeterShowOverall"]
+		UpdateBars()
+	end
+end)
 
 frame:SetScript("OnEvent", function(self, event)
 	if event == "PLAYER_REGEN_DISABLED" or event == "ENCOUNTER_START" then
