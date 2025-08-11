@@ -56,6 +56,13 @@ local function addGeneralFrame(container)
 	end)
 	groupCore:AddChild(sliderFont)
 
+	local sliderNameLength = addon.functions.createSliderAce(L["Name Length"] .. ": " .. addon.db["combatMeterNameLength"], addon.db["combatMeterNameLength"], 1, 20, 1, function(self, _, val)
+		addon.db["combatMeterNameLength"] = val
+		if addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+		self:SetLabel(L["Name Length"] .. ": " .. val)
+	end)
+	groupCore:AddChild(sliderNameLength)
+
 	local btnReset = addon.functions.createButtonAce(L["Reset"], nil, function()
 		if SlashCmdList and SlashCmdList["EQOLCM"] then SlashCmdList["EQOLCM"]("reset") end
 		if addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
@@ -147,6 +154,7 @@ addon.functions.InitDBValue("combatMeterHistory", {})
 addon.functions.InitDBValue("combatMeterAlwaysShow", false)
 addon.functions.InitDBValue("combatMeterUpdateRate", 0.2)
 addon.functions.InitDBValue("combatMeterFontSize", 12)
+addon.functions.InitDBValue("combatMeterNameLength", 12)
 addon.functions.InitDBValue("combatMeterGroups", {
 	{
 		type = "dps",

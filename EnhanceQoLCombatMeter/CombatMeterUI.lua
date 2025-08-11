@@ -45,7 +45,8 @@ local metricNames = {
 local function abbreviateName(name)
 	name = name or ""
 	name = name:match("^[^-]+") or name
-	if #name > 12 then name = name:sub(1, 12) end
+	local maxLen = (config and config["combatMeterNameLength"]) or 12
+	if #name > maxLen then name = name:sub(1, maxLen) end
 	return name
 end
 
