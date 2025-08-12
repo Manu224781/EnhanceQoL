@@ -273,26 +273,6 @@ local function OpenHistoryMenu(owner)
 				end)
 			end
 		end)
-	elseif _G.EasyMenu then
-		local menu = {}
-		if #hist == 0 then
-			menu[1] = { text = (L["No History"] or "No History"), notCheckable = true, isTitle = true }
-		else
-			for i = #hist, 1, -1 do
-				local fight = hist[i]
-				local text = string.format("%d. %ds", i, math.floor((fight and fight.duration) or 0))
-				local idx = i
-				menu[#menu + 1] = {
-					text = text,
-					notCheckable = true,
-					func = function()
-						if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.loadHistory then addon.CombatMeter.functions.loadHistory(idx) end
-					end,
-				}
-			end
-		end
-		local dropdown = _G[addonName .. "CMHistoryMenu"] or CreateFrame("Frame", addonName .. "CMHistoryMenu", UIParent, "UIDropDownMenuTemplate")
-		_G.EasyMenu(menu, dropdown, owner, 0, 0, "MENU")
 	else
 		print("No compatible menu API available.")
 	end
