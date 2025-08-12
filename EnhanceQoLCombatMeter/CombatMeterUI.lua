@@ -58,9 +58,20 @@ local NUMBER_FONT_PATH = (NumberFontNormal and select(1, NumberFontNormal:GetFon
 	or "Fonts\\FRIZQT__.TTF"
 
 -- fixed number columns to avoid jitter
-local COL_TOTAL_W = (config and config["combatMeterTotalWidth"]) or 55
-local COL_RATE_W = (config and config["combatMeterRateWidth"]) or 55
+local COL_TOTAL_W = 0
+local COL_RATE_W = 0
 local COL_GAP = (config and config["combatMeterColumnGap"]) or 0
+
+local widthMeasure
+local function updateColumnWidths(size)
+	widthMeasure = widthMeasure or UIParent:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	widthMeasure:Hide()
+	widthMeasure:SetFont(NUMBER_FONT_PATH, size, getOutlineFlags())
+	widthMeasure:SetText("888.88m")
+	local w = math.ceil(widthMeasure:GetStringWidth() + 2)
+	COL_TOTAL_W = w
+	COL_RATE_W = w
+end
 
 local metricNames = {
 	dps = L["DPS"],
@@ -248,6 +259,14 @@ local function createGroupFrame(groupConfig)
 	end
 
 	frame.getBar = getBar
+
+	function frame:updateColumnWidths()
+		for _, bar in ipairs(self.bars) do
+			if bar.rate then bar.rate:SetWidth(COL_RATE_W) end
+			if bar.total then bar.total:SetWidth(COL_TOTAL_W) end
+			if bar.value then bar.value:SetWidth(COL_TOTAL_W + COL_GAP + COL_RATE_W) end
+		end
+	end
 
 	function frame:setFontSize(size)
 		local outline = getOutlineFlags()
@@ -487,7 +506,9 @@ local function createGroupFrame(groupConfig)
 end
 
 local function setFontSize(size)
+	updateColumnWidths(size)
 	for _, frame in ipairs(groupFrames) do
+		frame:updateColumnWidths()
 		frame:setFontSize(size)
 	end
 end
@@ -626,6 +647,7 @@ function addon.CombatMeter.functions.setUpdateRate(rate)
 end
 
 local function rebuildGroups()
+	updateColumnWidths(config["combatMeterFontSize"])
 	for _, frame in ipairs(groupFrames) do
 		frame:Hide()
 	end
