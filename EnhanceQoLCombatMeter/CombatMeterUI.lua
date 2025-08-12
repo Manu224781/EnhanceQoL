@@ -2,7 +2,7 @@ local parentAddonName = "EnhanceQoL"
 local addonName, addon = ...
 if _G[parentAddonName] then
 	addon = _G[parentAddonName]
-else
+	else
 	error(parentAddonName .. " is not loaded")
 end
 
@@ -528,10 +528,16 @@ controller:SetScript("OnEvent", function(self, event, ...)
 	elseif event == "GROUP_ROSTER_UPDATE" then
 		buildGroupUnits()
 		for guid in pairs(specIcons) do
-			if not groupUnitsCached[guid] then
-				specIcons[guid] = nil
-				pendingInspect[guid] = nil
-			end
+			if not groupUnitsCached[guid] then specIcons[guid] = nil end
+		end
+		for guid in pairs(pendingInspect) do
+			if not groupUnitsCached[guid] then pendingInspect[guid] = nil end
+		end
+		for guid in pairs(classByGUID) do
+			if not groupUnitsCached[guid] then classByGUID[guid] = nil end
+		end
+		for guid in pairs(shortNameCache) do
+			if not groupUnitsCached[guid] then shortNameCache[guid] = nil end
 		end
 		C_Timer.After(0, UpdateAllFrames)
 	else
