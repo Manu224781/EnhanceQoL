@@ -9,6 +9,7 @@ end
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_CombatMeter")
 
 local config = addon.db
+local TEXTURE_PATH = "Interface\\AddOns\\EnhanceQoLCombatMeter\\Texture\\"
 local DEFAULT_BAR_WIDTH = 210
 local DEFAULT_BAR_HEIGHT = 25
 local DEFAULT_MAX_BARS = 8
@@ -80,6 +81,68 @@ local metricNames = {
 	healingPerFight = L["Healing Per Fight"],
 	healingOverall = L["Healing Overall"],
 }
+
+local function applyBarTexture(bar)
+	if not bar then return end
+	local tex = config["combatMeterBarTexture"] or (TEXTURE_PATH .. "eqol_base_flat_8x8.tga")
+	bar:SetStatusBarTexture(tex)
+
+	if config["combatMeterRoundedCorners"] then
+		if not bar.mask then
+			bar.mask = bar:CreateMaskTexture()
+			bar.mask:SetTexture(TEXTURE_PATH .. "eqol_mask_rounded_8px_64x64.tga")
+			bar.mask:SetAllPoints(bar)
+		end
+		bar.mask:Show()
+		if not bar._maskApplied then
+			local sb = bar:GetStatusBarTexture()
+			if sb then sb:AddMaskTexture(bar.mask) end
+			if bar.overlay then bar.overlay:AddMaskTexture(bar.mask) end
+			bar._maskApplied = true
+		end
+	elseif bar.mask then
+		if bar._maskApplied then
+			local sb = bar:GetStatusBarTexture()
+			if sb then sb:RemoveMaskTexture(bar.mask) end
+			if bar.overlay then bar.overlay:RemoveMaskTexture(bar.mask) end
+			bar._maskApplied = nil
+		end
+		bar.mask:Hide()
+		bar.mask = nil
+	end
+
+	if config["combatMeterUseOverlay"] then
+		if not bar.overlay then
+			bar.overlay = bar:CreateTexture(nil, "ARTWORK")
+			bar.overlay:SetAllPoints(bar)
+			bar.overlay:SetDrawLayer("ARTWORK", 1)
+		end
+		bar.overlay:SetTexture(config["combatMeterOverlayTexture"] or (TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga"))
+		bar.overlay:SetBlendMode(config["combatMeterOverlayBlend"] or "ADD")
+		local a = tonumber(config["combatMeterOverlayAlpha"]) or 0.28
+		if a < 0 then
+			a = 0
+		elseif a > 1 then
+			a = 1
+		end
+		bar.overlay:SetVertexColor(1, 1, 1, a)
+		if bar.mask and bar._maskApplied then bar.overlay:AddMaskTexture(bar.mask) end
+		bar.overlay:Show()
+	elseif bar.overlay then
+		if bar.mask and bar._maskApplied then bar.overlay:RemoveMaskTexture(bar.mask) end
+		bar.overlay:Hide()
+		bar.overlay = nil
+	end
+end
+
+local function applyBarTextures()
+	for _, frame in ipairs(groupFrames) do
+		for _, bar in ipairs(frame.bars) do
+			applyBarTexture(bar)
+		end
+	end
+end
+addon.CombatMeter.functions.applyBarTextures = applyBarTextures
 
 local function abbreviateName(name)
 	name = name or ""
@@ -207,15 +270,6 @@ local function createGroupFrame(groupConfig)
 		local bar = frame.bars[index]
 		if not bar then
 			bar = CreateFrame("StatusBar", nil, frame, "BackdropTemplate")
-			-- bar:SetStatusBarTexture("Interface\\Tooltips\\UI-Tooltip-Background")
-			bar:SetStatusBarTexture("Interface\\Addons\\EnhanceQoLCombatMeter\\Texture\\eqol_base_flat_8x8.tga")
-
-			-- TODO Option for overlay
-			-- bar.overlay = bar:CreateTexture(nil, "ARTWORK")
-			-- bar.overlay:SetTexture("Interface\\Addons\\EnhanceQoLCombatMeter\\Texture\\eqol_overlay_vidro_512x64.tga")
-			-- bar.overlay:SetAllPoints(bar)
-			-- bar.overlay:SetBlendMode("ADD") -- für „Glanz“-Look
-			-- bar.overlay:SetVertexColor(1, 1, 1, 0.28) -- Helligkeit/Intensität
 
 			bar:SetHeight(barHeight)
 			bar:SetPoint("TOPLEFT", frame, "TOPLEFT", barHeight + 2, -(16 + (index - 1) * barHeight))
@@ -262,6 +316,8 @@ local function createGroupFrame(groupConfig)
 			bar.value:SetFont(NUMBER_FONT_PATH, size, outline)
 			bar.total:SetFont(NUMBER_FONT_PATH, size, outline)
 			bar.rate:SetFont(NUMBER_FONT_PATH, size, outline)
+
+			applyBarTexture(bar)
 
 			frame.bars[index] = bar
 		end
