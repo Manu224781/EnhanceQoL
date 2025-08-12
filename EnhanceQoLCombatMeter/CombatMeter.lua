@@ -187,9 +187,14 @@ local function handleEvent(self, event)
 			-- Heuristics: swing variant has 8 tail fields (a23 is number); spell variant has 9 (a23 is boolean, amount in a22)
 			local absorberGUID, absorberName, absorberFlags, absorbedAmount
 			if type(a23) == "boolean" then
+				-- Spell-Variante mit Crit-Boolean (23 Rückgabewerte)
+				absorberGUID, absorberName, absorberFlags, absorbedAmount = a15, a16, a17, a22
+			elseif a22 ~= nil then
+				-- Spell-Variante ohne Crit (22 Rückgabewerte)
 				absorberGUID, absorberName, absorberFlags, absorbedAmount = a15, a16, a17, a22
 			else
-				absorberGUID, absorberName, absorberFlags, absorbedAmount = a16, a17, a18, a23
+				-- Swing-Variante (19/20 Rückgabewerte)
+				absorberGUID, absorberName, absorberFlags, absorbedAmount = a12, a13, a14, a19
 			end
 			if not absorberGUID or type(absorberFlags) ~= "number" or band(absorberFlags, groupMask) == 0 then return end
 			if not absorbedAmount or absorbedAmount <= 0 then return end
