@@ -200,7 +200,7 @@ local function handleEvent(self, event)
 			local absorberGUID = info[base]
 			local absorberName = info[base + 1]
 			local absorberFlags = info[base + 2]
-			local spellName = info[base + 4]
+			-- info[base + 4] holds the absorbing spell name if needed for debugging
 			local absorbedAmount = info[base + 7]
 			local absorbedCritical = info[base + 8]
 			if not absorberGUID or type(absorberFlags) ~= "number" or band(absorberFlags, groupMask) == 0 then return end
