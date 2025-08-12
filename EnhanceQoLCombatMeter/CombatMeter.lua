@@ -19,7 +19,32 @@ cm.overallPlayers = cm.overallPlayers or {}
 cm.playerPool = cm.playerPool or {}
 cm.overallDuration = cm.overallDuration or 0
 
+local petOwner = cm.petOwner or {}
+cm.petOwner = petOwner
+local ownerNameCache = cm.ownerNameCache or {}
+cm.ownerNameCache = ownerNameCache
+
 local groupMask = bor(COMBATLOG_OBJECT_AFFILIATION_MINE, COMBATLOG_OBJECT_AFFILIATION_PARTY, COMBATLOG_OBJECT_AFFILIATION_RAID)
+
+local PETMASK = bor(COMBATLOG_OBJECT_TYPE_PET or 0, COMBATLOG_OBJECT_TYPE_GUARDIAN or 0, COMBATLOG_OBJECT_TYPE_TOTEM or 0, COMBATLOG_OBJECT_TYPE_VEHICLE or 0)
+
+local function resolveOwner(srcGUID, srcName, srcFlags)
+	if band(srcFlags or 0, PETMASK) ~= 0 and srcGUID then
+		local owner = petOwner[srcGUID]
+		if owner then
+			if not ownerNameCache[owner] then
+				local oname = GetPlayerInfoByGUID(owner)
+				if oname then ownerNameCache[owner] = oname end
+			end
+			return owner, (ownerNameCache[owner] or srcName)
+		end
+	end
+	if srcGUID and not ownerNameCache[srcGUID] then
+		local sname = GetPlayerInfoByGUID(srcGUID)
+		if sname then ownerNameCache[srcGUID] = sname end
+	end
+	return srcGUID, (ownerNameCache[srcGUID] or srcName)
+end
 
 local lastAbsorbSourceByDest = {}
 
@@ -53,6 +78,26 @@ local function releasePlayers(players)
 	end
 end
 
+local function rebuildPetOwnerFromRoster()
+	wipe(petOwner)
+	if IsInRaid() then
+		for i = 1, GetNumGroupMembers() do
+			local owner = UnitGUID("raid"..i)
+			local pguid = UnitGUID("raid"..i.."pet")
+			if owner and pguid then petOwner[pguid] = owner end
+		end
+	else
+		for i = 1, GetNumGroupMembers() do
+			local owner = UnitGUID("party"..i)
+			local pguid = UnitGUID("party"..i.."pet")
+			if owner and pguid then petOwner[pguid] = owner end
+		end
+		local me = UnitGUID("player")
+		local mypet = UnitGUID("pet")
+		if me and mypet then petOwner[mypet] = me end
+	end
+end
+
 local frame = CreateFrame("Frame")
 cm.frame = frame
 
@@ -71,6 +116,15 @@ local healIdx = {
 }
 
 local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, ...)
+	-- Maintain pet/guardian owner mapping via CLEU
+	if subevent == "SPELL_SUMMON" or subevent == "SPELL_CREATE" then
+		if destGUID and sourceGUID then petOwner[destGUID] = sourceGUID end
+		return
+	elseif subevent == "UNIT_DIED" or subevent == "UNIT_DESTROYED" then
+		if destGUID then petOwner[destGUID] = nil end
+		return
+	end
+
 	local argc = select("#", ...)
 	-- Note: We intentionally ignore *_MISSED ABSORB to avoid double-counting with SPELL_ABSORBED (matches Details behavior)
 	if not (dmgIdx[subevent] or healIdx[subevent] or subevent == "SPELL_ABSORBED") then return end
@@ -80,8 +134,9 @@ local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceNam
 		if not sourceGUID or band(sourceFlags or 0, groupMask) == 0 then return end
 		local amount = select(idx, ...)
 		if not amount or amount <= 0 then return end
-		local player = acquirePlayer(cm.players, sourceGUID, sourceName)
-		local overall = acquirePlayer(cm.overallPlayers, sourceGUID, sourceName)
+		local ownerGUID, ownerName = resolveOwner(sourceGUID, sourceName, sourceFlags)
+		local player = acquirePlayer(cm.players, ownerGUID, ownerName)
+		local overall = acquirePlayer(cm.overallPlayers, ownerGUID, ownerName)
 		player.damage = player.damage + amount
 		overall.damage = overall.damage + amount
 		return
@@ -92,8 +147,9 @@ local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceNam
 		if not sourceGUID or band(sourceFlags or 0, groupMask) == 0 then return end
 		local amount = (select(hidx[1], ...) or 0) - (select(hidx[2], ...) or 0)
 		if not amount or amount <= 0 then return end
-		local player = acquirePlayer(cm.players, sourceGUID, sourceName)
-		local overall = acquirePlayer(cm.overallPlayers, sourceGUID, sourceName)
+		local ownerGUID, ownerName = resolveOwner(sourceGUID, sourceName, sourceFlags)
+		local player = acquirePlayer(cm.players, ownerGUID, ownerName)
+		local overall = acquirePlayer(cm.overallPlayers, ownerGUID, ownerName)
 		player.healing = player.healing + amount
 		overall.healing = overall.healing + amount
 		return
@@ -110,8 +166,9 @@ local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceNam
 		if not absorberGUID or type(absorberFlags) ~= "number" or band(absorberFlags, groupMask) == 0 then return end
 		lastAbsorbSourceByDest[destGUID] = { guid = absorberGUID, name = absorberName }
 		if not absorbedAmount or absorbedAmount <= 0 then return end
-		local p = acquirePlayer(cm.players, absorberGUID, absorberName)
-		local o = acquirePlayer(cm.overallPlayers, absorberGUID, absorberName)
+		local ownerGUID, ownerName = resolveOwner(absorberGUID, absorberName, absorberFlags)
+		local p = acquirePlayer(cm.players, ownerGUID, ownerName)
+		local o = acquirePlayer(cm.overallPlayers, ownerGUID, ownerName)
 		p.healing = p.healing + absorbedAmount
 		o.healing = o.healing + absorbedAmount
 		return
@@ -124,6 +181,7 @@ local function handleEvent(self, event)
 		cm.fightStartTime = GetTime()
 		releasePlayers(cm.players)
 		wipe(lastAbsorbSourceByDest)
+		rebuildPetOwnerFromRoster()
 	elseif event == "PLAYER_REGEN_ENABLED" or event == "ENCOUNTER_END" then
 		if not cm.inCombat then return end
 		cm.inCombat = false
@@ -145,6 +203,8 @@ local function handleEvent(self, event)
 		while #hist > MAX do
 			table.remove(hist, 1)
 		end
+	elseif event == "GROUP_ROSTER_UPDATE" or event == "UNIT_PET" or event == "PLAYER_ENTERING_WORLD" then
+		rebuildPetOwnerFromRoster()
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
 		if not cm.inCombat then return end
 		handleCLEU(CombatLogGetCurrentEventInfo())
@@ -177,6 +237,9 @@ function cm.functions.toggle(enabled)
 		frame:RegisterEvent("ENCOUNTER_START")
 		frame:RegisterEvent("ENCOUNTER_END")
 		frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		frame:RegisterEvent("GROUP_ROSTER_UPDATE")
+		frame:RegisterEvent("UNIT_PET")
+		frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 		if cm.uiFrame then
 			cm.uiFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 			cm.uiFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
