@@ -21,6 +21,12 @@ local shortNameCache = {}
 local ticker
 local tinsert, tsort = table.insert, table.sort
 
+local function scheduleInspectRetry(guid, unit)
+        C_Timer.After(1, function()
+                if pendingInspect[guid] and CanInspect(unit) then NotifyInspect(unit) end
+        end)
+end
+
 local function tableSize(t)
         local n = 0
         for _ in pairs(t) do
@@ -412,14 +418,15 @@ local function createGroupFrame(groupConfig)
 						icon = select(4, C_SpecializationInfo.GetSpecializationInfo(specIndex))
 						specIcons[p.guid] = icon
 					end
-				elseif CanInspect(unit) and pendingInspect[p.guid] == nil then
-					NotifyInspect(unit)
-					pendingInspect[p.guid] = true
-				end
-			end
-			if bar._icon ~= icon then
-				bar.icon:SetTexture(icon)
-				bar._icon = icon
+                                elseif CanInspect(unit) and pendingInspect[p.guid] == nil then
+                                        NotifyInspect(unit)
+                                        pendingInspect[p.guid] = true
+                                        scheduleInspectRetry(p.guid, unit)
+                                end
+                        end
+                        if bar._icon ~= icon then
+                                bar.icon:SetTexture(icon)
+                                bar._icon = icon
 			end
 
 			local shortName = shortNameCache[p.guid]
@@ -551,14 +558,15 @@ controller:SetScript("OnEvent", function(self, event, ...)
 				if specIndex then specIcons[guid] = select(4, GetSpecializationInfo(specIndex)) end
 				UpdateAllFrames()
 			else
-				if CanInspect(unit) and pendingInspect[guid] == nil then
-					NotifyInspect(unit)
-					pendingInspect[guid] = true
-				end
-			end
-		end
-	elseif event == "GROUP_ROSTER_UPDATE" then
-		buildGroupUnits()
+                                if CanInspect(unit) and pendingInspect[guid] == nil then
+                                        NotifyInspect(unit)
+                                        pendingInspect[guid] = true
+                                        scheduleInspectRetry(guid, unit)
+                                end
+                        end
+                end
+        elseif event == "GROUP_ROSTER_UPDATE" then
+                buildGroupUnits()
 		for guid in pairs(specIcons) do
 			if not groupUnitsCached[guid] then specIcons[guid] = nil end
 		end
