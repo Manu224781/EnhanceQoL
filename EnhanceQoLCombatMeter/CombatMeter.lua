@@ -116,16 +116,6 @@ local healIdx = {
 }
 
 local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, ...)
-	-- Maintain pet/guardian owner mapping via CLEU
-	if subevent == "SPELL_SUMMON" or subevent == "SPELL_CREATE" then
-		if destGUID and sourceGUID then petOwner[destGUID] = sourceGUID end
-		return
-	elseif subevent == "UNIT_DIED" or subevent == "UNIT_DESTROYED" then
-		if destGUID then petOwner[destGUID] = nil end
-		return
-	end
-
-	local argc = select("#", ...)
 	-- Note: We intentionally ignore *_MISSED ABSORB to avoid double-counting with SPELL_ABSORBED (matches Details behavior)
 	if not (dmgIdx[subevent] or healIdx[subevent] or subevent == "SPELL_ABSORBED") then return end
 
@@ -161,6 +151,7 @@ local function handleCLEU(timestamp, subevent, hideCaster, sourceGUID, sourceNam
 		-- absorberGUID, absorberName, absorberFlags, absorberRaidFlags,
 		-- absorbingSpellID, absorbingSpellName, absorbingSpellSchool,
 		-- absorbedAmount, absorbedCritical
+		local argc = select("#", ...)
 		local start = argc - 8
 		local absorberGUID, absorberName, absorberFlags, _, spellName, _, _, absorbedAmount, absorbedCritical = select(start, ...)
 		if not absorberGUID or type(absorberFlags) ~= "number" or band(absorberFlags, groupMask) == 0 then return end
