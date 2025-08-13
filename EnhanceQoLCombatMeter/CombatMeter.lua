@@ -1,3 +1,4 @@
+-- luacheck: globals COMBATLOG_OBJECT_TYPE_TOTEM COMBATLOG_OBJECT_TYPE_VEHICLE
 local parentAddonName = "EnhanceQoL"
 local addonName, addon = ...
 if _G[parentAddonName] then
@@ -30,6 +31,8 @@ cm.historyUnits = cm.historyUnits or {}
 
 local petOwner = cm.petOwner or {}
 cm.petOwner = petOwner
+local ownerPets = cm.ownerPets or {}
+cm.ownerPets = ownerPets
 local ownerNameCache = cm.ownerNameCache or {}
 cm.ownerNameCache = ownerNameCache
 
@@ -89,6 +92,7 @@ end
 
 local function fullRebuildPetOwners()
 	wipe(petOwner)
+	wipe(ownerPets)
 	local activeGUIDs = {}
 	if IsInRaid() then
 		for i = 1, GetNumGroupMembers() do
@@ -97,6 +101,8 @@ local function fullRebuildPetOwners()
 			if owner then activeGUIDs[owner] = true end
 			if owner and pguid then
 				petOwner[pguid] = owner
+				ownerPets[owner] = ownerPets[owner] or {}
+				ownerPets[owner][pguid] = true
 				activeGUIDs[pguid] = true
 			end
 		end
@@ -107,6 +113,8 @@ local function fullRebuildPetOwners()
 			if owner then activeGUIDs[owner] = true end
 			if owner and pguid then
 				petOwner[pguid] = owner
+				ownerPets[owner] = ownerPets[owner] or {}
+				ownerPets[owner][pguid] = true
 				activeGUIDs[pguid] = true
 			end
 		end
@@ -115,6 +123,8 @@ local function fullRebuildPetOwners()
 		if me then activeGUIDs[me] = true end
 		if me and mypet then
 			petOwner[mypet] = me
+			ownerPets[me] = ownerPets[me] or {}
+			ownerPets[me][mypet] = true
 			activeGUIDs[mypet] = true
 		end
 	end
@@ -127,11 +137,22 @@ local function updatePetOwner(unit)
 	if not unit then return end
 	local owner = UnitGUID(unit)
 	if not owner then return end
-	for pguid, oguid in pairs(petOwner) do
-		if oguid == owner then petOwner[pguid] = nil end
+	local pets = ownerPets[owner]
+	if pets then
+		for pguid in pairs(pets) do
+			petOwner[pguid] = nil
+		end
+		wipe(pets)
 	end
 	local pguid = UnitGUID(unit .. "pet")
-	if pguid then petOwner[pguid] = owner end
+	if pguid then
+		petOwner[pguid] = owner
+		pets = pets or {}
+		pets[pguid] = true
+		ownerPets[owner] = pets
+	else
+		ownerPets[owner] = nil
+	end
 end
 
 local function addPrePull(ownerGUID, ownerName, damage, healing)
@@ -236,10 +257,24 @@ local function handleEvent(self, event, unit)
 
 		-- Maintain pet/guardian owner mapping via CLEU
 		if sub == "SPELL_SUMMON" or sub == "SPELL_CREATE" then
-			if destGUID and sourceGUID then petOwner[destGUID] = sourceGUID end
+			if destGUID and sourceGUID then
+				petOwner[destGUID] = sourceGUID
+				ownerPets[sourceGUID] = ownerPets[sourceGUID] or {}
+				ownerPets[sourceGUID][destGUID] = true
+			end
 			return
 		elseif sub == "UNIT_DIED" or sub == "UNIT_DESTROYED" then
-			if destGUID then petOwner[destGUID] = nil end
+			if destGUID then
+				local owner = petOwner[destGUID]
+				if owner then
+					local pets = ownerPets[owner]
+					if pets then
+						pets[destGUID] = nil
+						if not next(pets) then ownerPets[owner] = nil end
+					end
+				end
+				petOwner[destGUID] = nil
+			end
 			return
 		elseif not (dmgIdx[sub] or sub == "SPELL_HEAL" or sub == "SPELL_PERIODIC_HEAL" or sub == "SPELL_ABSORBED") then
 			-- Note: We intentionally ignore *_MISSED ABSORB to avoid double-counting with SPELL_ABSORBED (matches Details behavior)
