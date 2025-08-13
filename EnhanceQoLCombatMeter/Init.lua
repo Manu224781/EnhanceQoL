@@ -84,13 +84,11 @@ local function addGeneralFrame(container)
 	groupCore:AddChild(sliderPrePull)
 
 	local barTextures = {
-		["Interface\\TARGETINGFRAME\\UI-StatusBar"] = L["Classic Gradient (Blizzard)"],
 		["Interface\\Buttons\\WHITE8x8"] = L["Flat (white, tintable)"],
 		["Interface\\Tooltips\\UI-Tooltip-Background"] = L["Dark Flat (Tooltip bg)"],
 		[TEXTURE_PATH .. "eqol_base_flat_8x8.tga"] = L["EQoL: Flat (AddOn)"],
 	}
 	local barOrder = {
-		"Interface\\TARGETINGFRAME\\UI-StatusBar",
 		"Interface\\Buttons\\WHITE8x8",
 		"Interface\\Tooltips\\UI-Tooltip-Background",
 		TEXTURE_PATH .. "eqol_base_flat_8x8.tga",

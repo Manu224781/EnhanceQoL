@@ -213,27 +213,23 @@ local function abbreviateNumber(n, decimals, trimZeros)
 	return sign .. s .. suf
 end
 
--- Modern menu API (Dragonflight+/11.x). Falls back to EasyMenu where available (Classic).
+-- Uses modern menu API (Dragonflight+/11.x).
 local function OpenHistoryMenu(owner)
 	local hist = addon.db["combatMeterHistory"] or {}
-	if MenuUtil and MenuUtil.CreateContextMenu then
-		MenuUtil.CreateContextMenu(owner, function(_, root)
-			if #hist == 0 then
-				root:CreateTitle(L["No History"])
-				return
-			end
-			for i = #hist, 1, -1 do
-				local fight = hist[i]
-				local text = string.format("%d. %ds", i, math.floor((fight and fight.duration) or 0))
-				local idx = i -- capture loop variable for the closure
-				root:CreateButton(text, function()
-					if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.loadHistory then addon.CombatMeter.functions.loadHistory(idx) end
-				end)
-			end
-		end)
-	else
-		print(L["No compatible menu API available."])
-	end
+	MenuUtil.CreateContextMenu(owner, function(_, root)
+		if #hist == 0 then
+			root:CreateTitle(L["No History"])
+			return
+		end
+		for i = #hist, 1, -1 do
+			local fight = hist[i]
+			local text = string.format("%d. %ds", i, math.floor((fight and fight.duration) or 0))
+			local idx = i -- capture loop variable for the closure
+			root:CreateButton(text, function()
+				if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.loadHistory then addon.CombatMeter.functions.loadHistory(idx) end
+			end)
+		end
+	end)
 end
 local function createGroupFrame(groupConfig)
 	local barHeight = groupConfig.barHeight or DEFAULT_BAR_HEIGHT
