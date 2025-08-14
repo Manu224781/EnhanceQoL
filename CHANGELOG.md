@@ -1,11 +1,5 @@
 # Changelog
 
-## [Unreleased]
-
-### 🐛 Fixed
-
-- Prevent `DataPanel.AddStream` from recreating deleted panels.
-
 ## [4.4.0] – 2025-08-14
 
 ### ✨ Added
