@@ -6,12 +6,14 @@
 
 - **Combat Meter**: metric switch to toggle displayed metrics.
 - **Combat Meter**: spell breakdown on bar hover
+- **Combat Meter**: absorbed *_MISSED events now count toward damage done.
 
 ### 🐛 Fixed
 
 - Resolved issues in **DataPanel**.
 - Improved **Combat Meter** DPS/HPS determination accuracy.
 - Fixed an error when filtering inventory by item level.
+- **Combat Meter** no longer counts overkill for *_DAMAGE events.
 
 ---
 

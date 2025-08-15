@@ -467,8 +467,19 @@ local function handleEvent(self, event, unit)
 				petOwner[destGUID] = nil
 			end
 			return
-		elseif not (dmgIdx[sub] or sub == "SPELL_HEAL" or sub == "SPELL_PERIODIC_HEAL" or sub == "SPELL_ABSORBED" or sub == "DAMAGE_SPLIT") then
-			-- Note: We intentionally ignore *_MISSED ABSORB to avoid double-counting with SPELL_ABSORBED (matches Details behavior)
+		elseif
+			not (
+				dmgIdx[sub]
+				or sub == "SPELL_HEAL"
+				or sub == "SPELL_PERIODIC_HEAL"
+				or sub == "SPELL_ABSORBED"
+				or sub == "DAMAGE_SPLIT"
+				or sub == "SWING_MISSED"
+				or sub == "RANGE_MISSED"
+				or sub == "SPELL_MISSED"
+				or sub == "SPELL_PERIODIC_MISSED"
+			)
+		then
 			return
 		end
 		if not inCombat and not pre then return end
@@ -480,6 +491,8 @@ local function handleEvent(self, event, unit)
 			if not ownerFlags and cm.groupGUIDs and cm.groupGUIDs[ownerGUID] then ownerFlags = COMBATLOG_OBJECT_AFFILIATION_RAID end
 			if band(ownerFlags or 0, groupMask) == 0 then return end
 			local amount = (idx == 1 and a12) or a15 or 0
+			local overkill = (sub == "SWING_DAMAGE") and (a13 or 0) or (a16 or 0)
+			amount = amount - math.max(overkill or 0, 0)
 			if amount <= 0 then return end
 			local spellId, spellName, spellIcon = getSpellInfoFromSub(sub, a12, a15)
 			local crit = isCritFor(sub, a18, a21)
@@ -515,6 +528,62 @@ local function handleEvent(self, event, unit)
 				if crit then os.crits = (os.crits or 0) + 1 end
 			else
 				addPrePull(ownerGUID, ownerName, amount, 0, spellId, spellName, crit, sub == "SPELL_PERIODIC_DAMAGE")
+			end
+			return
+		end
+
+		if sub == "SWING_MISSED" or sub == "RANGE_MISSED" or sub == "SPELL_MISSED" or sub == "SPELL_PERIODIC_MISSED" then
+			if not sourceGUID then return end
+			local missType, amount, crit
+			if sub == "SWING_MISSED" then
+				missType = a12
+				amount = a14 or 0
+				crit = a15
+			else
+				missType = a15
+				amount = a17 or 0
+				crit = a18
+			end
+			if missType ~= "ABSORB" or amount <= 0 then return end
+			local ownerGUID, ownerName, ownerFlags = resolveOwner(sourceGUID, sourceName, sourceFlags)
+			if not ownerFlags and cm.groupGUIDs and cm.groupGUIDs[ownerGUID] then ownerFlags = COMBATLOG_OBJECT_AFFILIATION_RAID end
+			if band(ownerFlags or 0, groupMask) == 0 then return end
+			local damageSub = sub:gsub("_MISSED", "_DAMAGE")
+			local spellId, spellName, spellIcon = getSpellInfoFromSub(damageSub, a12, a15)
+			local isPeriodic = damageSub == "SPELL_PERIODIC_DAMAGE"
+			crit = not not crit
+			if inCombat then
+				local player = acquirePlayer(cm.players, ownerGUID, ownerName)
+				local overall = acquirePlayer(cm.overallPlayers, ownerGUID, ownerName)
+				local now = GetTime()
+				player._first = player._first or now
+				player._last = now
+				player.damage = player.damage + amount
+				overall.damage = overall.damage + amount
+				local ps = player.damageSpells[spellId]
+				if not ps then
+					ps = { name = spellName, amount = 0, hits = 0, crits = 0, periodicHits = 0, icon = spellIcon }
+					player.damageSpells[spellId] = ps
+				end
+				ps.name = spellName
+				ps.icon = ps.icon or spellIcon
+				ps.amount = ps.amount + amount
+				ps.hits = (ps.hits or 0) + 1
+				if isPeriodic then ps.periodicHits = (ps.periodicHits or 0) + 1 end
+				if crit then ps.crits = (ps.crits or 0) + 1 end
+				local os = overall.damageSpells[spellId]
+				if not os then
+					os = { name = spellName, amount = 0, hits = 0, crits = 0, periodicHits = 0, icon = spellIcon }
+					overall.damageSpells[spellId] = os
+				end
+				os.name = spellName
+				os.icon = os.icon or spellIcon
+				os.amount = os.amount + amount
+				os.hits = (os.hits or 0) + 1
+				if isPeriodic then os.periodicHits = (os.periodicHits or 0) + 1 end
+				if crit then os.crits = (os.crits or 0) + 1 end
+			else
+				addPrePull(ownerGUID, ownerName, amount, 0, spellId, spellName, crit, isPeriodic)
 			end
 			return
 		end
