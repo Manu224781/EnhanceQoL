@@ -110,7 +110,7 @@ local function createCooldownBar(spellID, anchorFrame, playerName, unit)
 	if potInfo.text then textLeft = textLeft .. " - " .. potInfo.text end
 
 	if potInfo.isOffhealing and addon.db["potionTrackerOffhealing"] == false then return end
-	if potInfo.isOffhealing then C_VoiceChat.SpeakText(1, "Offhaeling Active", Enum.VoiceTtsDestination.LocalPlayback, 01, 100) end
+	if potInfo.isOffhealing then PlaySoundFile("Interface\\AddOns\\EnhanceQoLSharedMedia\\Sounds\\Voiceovers\\offhealing active.ogg", "Master") end
 
 	local frame = CreateFrame("StatusBar", nil, UIParent, "BackdropTemplate")
 	frame:SetSize(anchorFrame:GetWidth() - addon.db["CooldownTrackerBarHeight"], addon.db["CooldownTrackerBarHeight"]) -- Größe des Balkens
