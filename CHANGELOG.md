@@ -6,6 +6,7 @@
 
 - _Secret Technique_ by Rogues where missed in **Combat Meter**
 - _Offhealing_ voice not always played in **Potion Tracker**
+- _Reset_ in **Combat Meter** in combat disabled logging of events
 
 ---
 

@@ -51,6 +51,7 @@ local iconCache = {}
 local missingSummonNPCs = {
 	[144961] = true, -- SecTec
 	[31216] = true, -- Mirror Images
+	[165189] = true, -- Generic Hunter Pet
 }
 
 local tooltipLookup = {}
@@ -62,11 +63,16 @@ local function setOwnerFromTooltip(guid)
 	if not tooltipData then return end
 
 	local ownerGUID = tooltipData.guid
-	if not ownerGUID and tooltipData.lines then
+	if (not ownerGUID or ownerGUID:find("^Pet")) and tooltipData.lines then
 		for i = 1, #tooltipData.lines do
 			local lineData = tooltipData.lines[i]
+			local lToken = lineData.unitToken
 			if lineData.unitToken then
 				ownerGUID = UnitGUID(lineData.unitToken)
+				if ownerGUID then break end
+			end
+			if lineData.guid and lineData.guid:find("^Player") then
+				ownerGUID = lineData.guid
 				if ownerGUID then break end
 			end
 		end
@@ -163,11 +169,15 @@ local function resetMeter()
 	releasePlayers(cm.overallPlayers)
 	cm.overallDuration = 0
 	cm.fightDuration = 0
-	cm.inCombat = false
-	cm.fightStartTime = 0
 	cm.prePullHead = 1
 	cm.prePullTail = 0
 	wipe(cm.prePullBuffer)
+	
+	cm.historySelection = nil
+	cm.historyUnits = nil
+
+	cm.inCombat = UnitAffectingCombat("player")
+	cm.fightStartTime = cm.inCombat and GetTime() or 0
 end
 cm.resetMeter = resetMeter
 
@@ -434,6 +444,13 @@ local function isCritFor(sub, a18, a21)
 	return false
 end
 
+local TYPE_MASK = 64512
+local TYPE_PLAYER = 1024
+local TYPE_PET = 4096
+local TYPE_GUARDIAN = 8192
+local CONTROL_MASK = 768
+local CONTROL_PLAYER = 256
+
 local function handleEvent(self, event, unit)
 	if event == "PLAYER_REGEN_DISABLED" or event == "ENCOUNTER_START" then
 		if cm.inCombat then return end
@@ -525,17 +542,20 @@ local function handleEvent(self, event, unit)
 		end
 		if not inCombat and not pre then return end
 
+		-- Attempt to map pet owners for guardians spawned without a summon event and no unitframe
+		if dmgIdx[sub] and not petOwner[sourceGUID] and band(sourceFlags or 0, groupMask) ~= 0 then
+			local petType = bit.band(sourceFlags, TYPE_MASK)
+			if petType ~= TYPE_PLAYER then
+				if (petType == TYPE_GUARDIAN or petType == TYPE_PET) and bit.band(sourceFlags, CONTROL_MASK) == CONTROL_PLAYER then
+					local id = getIDFromGUID(sourceGUID)
+					if id and missingSummonNPCs[id] then trySetOwnerFromTooltip(sourceGUID) end
+				end
+			end
+		end
+
 		local idx = dmgIdx[sub]
 		if idx then
 			if not sourceGUID then return end
-
-			-- Attempt to map pet owners for guardians spawned without a summon event
-			-- ? bit.band(sourceFlags, 64512) == 8192 --> IsGuardian?
-			-- ? bit.band(sourceFlags, 768) == 256    --> IsPlayerControlled?
-			if not petOwner[sourceGUID] and bit.band(sourceFlags, 64512) == 8192 and bit.band(sourceFlags, 768) == 256 then
-				local id = getIDFromGUID(sourceGUID)
-				if id and missingSummonNPCs[id] then trySetOwnerFromTooltip(sourceGUID) end
-			end
 
 			local ownerGUID, ownerName, ownerFlags = resolveOwner(sourceGUID, sourceName, sourceFlags)
 			if not ownerFlags and cm.groupGUIDs and cm.groupGUIDs[ownerGUID] then ownerFlags = COMBATLOG_OBJECT_AFFILIATION_RAID end
