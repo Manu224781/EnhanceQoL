@@ -157,10 +157,12 @@ frameAnchor:SetClampedToScreen(true)
 frameAnchor:RegisterForDrag("LeftButton")
 frameAnchor:SetScript("OnDragStart", function(self)
 	if addon.db.teleportFrameLocked then return end
+	if InCombatLockdown() then return end
 	if not IsShiftKeyDown() then return end
 	self:StartMoving()
 end)
 frameAnchor:SetScript("OnDragStop", function(self)
+	if InCombatLockdown() then return end
 	self:StopMovingOrSizing()
 	local point, _, parentPoint, xOfs, yOfs = self:GetPoint()
 	addon.db.teleportFrameData.point = point
@@ -234,10 +236,12 @@ frameAnchorCompendium:RegisterForDrag("LeftButton")
 frameAnchorCompendium:SetClampedToScreen(true)
 frameAnchorCompendium:SetScript("OnDragStart", function(self)
 	if addon.db.teleportCompendiumLocked then return end
+	if InCombatLockdown() then return end
 	if not IsShiftKeyDown() then return end
 	self:StartMoving()
 end)
 frameAnchorCompendium:SetScript("OnDragStop", function(self)
+	if InCombatLockdown() then return end
 	self:StopMovingOrSizing()
 	local point, _, parentPoint, xOfs, yOfs = self:GetPoint()
 	addon.db.teleportCompendiumFrameData.point = point
@@ -859,10 +863,12 @@ local function CreateRioScore()
 		frameAnchorScore:RegisterForDrag("LeftButton")
 		frameAnchorScore:SetScript("OnDragStart", function(self)
 			if addon.db.dungeonScoreFrameLocked then return end
+			if InCombatLockdown() then return end
 			if not IsShiftKeyDown() then return end
 			self:StartMoving()
 		end)
 		frameAnchorScore:SetScript("OnDragStop", function(self)
+			if InCombatLockdown() then return end
 			self:StopMovingOrSizing()
 			local point, _, parentPoint, xOfs, yOfs = self:GetPoint()
 			addon.db.dungeonScoreFrameData.point = point
