@@ -21,6 +21,20 @@ local function FullName(unit)
 	if r and r ~= "" and r ~= ownRealm then return n .. "-" .. r end
 	return n
 end
+local function NormalizeKey(name, sender)
+	if not name or name == "" then return nil end
+	-- split 'Name' or 'Name-Realm'
+	local base, realm = name:match("^([^%-]+)%-?(.*)$")
+	if realm == "" then realm = nil end
+	local senderRealm = sender and sender:match("-(.+)$") or nil
+	realm = (realm and realm:gsub("%s", "")) or senderRealm or ownRealm
+	-- LOR-kompatibel: gleicher Realm => Kurzname, sonst Name-Realm
+	if realm == ownRealm then
+		return base
+	else
+		return base .. "-" .. realm
+	end
+end
 
 local function Now() return GetServerTime() end
 
@@ -129,8 +143,9 @@ local function HandleCompleteLogged(sender, channel, msg)
 		-- tableize, tolerate extra/unknown fields
 		local tokens = { strsplit(",", data) }
 		-- tokens[1] == "K"
-		local nameRealm = tokens[2]
-		-- heuristics: find first and second numeric tokens
+		local key = NormalizeKey(tokens[2], sender)
+
+		-- erste zwei Zahlen im Payload als mapID/level
 		local nums = {}
 		for i = 3, #tokens do
 			local n = tonumber(tokens[i])
@@ -139,14 +154,24 @@ local function HandleCompleteLogged(sender, channel, msg)
 		local mapID = nums[1] or 0
 		local level = nums[2] or 0
 
-		if nameRealm and nameRealm ~= "" then
-            lib.UnitData[nameRealm] = lib.UnitData[nameRealm] or {}
-			local entry = lib.UnitData[nameRealm]
+		if key and key ~= "" then
+			-- Alt-Form (short<->full) in kanonischen Key zusammenführen
+			local short = key:match("^[^-]+")
+			local alt = (key:find("-", 1, true) and short) or (short .. "-" .. ownRealm)
+			if alt ~= key and lib.UnitData[alt] then
+				lib.UnitData[key] = lib.UnitData[key] or {}
+				for k, v in pairs(lib.UnitData[alt]) do
+					lib.UnitData[key][k] = v
+				end
+				lib.UnitData[alt] = nil
+			end
+
+			lib.UnitData[key] = lib.UnitData[key] or {}
+			local entry = lib.UnitData[key]
 			entry.challengeMapID = mapID
 			entry.level = level
 			entry.lastSeen = Now()
-			-- fire callback: same shape as LOR: (self, playerKey, data)
-			Fire("KeystoneUpdate", nameRealm, entry)
+			Fire("KeystoneUpdate", key, entry)
 		end
 	end
 end
@@ -154,6 +179,11 @@ end
 local function OnLogged(self, event, prefix, text, channel, sender)
 	if prefix ~= PREFIX_LOGGED then return end
 	sender = Ambiguate(sender, "none")
+	-- ignore self (short oder full)
+	local meShort = UnitName("player")
+	local meFull = FullName("player")
+	local senderShort = sender and sender:match("^[^-]+")
+	if sender == meShort or sender == meFull or (senderShort and senderShort == meShort) then return end
 	-- chunked?
 	local n, total, rest = text:match("^%$(%d+)%$(%d+)(.*)")
 	if n and total and rest then
