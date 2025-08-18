@@ -1,7 +1,7 @@
 -- luacheck: globals DefaultCompactUnitFrameSetup CompactUnitFrame_UpdateAuras CompactUnitFrame_UpdateName UnitTokenFromGUID C_Bank
 -- luacheck: globals Menu GameTooltip_SetTitle GameTooltip_AddNormalLine EnhanceQoL
 -- luacheck: globals GenericTraitUI_LoadUI GenericTraitFrame
--- luacheck: globals DeclineGuildInvite CancelDuel CancelTrade DeclineGroup C_PetBattles
+-- luacheck: globals CancelDuel DeclineGroup C_PetBattles
 local addonName, addon = ...
 
 local LDB = LibStub("LibDataBroker-1.1")
@@ -2861,20 +2861,6 @@ local function addSocialFrame(container)
 		},
 		{
 			parent = "",
-			var = "blockTradeRequests",
-			text = L["blockTradeRequests"],
-			type = "CheckBox",
-			callback = function(self, _, value) addon.db["blockTradeRequests"] = value end,
-		},
-		{
-			parent = "",
-			var = "blockGuildInvites",
-			text = L["blockGuildInvites"],
-			type = "CheckBox",
-			callback = function(self, _, value) addon.db["blockGuildInvites"] = value end,
-		},
-		{
-			parent = "",
 			var = "blockPartyInvites",
 			text = L["blockPartyInvites"],
 			type = "CheckBox",
@@ -3917,8 +3903,6 @@ local function initSocial()
 	addon.functions.InitDBValue("ignoreFrameY", 0)
 	addon.functions.InitDBValue("blockDuelRequests", false)
 	addon.functions.InitDBValue("blockPetBattleRequests", false)
-	addon.functions.InitDBValue("blockTradeRequests", false)
-	addon.functions.InitDBValue("blockGuildInvites", false)
 	addon.functions.InitDBValue("blockPartyInvites", false)
 	if addon.Ignore and addon.Ignore.SetEnabled then addon.Ignore:SetEnabled(addon.db["enableIgnore"]) end
 	if addon.Ignore and addon.Ignore.UpdateAnchor then addon.Ignore:UpdateAnchor() end
@@ -5517,12 +5501,6 @@ local eventHandlers = {
 			EnhanceQoLInstantCatalyst.icon:SetDesaturated(false)
 		end
 	end,
-	["GUILD_INVITE_REQUEST"] = function()
-		if addon.db["blockGuildInvites"] then
-			DeclineGuildInvite()
-			StaticPopup_Hide("GUILD_INVITE")
-		end
-	end,
 	["DUEL_REQUESTED"] = function()
 		if addon.db["blockDuelRequests"] then
 			CancelDuel()
@@ -5533,12 +5511,6 @@ local eventHandlers = {
 		if addon.db["blockPetBattleRequests"] then
 			C_PetBattles.CancelPVPDuel()
 			StaticPopup_Hide("PET_BATTLE_PVP_DUEL_REQUESTED")
-		end
-	end,
-	["TRADE_SHOW"] = function()
-		if addon.db["blockTradeRequests"] then
-			CancelTrade()
-			StaticPopup_Hide("TRADE")
 		end
 	end,
 	["INVENTORY_SEARCH_UPDATE"] = function()
