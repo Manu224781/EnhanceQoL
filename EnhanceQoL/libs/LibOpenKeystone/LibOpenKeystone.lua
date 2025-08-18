@@ -4,7 +4,7 @@ local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
 -- Storage
-lib.UnitData = lib.UnitData or {} -- [ "Name-Realm" ] = { challengeMapID=..., level=..., lastSeen=... }
+lib.UnitData = lib.UnitData or {} -- [ "Name" or "Name-Realm" ] = { challengeMapID=..., level=..., lastSeen=... }
 lib._callbacks = lib._callbacks or { KeystoneUpdate = {}, KeystoneWipe = {} }
 
 -- Constants (match LibOpenRaid)
@@ -16,9 +16,10 @@ local KREQ_PREFIX = "J"
 local ownRealm = GetRealmName()
 -- Utils
 local function FullName(unit)
-    local n, r = UnitFullName(unit or "player")
-	r = r or ownRealm
-	return (n and r) and (n .. "-" .. r) or (UnitName(unit or "player") or "Unknown")
+	local n, r = UnitFullName(unit or "player")
+	if not n then return UnitName(unit or "player") or "Unknown" end
+	if r and r ~= "" and r ~= ownRealm then return n .. "-" .. r end
+	return n
 end
 
 local function Now() return GetServerTime() end
