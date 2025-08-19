@@ -8,8 +8,9 @@ end
 
 local L = addon.L
 
--- luacheck: globals EQOLIgnoreFrame EQOLIgnoreFrame_OnLoad HybridScrollFrame_CreateButtons DeclineGuildInvite
+-- luacheck: globals EQOLIgnoreFrame EQOLIgnoreFrame_OnLoad HybridScrollFrame_CreateButtons DeclineGuildInvite MenuUtil
 local AceGUI = addon.AceGUI
+local MU = MenuUtil
 local Ignore = addon.Ignore or {}
 addon.Ignore = Ignore
 
@@ -66,7 +67,12 @@ loader:SetScript("OnEvent", function(_, event, arg1)
 		EnhanceQoL_IgnoreDB = EnhanceQoL_IgnoreDB or {}
 		Ignore.entries = EnhanceQoL_IgnoreDB
 		Ignore:RebuildLookup()
-		if addon and addon.db and addon.db.enableIgnore ~= nil then Ignore:SetEnabled(addon.db.enableIgnore) end
+		if addon and addon.db then
+			Ignore.currentSort = addon.db.ignoreSortKey or "player"
+			Ignore.sortAsc = addon.db.ignoreSortAsc ~= false
+			Ignore.searchText = addon.db.ignoreSearchText or ""
+			if addon.db.enableIgnore ~= nil then Ignore:SetEnabled(addon.db.enableIgnore) end
+		end
 		loader:UnregisterEvent("ADDON_LOADED")
 	end
 end)
@@ -197,6 +203,10 @@ Ignore.sortAsc = true
 local NUM_ROWS = 14
 Ignore.rows = {}
 
+local addEntry
+local removeEntry
+local removeEntryByIndex
+
 local IgnoreRowTemplate = {}
 
 function IgnoreRowTemplate:OnAcquired()
@@ -217,7 +227,7 @@ function IgnoreRowTemplate:OnAcquired()
 		end
 
 		self:SetHighlightTexture("Interface/QuestFrame/UI-QuestTitleHighlight")
-		self:RegisterForClicks("LeftButtonUp")
+		self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 		self.initialized = true
 	end
 	self:SetHeight(ROW_HEIGHT)
@@ -243,7 +253,7 @@ function IgnoreRowTemplate:Init(elementData)
 	end
 end
 
-function IgnoreRowTemplate:OnClick()
+function IgnoreRowTemplate:OnClick(button)
 	Ignore.selectedIndex = self.index
 	for _, frame in ipairs(Ignore.rows) do
 		if frame.bg then
@@ -255,20 +265,34 @@ function IgnoreRowTemplate:OnClick()
 		end
 	end
 
-	local now = GetTime()
-	if self.lastClick and (now - self.lastClick) < DOUBLE_CLICK_TIME then
-		local entry = Ignore.filtered[self.index]
-		if entry then
-			local fullName = entry.player
-			if entry.server and entry.server ~= "" then fullName = fullName .. "-" .. entry.server end
-			Ignore:ShowAddFrame(fullName, entry.note, entry.expires)
-		end
+	if button == "RightButton" then
+		local idx = self.index
+		local entry = Ignore.filtered[idx]
+		if not entry then return end
+		local fullName = entry.player .. ((entry.server and entry.server ~= "") and ("-" .. entry.server) or "")
+		MU.CreateContextMenu(self, function(_, root)
+			root:CreateTitle(fullName)
+			root:CreateButton(L["Edit"], function() Ignore:ShowAddFrame(fullName, entry.note, tonumber(entry.expires) or 0) end)
+			root:CreateButton(L["Ignore1Day"], function() addEntry(fullName, entry.note, 1) end)
+			root:CreateButton(L["Ignore7Days"], function() addEntry(fullName, entry.note, 7) end)
+			root:CreateButton(L["Remove"], function() removeEntry(fullName) end)
+		end)
+		return
 	end
-	self.lastClick = now
-end
 
-local removeEntry
-local removeEntryByIndex
+	if button == "LeftButton" then
+		local now = GetTime()
+		if self.lastClick and (now - self.lastClick) < DOUBLE_CLICK_TIME then
+			local entry = Ignore.filtered[self.index]
+			if entry then
+				local full = entry.player
+				if entry.server and entry.server ~= "" then full = full .. "-" .. entry.server end
+				Ignore:ShowAddFrame(full, entry.note, entry.expires)
+			end
+		end
+		self.lastClick = now
+	end
+end
 
 local function FilterEntries()
 	wipe(Ignore.filtered)
@@ -288,6 +312,15 @@ local function FilterEntries()
 	end
 end
 
+local function expireSortValue(entry)
+	if not entry or not entry.expires or entry.expires == NEVER then return 99999 end
+	local exp = tonumber(entry.expires)
+	if not exp then return 99999 end
+	local left = exp - Ignore.daysFromToday(entry.date)
+	if left <= 0 then return 0 end
+	return left
+end
+
 local function SortFiltered()
 	if not Ignore.currentSort then return end
 	local key = Ignore.currentSort
@@ -297,8 +330,8 @@ local function SortFiltered()
 			av = Ignore.daysFromToday(a.date or "")
 			bv = Ignore.daysFromToday(b.date or "")
 		elseif key == "expire" then
-			av = Ignore:GetExpireText(a)
-			bv = Ignore:GetExpireText(b)
+			av = expireSortValue(a)
+			bv = expireSortValue(b)
 		else
 			av = tostring(a[key] or "")
 			bv = tostring(b[key] or "")
@@ -389,6 +422,10 @@ function EQOLIgnoreFrame_OnLoad(frame)
 				Ignore.currentSort = self.sortKey
 				SortFiltered()
 				Ignore:UpdateRows()
+				if addon and addon.db then
+					addon.db.ignoreSortKey = Ignore.currentSort
+					addon.db.ignoreSortAsc = Ignore.sortAsc
+				end
 			end)
 		end
 		c = c + 1
@@ -408,9 +445,12 @@ function EQOLIgnoreFrame_OnLoad(frame)
 
 	Ignore.searchBox:SetScript("OnTextChanged", function(self)
 		Ignore.searchText = self:GetText() or ""
+		if addon and addon.db then addon.db.ignoreSearchText = Ignore.searchText end
 		Ignore.selectedIndex = nil
 		RefreshList()
 	end)
+
+	Ignore.searchBox:SetText(Ignore.searchText or "")
 
 	Ignore.removeBtn:SetScript("OnClick", function()
 		local entry = Ignore.filtered[Ignore.selectedIndex]
@@ -461,7 +501,7 @@ function Ignore:HasFreeSlot()
 	return true
 end
 
-local function addEntry(name, note, expires)
+addEntry = function(name, note, expires)
 	local player, server = strsplit("-", name)
 	local myServer = (GetRealmName()):gsub("%s", "")
 	local sameRealm = not server or server == myServer
@@ -980,67 +1020,6 @@ Ignore.interactionBlocker:SetScript("OnEvent", function(_, event, ...)
 	end
 end)
 
--- frame to check ignored members in current group
-Ignore.groupCheckFrame = Ignore.groupCheckFrame or CreateFrame("Frame")
-Ignore.groupCheckFrame.members = {}
-Ignore.groupCheckFrame.lastPartySize = 0
-Ignore.groupCheckFrame.lastIgnored = 0
-Ignore.groupCheckFrame:SetScript("OnEvent", function()
-	if not Ignore.enabled then return end
-	local partyMembers = Ignore.groupCheckFrame.members
-	wipe(partyMembers)
-
-	local size = GetNumGroupMembers()
-	if size == 0 then
-		Ignore.groupCheckFrame.lastPartySize = 0
-		Ignore.groupCheckFrame.lastIgnored = 0
-		return
-	end
-
-	local prefix = IsInRaid() and "raid" or "party"
-	local loops = IsInRaid() and size or (size - 1)
-	for i = 1, loops do
-		local unit = prefix .. i
-		if UnitExists(unit) then
-			local n, r = UnitFullName(unit)
-			if n then
-				r = r or (GetRealmName()):gsub("%s", "")
-				partyMembers[n .. "-" .. r] = true
-			end
-		end
-	end
-
-	local pn, pr = UnitFullName("player")
-	pr = pr or (GetRealmName()):gsub("%s", "")
-	if pn then partyMembers[pn .. "-" .. pr] = true end
-
-	local ignored = {}
-	local count = 0
-	for _, entry in ipairs(Ignore.entries) do
-		local full = entry.player .. "-" .. entry.server
-		if partyMembers[full] then
-			table.insert(ignored, full)
-			count = count + 1
-		end
-	end
-
-	if count > Ignore.groupCheckFrame.lastIgnored then
-		local names = table.concat(ignored, "\n")
-		StaticPopupDialogs["EQOL_IGNORE_GROUP"] = {
-			text = L["IgnoreGroupPopupText"]:format(names),
-			button1 = OKAY,
-			timeout = 0,
-			whileDead = true,
-			hideOnEscape = true,
-			preferredIndex = 3,
-		}
-		StaticPopup_Show("EQOL_IGNORE_GROUP", L["IgnoreGroupPopupTitle"])
-	end
-
-	Ignore.groupCheckFrame.lastPartySize = size
-	Ignore.groupCheckFrame.lastIgnored = count
-end)
-
 local function EQOL_AddUnitIgnoreEntry(owner, root, ctx)
 	if not Ignore.enabled then return end
 	local name = ctx and ctx.name
@@ -1088,8 +1067,8 @@ local function EQOL_FormatNote(note, maxChars, wordsPerLine)
 	-- normalize whitespace and trim
 	local s = note:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
 	if s == "" then return "" end
-       maxChars = maxChars or 100
-       wordsPerLine = wordsPerLine or 5
+	maxChars = maxChars or 100
+	wordsPerLine = wordsPerLine or 5
 
 	-- split into words
 	local words = {}
@@ -1112,13 +1091,13 @@ local function EQOL_FormatNote(note, maxChars, wordsPerLine)
 
 	local joined = table.concat(out, "\n")
 
-       -- hard cap by characters, prefer cutting at whitespace
-       if #joined <= maxChars then return joined end
-       if maxChars <= 3 then return joined:sub(1, maxChars) end
-       local truncated = joined:sub(1, maxChars - 3)
-       -- try to cut back to last non-space to avoid trailing partials
-       local cut = truncated:match("^(.*%S)") or truncated
-       return cut .. "..."
+	-- hard cap by characters, prefer cutting at whitespace
+	if #joined <= maxChars then return joined end
+	if maxChars <= 3 then return joined:sub(1, maxChars) end
+	local truncated = joined:sub(1, maxChars - 3)
+	-- try to cut back to last non-space to avoid trailing partials
+	local cut = truncated:match("^(.*%S)") or truncated
+	return cut .. "..."
 end
 
 if not Ignore.tooltipHookInstalled then
@@ -1131,15 +1110,17 @@ if not Ignore.tooltipHookInstalled then
 		if not name then return end
 		realm = realm and realm ~= "" and realm or (GetRealmName()):gsub("%s", "")
 		local entry = Ignore:CheckIgnore(name .. "-" .. realm)
-		if entry and entry.note and entry.note ~= "" then C_Timer.After(0, function()
-			local maxChars = (addon and addon.db and addon.db.ignoreTooltipMaxChars) or 100
-			local wordsPerLine = (addon and addon.db and addon.db.ignoreTooltipWordsPerLine) or 5
-			local text = EQOL_FormatNote(entry.note, maxChars, wordsPerLine)
+		if entry and entry.note and entry.note ~= "" then
+			C_Timer.After(0, function()
+				local maxChars = (addon and addon.db and addon.db.ignoreTooltipMaxChars) or 100
+				local wordsPerLine = (addon and addon.db and addon.db.ignoreTooltipWordsPerLine) or 5
+				local text = EQOL_FormatNote(entry.note, maxChars, wordsPerLine)
 
-			tooltip:AddLine(" ")
-			tooltip:AddDoubleLine(L["IgnoreNote"], text)
-			tooltip:Show()
-		end) end
+				tooltip:AddLine(" ")
+				tooltip:AddDoubleLine(L["IgnoreNote"], text)
+				tooltip:Show()
+			end)
+		end
 	end)
 	Ignore.tooltipHookInstalled = true
 end
