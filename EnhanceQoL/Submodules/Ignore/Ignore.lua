@@ -1081,3 +1081,65 @@ if Menu and Menu.ModifyMenu then
 	Menu.ModifyMenu("MENU_UNIT_RAID_PLAYER", EQOL_AddUnitIgnoreEntry)
 	Menu.ModifyMenu("MENU_UNIT_PARTY", EQOL_AddUnitIgnoreEntry)
 end
+
+-- Format ignore-note for tooltip: normalize spaces, wrap every N words with \n, and hard cap length
+local function EQOL_FormatNote(note, maxChars, wordsPerLine)
+	if not note or note == "" then return "" end
+	-- normalize whitespace and trim
+	local s = note:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
+	if s == "" then return "" end
+       maxChars = maxChars or 100
+       wordsPerLine = wordsPerLine or 5
+
+	-- split into words
+	local words = {}
+	for w in s:gmatch("%S+") do
+		table.insert(words, w)
+	end
+	if #words == 0 then return "" end
+
+	-- join with newline after every wordsPerLine words
+	local out, line, count = {}, {}, 0
+	for i = 1, #words do
+		table.insert(line, words[i])
+		count = count + 1
+		if count >= wordsPerLine then
+			table.insert(out, table.concat(line, " "))
+			line, count = {}, 0
+		end
+	end
+	if #line > 0 then table.insert(out, table.concat(line, " ")) end
+
+	local joined = table.concat(out, "\n")
+
+       -- hard cap by characters, prefer cutting at whitespace
+       if #joined <= maxChars then return joined end
+       if maxChars <= 3 then return joined:sub(1, maxChars) end
+       local truncated = joined:sub(1, maxChars - 3)
+       -- try to cut back to last non-space to avoid trailing partials
+       local cut = truncated:match("^(.*%S)") or truncated
+       return cut .. "..."
+end
+
+if not Ignore.tooltipHookInstalled then
+	GameTooltip:HookScript("OnShow", function(tooltip)
+		if tooltip:IsForbidden() or tooltip:IsProtected() then return end
+		if not addon.db or not addon.db.ignoreTooltipNote then return end
+		local _, unit = tooltip:GetUnit()
+		if not unit or not UnitIsPlayer(unit) then return end
+		local name, realm = UnitName(unit)
+		if not name then return end
+		realm = realm and realm ~= "" and realm or (GetRealmName()):gsub("%s", "")
+		local entry = Ignore:CheckIgnore(name .. "-" .. realm)
+		if entry and entry.note and entry.note ~= "" then C_Timer.After(0, function()
+			local maxChars = (addon and addon.db and addon.db.ignoreTooltipMaxChars) or 100
+			local wordsPerLine = (addon and addon.db and addon.db.ignoreTooltipWordsPerLine) or 5
+			local text = EQOL_FormatNote(entry.note, maxChars, wordsPerLine)
+
+			tooltip:AddLine(" ")
+			tooltip:AddDoubleLine(L["IgnoreNote"], text)
+			tooltip:Show()
+		end) end
+	end)
+	Ignore.tooltipHookInstalled = true
+end

@@ -2899,6 +2899,14 @@ local function addSocialFrame(container)
 				if addon.Ignore and addon.Ignore.UpdateAnchor then addon.Ignore:UpdateAnchor() end
 			end,
 		})
+		table.insert(data, {
+			parent = "",
+			var = "ignoreTooltipNote",
+			text = L["IgnoreTooltipNote"],
+			type = "CheckBox",
+			callback = function(self, _, value) addon.db["ignoreTooltipNote"] = value end,
+			desc = L["IgnoreNoteDesc"],
+		})
 	end
 
 	table.sort(data, function(a, b)
@@ -2923,6 +2931,36 @@ local function addSocialFrame(container)
 		local cb = addon.functions.createCheckboxAce(checkboxData.text, addon.db[checkboxData.var], checkboxData.callback, desc)
 		groupCore:AddChild(cb)
 	end
+	if addon.db["ignoreTooltipNote"] then
+		local sliderMaxChars = addon.functions.createSliderAce(
+			L["IgnoreTooltipMaxChars"] .. ": " .. addon.db["ignoreTooltipMaxChars"],
+			addon.db["ignoreTooltipMaxChars"],
+			20,
+			200,
+			1,
+			function(self, _, val)
+				addon.db["ignoreTooltipMaxChars"] = val
+				self:SetLabel(L["IgnoreTooltipMaxChars"] .. ": " .. val)
+			end
+		)
+		groupCore:AddChild(sliderMaxChars)
+
+		local sliderWords = addon.functions.createSliderAce(
+			L["IgnoreTooltipWordsPerLine"] .. ": " .. addon.db["ignoreTooltipWordsPerLine"],
+			addon.db["ignoreTooltipWordsPerLine"],
+			1,
+			20,
+			1,
+			function(self, _, val)
+				addon.db["ignoreTooltipWordsPerLine"] = val
+				self:SetLabel(L["IgnoreTooltipWordsPerLine"] .. ": " .. val)
+			end
+		)
+		groupCore:AddChild(sliderWords)
+
+		groupCore:AddChild(addon.functions.createSpacerAce())
+	end
+
 
 	local labelHeadline = addon.functions.createLabelAce("|cffffd700" .. L["IgnoreDesc"], nil, nil, 14)
 	labelHeadline:SetFullWidth(true)
@@ -3898,6 +3936,9 @@ local function initSocial()
 	addon.functions.InitDBValue("enableIgnore", false)
 	addon.functions.InitDBValue("ignoreAttachFriendsFrame", true)
 	addon.functions.InitDBValue("ignoreAnchorFriendsFrame", false)
+       addon.functions.InitDBValue("ignoreTooltipNote", false)
+       addon.functions.InitDBValue("ignoreTooltipMaxChars", 100)
+       addon.functions.InitDBValue("ignoreTooltipWordsPerLine", 5)
 	addon.functions.InitDBValue("ignoreFramePoint", "CENTER")
 	addon.functions.InitDBValue("ignoreFrameX", 0)
 	addon.functions.InitDBValue("ignoreFrameY", 0)
