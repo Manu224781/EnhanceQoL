@@ -228,6 +228,7 @@ function IgnoreRowTemplate:OnAcquired()
 
 		self:SetHighlightTexture("Interface/QuestFrame/UI-QuestTitleHighlight")
 		self:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+		self:SetScript("OnClick", function(frame, btn) frame:OnClick(btn) end)
 		self.initialized = true
 	end
 	self:SetHeight(ROW_HEIGHT)
@@ -254,6 +255,8 @@ function IgnoreRowTemplate:Init(elementData)
 end
 
 function IgnoreRowTemplate:OnClick(button)
+	-- 'button' is the click type (e.g. "LeftButton"/"RightButton").
+	-- Using ':' here means the implicit first argument is 'self'.
 	Ignore.selectedIndex = self.index
 	for _, frame in ipairs(Ignore.rows) do
 		if frame.bg then
@@ -272,10 +275,10 @@ function IgnoreRowTemplate:OnClick(button)
 		local fullName = entry.player .. ((entry.server and entry.server ~= "") and ("-" .. entry.server) or "")
 		MU.CreateContextMenu(self, function(_, root)
 			root:CreateTitle(fullName)
-			root:CreateButton(L["Edit"], function() Ignore:ShowAddFrame(fullName, entry.note, tonumber(entry.expires) or 0) end)
-			root:CreateButton(L["Ignore1Day"], function() addEntry(fullName, entry.note, 1) end)
-			root:CreateButton(L["Ignore7Days"], function() addEntry(fullName, entry.note, 7) end)
-			root:CreateButton(L["Remove"], function() removeEntry(fullName) end)
+			root:CreateButton(EDIT, function() Ignore:ShowAddFrame(fullName, entry.note, tonumber(entry.expires) or 0) end)
+			root:CreateButton(L["IgnoreDay"]:format(IGNORE, 1), function() addEntry(fullName, entry.note, 1) end)
+			root:CreateButton(L["IgnoreDay"]:format(IGNORE, 7), function() addEntry(fullName, entry.note, 7) end)
+			root:CreateButton(REMOVE, function() removeEntry(fullName) end)
 		end)
 		return
 	end
@@ -432,9 +435,16 @@ function EQOLIgnoreFrame_OnLoad(frame)
 	end
 
 	-- Create buttons and retrieve them from the scrollFrame.buttons table
-	HybridScrollFrame_CreateButtons(Ignore.scrollFrame, "EQOLIgnoreRowTemplate", 5, -2)
+	HybridScrollFrame_CreateButtons(Ignore.scrollFrame, "EQOLIgnoreRowTemplate", 5, -6)
 	local rows = Ignore.scrollFrame.buttons or {}
 	Ignore.rows = rows
+
+	-- Make sure the scroll area starts just below the column header
+	Ignore.scrollFrame:ClearAllPoints()
+	Ignore.scrollFrame:SetPoint("TOPLEFT", Ignore.header, "BOTTOMLEFT", 0, -2)
+	Ignore.scrollFrame:SetPoint("TOPRIGHT", Ignore.header, "BOTTOMRIGHT", 0, -2)
+	Ignore.scrollFrame:SetPoint("BOTTOMLEFT", EQOLIgnoreFrame, "BOTTOMLEFT", 10, 10)
+	Ignore.scrollFrame:SetPoint("BOTTOMRIGHT", EQOLIgnoreFrame, "BOTTOMRIGHT", -30, 10)
 
 	-- Initialize each button via our template mixin
 	for _, row in ipairs(rows) do

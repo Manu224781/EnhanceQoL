@@ -4,20 +4,22 @@
 
 ### ✨ Added
 
-- Options to block duels, party invites, and pet battle requests
+- Options to block duel requests, party invites, and pet-battle requests
+- **Ignore:** remembers sort order and search term
+- **Ignore:** right-click context menu with quick actions
 
 ### 🔄 Changed
 
 - Switched from LibOpenRaid to LibOpenKeystone
-- Refactored Dungeon Filter
+- Refactored the Dungeon Filter
 
 ### ❌ Removed
 
-- Hidden counter from Dungeon Filter
+- _Hidden_ counter in the Dungeon Filter
 
 ### 🐛 Fixed
 
-- Anchor error with Mythic+ rating
+- Anchor issue with Mythic+ rating
 
 ---
 
