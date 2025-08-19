@@ -32,6 +32,10 @@ end
 local function checkCurrency(tooltip, id)
 	if tooltip:IsForbidden() or tooltip:IsProtected() then return end
 	if not id then return end
+
+	if addon.db["TooltipShowCurrencyID"] then tooltip:AddLine(" ")
+	tooltip:AddDoubleLine(L["NPCID"], id) end
+
 	if not addon.db["TooltipShowCurrencyAccountWide"] then return end
 	local charList = C_CurrencyInfo.FetchCurrencyDataFromAccountCharacters(id)
 

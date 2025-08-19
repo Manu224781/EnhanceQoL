@@ -180,8 +180,8 @@ local function checkCurrencies(stream)
 	for _, id in ipairs(db.ids) do
 		local info = C_CurrencyInfo.GetCurrencyInfo(id)
 		if info then
-			if not iconCache[id] and info.icon then iconCache[id] = info.icon end
-			local icon = iconCache[id] or info.icon
+			if not iconCache[id] and info.iconFileID then iconCache[id] = info.iconFileID end
+			local icon = iconCache[id] or info.iconFileID
 			parts[#parts + 1] = ("|T%s:%d:%d:0:0|t %d"):format(icon or 0, size, size, info.quantity or 0)
 		end
 	end
