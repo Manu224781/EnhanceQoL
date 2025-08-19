@@ -25,17 +25,30 @@ local function handleMouseEnter(button)
 				if slot.lastTip ~= h.id then
 					GameTooltip:SetOwner(button, "ANCHOR_TOPLEFT")
 					GameTooltip:SetCurrencyByID(h.id)
+					if db.showDescription == false then
+						local info = C_CurrencyInfo.GetCurrencyInfo(h.id)
+						local desc = info and info.description
+						if desc and desc ~= "" then
+							for i = 2, GameTooltip:NumLines() do
+								local leftText = _G[GameTooltip:GetName() .. "TextLeft" .. i]
+								if leftText and leftText:GetText() == desc then
+									leftText:SetText("")
+									break
+								end
+							end
+						end
+					end
 					GameTooltip:Show()
 					slot.lastTip = h.id
 				end
 				return
 			end
 		end
-		if slot.lastTip ~= "default" then
+		if slot.lastTip then
 			GameTooltip:SetOwner(button, "ANCHOR_TOPLEFT")
 			GameTooltip:SetText(L["Right-Click for options"])
 			GameTooltip:Show()
-			slot.lastTip = "default"
+			slot.lastTip = nil
 		end
 	end
 	button:SetScript("OnUpdate", update)
@@ -311,7 +324,7 @@ local function checkCurrencies(stream)
 			stream.snapshot.tooltip = L["Right-Click for options"]
 		end
 	else
-		stream.snapshot.tooltip = nil
+		stream.snapshot.tooltip = L["Right-Click for options"]
 	end
 end
 
