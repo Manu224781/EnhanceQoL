@@ -7,6 +7,7 @@
 
 - **BuffTrack** was not correctly detecting _Delve_ as a difficulty
 - **Catalyst Charge** sometimes fall back to a heavier detection method
+- **Currency Stream** sometimes the currency was not updated correctly
 
 ---
 
