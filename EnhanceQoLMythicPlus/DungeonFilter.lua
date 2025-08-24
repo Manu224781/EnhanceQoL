@@ -210,36 +210,48 @@ local function EQOL_HighlightSearchEntry(entry)
 	local panel = LFGListFrame and LFGListFrame.SearchPanel
 	if not panel or panel.categoryID ~= 2 then return end
 
-	-- If no filters active, restore visuals and exit
-	if not AnyFilterActive() then
-		EQOL_RestoreEntryVisuals(entry)
-		return
-	end
-
 	local resultID = entry and (entry.resultID or entry.id or entry.searchResultID)
 	if not resultID then
 		EQOL_RestoreEntryVisuals(entry)
 		return
 	end
 
-	-- Keep selected/applied entries normal
+	local info = C_LFGList.GetSearchResultInfo(resultID)
+	local ignored = false
+	if addon.db.enableIgnore and addon.Ignore and addon.Ignore.CheckIgnore and info and info.leaderName then ignored = addon.Ignore:CheckIgnore(info.leaderName) and true or false end
+
+	-- If no filters active, restore visuals and exit unless the entry is ignored
+	if not AnyFilterActive() then
+		if ignored then
+			EQOL_ApplyEntryVisuals(entry, false, true)
+		else
+			EQOL_RestoreEntryVisuals(entry)
+		end
+		return
+	end
+
+	-- Keep selected/applied entries normal unless ignored
 	local selectedID = (type(LFGListSearchPanel_GetSelectedResult) == "function" and LFGListSearchPanel_GetSelectedResult(panel)) or panel.selectedResultID or panel.selectedResult
 	if selectedID and selectedID == resultID then
-		EQOL_RestoreEntryVisuals(entry)
+		if ignored then
+			EQOL_ApplyEntryVisuals(entry, false, true)
+		else
+			EQOL_RestoreEntryVisuals(entry)
+		end
 		return
 	end
 
 	local _, appStatus, pendingStatus = C_LFGList.GetApplicationInfo(resultID)
 	if (appStatus and appStatus ~= "none") or pendingStatus then
-		EQOL_RestoreEntryVisuals(entry)
+		if ignored then
+			EQOL_ApplyEntryVisuals(entry, false, true)
+		else
+			EQOL_RestoreEntryVisuals(entry)
+		end
 		return
 	end
 
-	local info = C_LFGList.GetSearchResultInfo(resultID)
 	local pass = info and EntryPassesFilter(info)
-
-	local ignored = false
-	if addon.db.enableIgnore and addon.Ignore and addon.Ignore.CheckIgnore and info and info.leaderName then ignored = addon.Ignore:CheckIgnore(info.leaderName) and true or false end
 
 	EQOL_ApplyEntryVisuals(entry, pass == false, ignored)
 end
