@@ -574,6 +574,7 @@ local function handleEvent(self, event, unit)
 				or sub == "RANGE_MISSED"
 				or sub == "SPELL_MISSED"
 				or sub == "SPELL_PERIODIC_MISSED"
+				or sub == "SPELL_INTERRUPT"
 			)
 		then
 			return
@@ -657,6 +658,36 @@ local function handleEvent(self, event, unit)
 				if crit then os.crits = (os.crits or 0) + 1 end
 			else
 				addPrePull(ownerGUID, ownerName, amount, 0, spellId, spellName, crit, sub == "SPELL_PERIODIC_DAMAGE")
+			end
+			return
+		end
+
+		if sub == "SPELL_INTERRUPT" then
+			if not inCombat then return end
+			if not sourceGUID then return end
+			local ownerGUID, ownerName, ownerFlags = resolveOwner(sourceGUID, sourceName, sourceFlags)
+			if not ownerFlags and cm.groupGUIDs and cm.groupGUIDs[ownerGUID] then ownerFlags = COMBATLOG_OBJECT_AFFILIATION_RAID end
+			if band(ownerFlags or 0, groupMask) == 0 then return end
+			local player = acquirePlayer(cm.players, ownerGUID, ownerName)
+			local overall = acquirePlayer(cm.overallPlayers, ownerGUID, ownerName)
+			player.interrupts = (player.interrupts or 0) + 1
+			overall.interrupts = (overall.interrupts or 0) + 1
+			local extraSpellId, extraSpellName = a15, a16
+			if extraSpellId and extraSpellName then
+				local ps = player.interruptSpells[extraSpellId]
+				if not ps then
+					ps = { name = extraSpellName, amount = 0 }
+					player.interruptSpells[extraSpellId] = ps
+				end
+				ps.name = extraSpellName
+				ps.amount = (ps.amount or 0) + 1
+				local os = overall.interruptSpells[extraSpellId]
+				if not os then
+					os = { name = extraSpellName, amount = 0 }
+					overall.interruptSpells[extraSpellId] = os
+				end
+				os.name = extraSpellName
+				os.amount = (os.amount or 0) + 1
 			end
 			return
 		end
