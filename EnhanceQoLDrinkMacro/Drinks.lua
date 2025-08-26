@@ -19,7 +19,6 @@ local db = addon.db
 local _, race = UnitRace("player")
 local isEarthen = (race == "EarthenDwarf")
 
-print(race, isEarthen)
 addon.Drinks.drinkList = { -- Special Food
 	{ key = "MarinatedMaggots", id = 226811, requiredLevel = 75, mana = 2700000, isBuffFood = false },
 	{ key = "ConjureRefreshment", id = 190336, requiredLevel = 5, mana = 0, isSpell = true }, -- set mana to zero, because we update it anyway
