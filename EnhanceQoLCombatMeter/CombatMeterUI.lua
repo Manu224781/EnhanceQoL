@@ -32,6 +32,7 @@ local STABLE_TICK_THRESHOLD = 10
 local BACKOFF_FACTOR = 2
 local MAX_TICKER_RATE = 1.0
 local EPSILON = 0.01
+local MIN_OVERALL_DENOM = 1 -- seconds; floor to avoid astronomical overall rates at session start
 local tinsert, tsort = table.insert, table.sort
 
 local POW10 = { [0] = 1 }
@@ -85,12 +86,12 @@ local function updateColumnWidths(size)
 end
 
 local metricNames = {
-        dps = L["DPS"],
-        damageOverall = L["Damage Overall"],
-        healingPerFight = L["Healing Per Fight"],
-        healingOverall = L["Healing Overall"],
-       interrupts = INTERRUPTS,
-       interruptsOverall = INTERRUPTS .. L[" Overall"],
+	dps = L["DPS"],
+	damageOverall = L["Damage Overall"],
+	healingPerFight = L["Healing Per Fight"],
+	healingOverall = L["Healing Overall"],
+	interrupts = INTERRUPTS,
+	interruptsOverall = INTERRUPTS .. L[" Overall"],
 }
 
 local overallMetrics = { "damageOverall", "healingOverall", "interruptsOverall" }
@@ -243,23 +244,23 @@ end
 
 -- Opens a metric selection menu for a group frame
 local function OpenMetricMenu(owner, frame)
-       MenuUtil.CreateContextMenu(owner, function(_, root)
-               local function addButtons(list)
-                       for _, metric in ipairs(list) do
-                               local name = metricNames[metric]
-                               root:CreateButton(name, function()
-                                       frame.metric = metric
-                                       frame.groupConfig.type = metric
-                                       if frame.dragHandle and frame.dragHandle.text then frame.dragHandle.text:SetText(name) end
-                                       if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
-                               end)
-                       end
-               end
+	MenuUtil.CreateContextMenu(owner, function(_, root)
+		local function addButtons(list)
+			for _, metric in ipairs(list) do
+				local name = metricNames[metric]
+				root:CreateButton(name, function()
+					frame.metric = metric
+					frame.groupConfig.type = metric
+					if frame.dragHandle and frame.dragHandle.text then frame.dragHandle.text:SetText(name) end
+					if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+				end)
+			end
+		end
 
-               addButtons(overallMetrics)
-               root:CreateDivider()
-               addButtons(perFightMetrics)
-       end)
+		addButtons(overallMetrics)
+		root:CreateDivider()
+		addButtons(perFightMetrics)
+	end)
 end
 local function createGroupFrame(groupConfig)
 	local barHeight = groupConfig.barHeight or DEFAULT_BAR_HEIGHT
@@ -491,134 +492,136 @@ local function createGroupFrame(groupConfig)
 
 			applyBarTexture(bar)
 
-                        -- Tooltip handlers showing top spells for a player
-                        bar:SetScript("OnEnter", function(self)
-                                local entry = self._entry
-                                if not entry then return end
-                                local parentFrame = self:GetParent()
-                                if not parentFrame then return end
+			-- Tooltip handlers showing top spells for a player
+			bar:SetScript("OnEnter", function(self)
+				local entry = self._entry
+				if not entry then return end
+				local parentFrame = self:GetParent()
+				if not parentFrame then return end
 
-                                local pdata
-                                if parentFrame.metric == "damageOverall" or parentFrame.metric == "healingOverall" or parentFrame.metric == "interruptsOverall" then
-                                        pdata = addon.CombatMeter.overallPlayers[entry.guid]
-                                else
-                                        pdata = addon.CombatMeter.players[entry.guid]
-                                end
-                                if not pdata then return end
+				local pdata
+				if parentFrame.metric == "damageOverall" or parentFrame.metric == "healingOverall" or parentFrame.metric == "interruptsOverall" then
+					pdata = addon.CombatMeter.overallPlayers[entry.guid]
+				else
+					pdata = addon.CombatMeter.players[entry.guid]
+				end
+				if not pdata then return end
 
-                                if parentFrame.metric == "interrupts" or parentFrame.metric == "interruptsOverall" then
-                                        local spells = pdata.interruptSpells
-                                        if not spells then return end
-                                        local temp = {}
-                                        for _, s in pairs(spells) do
-                                                if s.amount and s.amount > 0 then
-                                                        temp[#temp + 1] = { name = s.name, amount = s.amount, icon = s.icon }
-                                                end
-                                        end
-                                        if #temp == 0 then return end
-                                        tsort(temp, function(a, b) return a.amount > b.amount end)
+				if parentFrame.metric == "interrupts" or parentFrame.metric == "interruptsOverall" then
+					local spells = pdata.interruptSpells
+					if not spells then return end
+					local temp = {}
+					for _, s in pairs(spells) do
+						if s.amount and s.amount > 0 then temp[#temp + 1] = { name = s.name, amount = s.amount, icon = s.icon } end
+					end
+					if #temp == 0 then return end
+					tsort(temp, function(a, b) return a.amount > b.amount end)
 
-                                        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                                        GameTooltip:AddLine(entry.name or "")
-                                        for i = 1, #temp do
-                                                local spell = temp[i]
-                                                local fullName
-                                                if spell.icon then fullName = "|T" .. spell.icon .. ":16|t" .. (spell.name or "") else fullName = spell.name or "" end
-                                                GameTooltip:AddDoubleLine(fullName, tostring(spell.amount))
-                                        end
-                                        GameTooltip:Show()
-                                        return
-                                end
+					GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+					GameTooltip:AddLine(entry.name or "")
+					for i = 1, #temp do
+						local spell = temp[i]
+						local fullName
+						if spell.icon then
+							fullName = "|T" .. spell.icon .. ":16|t" .. (spell.name or "")
+						else
+							fullName = spell.name or ""
+						end
+						GameTooltip:AddDoubleLine(fullName, tostring(spell.amount))
+					end
+					GameTooltip:Show()
+					return
+				end
 
-                                local spells
-                                local isHealingMetric = (parentFrame.metric == "healingPerFight" or parentFrame.metric == "healingOverall")
-                                spells = isHealingMetric and pdata.healSpells or pdata.damageSpells
-                                if not spells then return end
+				local spells
+				local isHealingMetric = (parentFrame.metric == "healingPerFight" or parentFrame.metric == "healingOverall")
+				spells = isHealingMetric and pdata.healSpells or pdata.damageSpells
+				if not spells then return end
 
-                                local temp = {}
-                                local total = 0
-                                local aggregated = {}
-                                for _, s in pairs(spells) do
-                                        if s.amount and s.amount > 0 then
-                                                local key = s.name or ""
-                                                local agg = aggregated[key]
-                                                if not agg then
-                                                        agg = { name = s.name, icon = s.icon, amount = 0, hits = 0, periodicHits = 0, crits = 0 }
-                                                        aggregated[key] = agg
-                                                        temp[#temp + 1] = agg
-                                                end
-                                                agg.amount = agg.amount + (s.amount or 0)
-                                                agg.hits = (agg.hits or 0) + (s.hits or 0)
-                                                agg.periodicHits = (agg.periodicHits or 0) + (s.periodicHits or 0)
-                                                agg.crits = (agg.crits or 0) + (s.crits or 0)
-                                                agg.icon = agg.icon or s.icon
-                                                total = total + s.amount
-                                        end
-                                end
-                                if total <= 0 or #temp == 0 then return end
+				local temp = {}
+				local total = 0
+				local aggregated = {}
+				for _, s in pairs(spells) do
+					if s.amount and s.amount > 0 then
+						local key = s.name or ""
+						local agg = aggregated[key]
+						if not agg then
+							agg = { name = s.name, icon = s.icon, amount = 0, hits = 0, periodicHits = 0, crits = 0 }
+							aggregated[key] = agg
+							temp[#temp + 1] = agg
+						end
+						agg.amount = agg.amount + (s.amount or 0)
+						agg.hits = (agg.hits or 0) + (s.hits or 0)
+						agg.periodicHits = (agg.periodicHits or 0) + (s.periodicHits or 0)
+						agg.crits = (agg.crits or 0) + (s.crits or 0)
+						agg.icon = agg.icon or s.icon
+						total = total + s.amount
+					end
+				end
+				if total <= 0 or #temp == 0 then return end
 
-                                tsort(temp, function(a, b) return a.amount > b.amount end)
+				tsort(temp, function(a, b) return a.amount > b.amount end)
 
-                                GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-                                GameTooltip:AddLine(entry.name or "")
-                                local limit = IsShiftKeyDown() and 60 or 30
-                                for i = 1, math.min(limit, #temp) do
-                                        local spell = temp[i]
-                                        local fullName
-                                        if spell.icon then fullName = "|T" .. spell.icon .. ":16|t" end
-                                        if nil == fullName then
-                                                fullName = spell.name or ""
-                                        else
-                                                fullName = fullName .. (spell.name or "")
-                                        end
-                                        if not isHealingMetric and spell.periodicHits and spell.hits and spell.periodicHits >= spell.hits then fullName = fullName .. " (DoT)" end
-                                        local pct = (spell.amount / total) * 100
-                                        GameTooltip:AddDoubleLine(fullName, string.format("%s (%.1f%%)", abbreviateNumber(spell.amount), pct))
-                                end
-                                -- Add Spirit Link (Damage) line for healing metrics (WCL-style)
-                                if isHealingMetric then
-                                        local sl = tonumber(pdata.spiritLinkDamage or 0) or 0
-                                        if sl > 0 then
-                                                -- localized spell name & icon
-                                                local si = C_Spell.GetSpellInfo(98021)
-                                                local slName = (si and si.name) or "Spirit Link"
-                                                local slIcon = si and si.iconID
-                                                local label
-                                                if slIcon then
-                                                        label = "|T" .. slIcon .. ":16|t" .. slName .. " (" .. (DAMAGE or "Damage") .. ")"
-                                                else
-                                                        label = slName .. " (" .. (DAMAGE or "Damage") .. ")"
-                                                end
-                                                -- percentage relative to net healing (subtract Spirit Link + Tempered); fallback to positive total
-                                                local tbForPct = tonumber(pdata.temperedDamage or 0) or 0
-                                                local denom = total - (sl + tbForPct)
-                                                if not denom or denom <= 0 then denom = total end
-                                                local pct = 0
-                                                if denom and denom > 0 then pct = (-sl / denom) * 100 end
-                                                GameTooltip:AddDoubleLine(label, string.format("%s (%.1f%%)", abbreviateNumber(-sl), pct))
-                                        end
-                                        -- Tempered in Battle (Damage)
-                                        local tb = tonumber(pdata.temperedDamage or 0) or 0
-                                        if tb > 0 then
-                                                local si2 = C_Spell.GetSpellInfo(469704)
-                                                local tbName = (si2 and si2.name) or "Tempered in Battle"
-                                                local tbIcon = si2 and si2.iconID
-                                                local label2
-                                                if tbIcon then
-                                                        label2 = "|T" .. tbIcon .. ":16|t" .. tbName .. " (" .. (DAMAGE or "Damage") .. ")"
-                                                else
-                                                        label2 = tbName .. " (" .. (DAMAGE or "Damage") .. ")"
-                                                end
-                                                local denom2 = total - ((pdata.spiritLinkDamage or 0) + tb)
-                                                if not denom2 or denom2 <= 0 then denom2 = total end
-                                                local pct2 = 0
-                                                if denom2 and denom2 > 0 then pct2 = (-tb / denom2) * 100 end
-                                                GameTooltip:AddDoubleLine(label2, string.format("%s (%.1f%%)", abbreviateNumber(-tb), pct2))
-                                        end
-                                end
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				GameTooltip:AddLine(entry.name or "")
+				local limit = IsShiftKeyDown() and 60 or 30
+				for i = 1, math.min(limit, #temp) do
+					local spell = temp[i]
+					local fullName
+					if spell.icon then fullName = "|T" .. spell.icon .. ":16|t" end
+					if nil == fullName then
+						fullName = spell.name or ""
+					else
+						fullName = fullName .. (spell.name or "")
+					end
+					if not isHealingMetric and spell.periodicHits and spell.hits and spell.periodicHits >= spell.hits then fullName = fullName .. " (DoT)" end
+					local pct = (spell.amount / total) * 100
+					GameTooltip:AddDoubleLine(fullName, string.format("%s (%.1f%%)", abbreviateNumber(spell.amount), pct))
+				end
+				-- Add Spirit Link (Damage) line for healing metrics (WCL-style)
+				if isHealingMetric then
+					local sl = tonumber(pdata.spiritLinkDamage or 0) or 0
+					if sl > 0 then
+						-- localized spell name & icon
+						local si = C_Spell.GetSpellInfo(98021)
+						local slName = (si and si.name) or "Spirit Link"
+						local slIcon = si and si.iconID
+						local label
+						if slIcon then
+							label = "|T" .. slIcon .. ":16|t" .. slName .. " (" .. (DAMAGE or "Damage") .. ")"
+						else
+							label = slName .. " (" .. (DAMAGE or "Damage") .. ")"
+						end
+						-- percentage relative to net healing (subtract Spirit Link + Tempered); fallback to positive total
+						local tbForPct = tonumber(pdata.temperedDamage or 0) or 0
+						local denom = total - (sl + tbForPct)
+						if not denom or denom <= 0 then denom = total end
+						local pct = 0
+						if denom and denom > 0 then pct = (-sl / denom) * 100 end
+						GameTooltip:AddDoubleLine(label, string.format("%s (%.1f%%)", abbreviateNumber(-sl), pct))
+					end
+					-- Tempered in Battle (Damage)
+					local tb = tonumber(pdata.temperedDamage or 0) or 0
+					if tb > 0 then
+						local si2 = C_Spell.GetSpellInfo(469704)
+						local tbName = (si2 and si2.name) or "Tempered in Battle"
+						local tbIcon = si2 and si2.iconID
+						local label2
+						if tbIcon then
+							label2 = "|T" .. tbIcon .. ":16|t" .. tbName .. " (" .. (DAMAGE or "Damage") .. ")"
+						else
+							label2 = tbName .. " (" .. (DAMAGE or "Damage") .. ")"
+						end
+						local denom2 = total - ((pdata.spiritLinkDamage or 0) + tb)
+						if not denom2 or denom2 <= 0 then denom2 = total end
+						local pct2 = 0
+						if denom2 and denom2 > 0 then pct2 = (-tb / denom2) * 100 end
+						GameTooltip:AddDoubleLine(label2, string.format("%s (%.1f%%)", abbreviateNumber(-tb), pct2))
+					end
+				end
 
-                                GameTooltip:Show()
-                        end)
+				GameTooltip:Show()
+			end)
 			bar:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 			frame.bars[index] = bar
@@ -650,11 +653,11 @@ local function createGroupFrame(groupConfig)
 		if dragOutline:IsShown() then refreshDragOutline() end
 	end
 
-        function frame:Update(groupUnits)
-                if not (addon.CombatMeter.inCombat or config["combatMeterAlwaysShow"] or self.metric == "damageOverall" or self.metric == "healingOverall" or self.metric == "interruptsOverall") then
-                        self:Hide()
-                        return
-                end
+	function frame:Update(groupUnits)
+		if not (addon.CombatMeter.inCombat or config["combatMeterAlwaysShow"] or self.metric == "damageOverall" or self.metric == "healingOverall" or self.metric == "interruptsOverall") then
+			self:Hide()
+			return
+		end
 		self:Show()
 		self.list = self.list or {}
 		self.top = self.top or {}
@@ -663,67 +666,88 @@ local function createGroupFrame(groupConfig)
 		wipe(list)
 		wipe(top)
 		local maxValue = 0
-                if self.metric == "damageOverall" or self.metric == "healingOverall" then
-                        for guid, p in pairs(addon.CombatMeter.overallPlayers) do
-                                -- Skip players without recorded time to avoid blank bars
-                                if groupUnits[guid] and p.time and p.time > 0 then
-                                        local total
-                                        if self.metric == "damageOverall" then
-                                                total = (p.damage or 0)
-                                        else
-                                                local raw = (p.healing or 0)
-                                                local sl = (p.spiritLinkDamage or 0)
-                                                local tb = (p.temperedDamage or 0)
-                                                total = raw - (sl + tb)
-                                        end
-                                        local value = total / p.time
-                                        tinsert(list, { guid = guid, name = p.name, value = value, total = total, class = p.class })
-                                        if value > maxValue then maxValue = value end
-                                end
-                        end
-                elseif self.metric == "interruptsOverall" then
-                        for guid, data in pairs(addon.CombatMeter.overallPlayers) do
-                                if groupUnits[guid] then
-                                        local value = data.interrupts or 0
-                                        tinsert(list, { guid = guid, name = data.name, value = value, class = data.class })
-                                        if value > maxValue then maxValue = value end
-                                end
-                        end
-                elseif self.metric == "interrupts" then
-                        for guid, data in pairs(addon.CombatMeter.players) do
-                                if groupUnits[guid] then
-                                        local value = data.interrupts or 0
-                                        tinsert(list, { guid = guid, name = data.name, value = value, class = data.class })
-                                        if value > maxValue then maxValue = value end
-                                end
-                        end
-                else
-                        local duration
-                        if addon.CombatMeter.inCombat then
-                                duration = GetTime() - addon.CombatMeter.fightStartTime
-                        else
-                                duration = addon.CombatMeter.fightDuration
-                        end
-                        if duration <= 0 then duration = 1 end
-                        for guid, data in pairs(addon.CombatMeter.players) do
-                                if groupUnits[guid] then
-                                        local value
-                                        local total
-                                        if self.metric == "dps" then
-                                                value = data.damage / duration
-                                                total = data.damage
-                                        else
-                                                local raw = (data.healing or 0)
-                                                local sl = (data.spiritLinkDamage or 0)
-                                                local tb = (data.temperedDamage or 0)
-                                                total = raw - (sl + tb)
-                                                value = total / duration
-                                        end
-                                        tinsert(list, { guid = guid, name = data.name, value = value, total = total, class = data.class })
-                                        if value > maxValue then maxValue = value end
-                                end
-                        end
-                end
+		if self.metric == "damageOverall" or self.metric == "healingOverall" then
+			for guid, p in pairs(addon.CombatMeter.overallPlayers) do
+				if groupUnits[guid] then
+					-- Use accumulated active time, plus a safe live component while in combat (guards tiny denominators)
+					local timeDenom = tonumber(p.time) or 0
+					if addon.CombatMeter.inCombat then
+						local start = addon.CombatMeter.fightStartTime or 0
+						local now = GetTime()
+						local fightElapsed = math.max(0, now - start)
+						local cur = addon.CombatMeter.players[guid]
+						if cur then
+							local first = cur._first or now
+							local last = cur._last or now
+							local active = math.max(0, math.min(last, now) - math.max(first, start))
+							-- Very small active windows at pull start create astronomical overall DPS; fall back to fight elapsed
+							if active < MIN_OVERALL_DENOM then active = fightElapsed end
+							timeDenom = timeDenom + active
+						else
+							-- Player has overall totals but no per-fight entry yet; use fight elapsed to avoid near‑zero denominators
+							timeDenom = timeDenom + fightElapsed
+						end
+					end
+					if timeDenom and timeDenom < MIN_OVERALL_DENOM then timeDenom = MIN_OVERALL_DENOM end
+					if timeDenom and timeDenom > 0 then
+						local total
+						if self.metric == "damageOverall" then
+							total = (p.damage or 0)
+						else
+							local raw = (p.healing or 0)
+							local sl = (p.spiritLinkDamage or 0)
+							local tb = (p.temperedDamage or 0)
+							total = raw - (sl + tb)
+						end
+						local value = total / timeDenom
+						tinsert(list, { guid = guid, name = p.name, value = value, total = total, class = p.class })
+						if value > maxValue then maxValue = value end
+					end
+				end
+			end
+		elseif self.metric == "interruptsOverall" then
+			for guid, data in pairs(addon.CombatMeter.overallPlayers) do
+				if groupUnits[guid] then
+					local value = data.interrupts or 0
+					tinsert(list, { guid = guid, name = data.name, value = value, class = data.class })
+					if value > maxValue then maxValue = value end
+				end
+			end
+		elseif self.metric == "interrupts" then
+			for guid, data in pairs(addon.CombatMeter.players) do
+				if groupUnits[guid] then
+					local value = data.interrupts or 0
+					tinsert(list, { guid = guid, name = data.name, value = value, class = data.class })
+					if value > maxValue then maxValue = value end
+				end
+			end
+		else
+			local duration
+			if addon.CombatMeter.inCombat then
+				duration = GetTime() - addon.CombatMeter.fightStartTime
+			else
+				duration = addon.CombatMeter.fightDuration
+			end
+			if duration <= 0 then duration = 1 end
+			for guid, data in pairs(addon.CombatMeter.players) do
+				if groupUnits[guid] then
+					local value
+					local total
+					if self.metric == "dps" then
+						value = data.damage / duration
+						total = data.damage
+					else
+						local raw = (data.healing or 0)
+						local sl = (data.spiritLinkDamage or 0)
+						local tb = (data.temperedDamage or 0)
+						total = raw - (sl + tb)
+						value = total / duration
+					end
+					tinsert(list, { guid = guid, name = data.name, value = value, total = total, class = data.class })
+					if value > maxValue then maxValue = value end
+				end
+			end
+		end
 
 		if maxValue == 0 then maxValue = 1 end
 		local maxBars = groupConfig.maxBars or DEFAULT_MAX_BARS
@@ -758,64 +782,81 @@ local function createGroupFrame(groupConfig)
 				local name = UnitName("player")
 				local value, total
 				local class
-                                if self.metric == "damageOverall" or self.metric == "healingOverall" then
-                                        local p = addon.CombatMeter.overallPlayers[playerGUID]
-                                        if p and p.time and p.time > 0 then
-                                                if self.metric == "damageOverall" then
-                                                        total = (p.damage or 0)
-                                                else
-                                                        local raw = (p.healing or 0)
-                                                        local sl = (p.spiritLinkDamage or 0)
-                                                        local tb = (p.temperedDamage or 0)
-                                                        total = raw - (sl + tb)
-                                                end
-                                                value = total / p.time
-                                                class = p.class
-                                        end
-                                elseif self.metric == "interruptsOverall" then
-                                        local p = addon.CombatMeter.overallPlayers[playerGUID]
-                                        if p then
-                                                value = p.interrupts or 0
-                                                class = p.class
-                                        else
-                                                value = 0
-                                        end
-                                else
-                                        if self.metric == "interrupts" then
-                                                local data = addon.CombatMeter.players[playerGUID]
-                                                if data then
-                                                        value = data.interrupts or 0
-                                                        class = data.class
-                                                else
-                                                        value = 0
-                                                end
-                                        else
-                                                local duration
-                                                if addon.CombatMeter.inCombat then
-                                                        duration = GetTime() - addon.CombatMeter.fightStartTime
-                                                else
-                                                        duration = addon.CombatMeter.fightDuration
-                                                end
-                                                if duration <= 0 then duration = 1 end
-                                                local data = addon.CombatMeter.players[playerGUID]
-                                                if data then
-                                                        if self.metric == "dps" then
-                                                                total = data.damage
-                                                                value = data.damage / duration
-                                                        else
-                                                                local raw = (data.healing or 0)
-                                                                local sl = (data.spiritLinkDamage or 0)
-                                                                local tb = (data.temperedDamage or 0)
-                                                                total = raw - (sl + tb)
-                                                                value = total / duration
-                                                        end
-                                                        class = data.class
-                                                else
-                                                        total = 0
-                                                        value = 0
-                                                end
-                                        end
-                                end
+				if self.metric == "damageOverall" or self.metric == "healingOverall" then
+					local p = addon.CombatMeter.overallPlayers[playerGUID]
+					if p and p.time and p.time > 0 then
+						if self.metric == "damageOverall" then
+							total = (p.damage or 0)
+						else
+							local raw = (p.healing or 0)
+							local sl = (p.spiritLinkDamage or 0)
+							local tb = (p.temperedDamage or 0)
+							total = raw - (sl + tb)
+						end
+						local timeDenom = tonumber(p.time) or 0
+						if addon.CombatMeter.inCombat then
+							local start = addon.CombatMeter.fightStartTime or 0
+							local now = GetTime()
+							local fightElapsed = math.max(0, now - start)
+							local cur = addon.CombatMeter.players[playerGUID]
+							if cur then
+								local first = cur._first or now
+								local last = cur._last or now
+								local active = math.max(0, math.min(last, now) - math.max(first, start))
+								if active < MIN_OVERALL_DENOM then active = fightElapsed end
+								timeDenom = timeDenom + active
+							else
+								timeDenom = timeDenom + fightElapsed
+							end
+						end
+						if timeDenom < MIN_OVERALL_DENOM then timeDenom = MIN_OVERALL_DENOM end
+						value = total / timeDenom
+						class = p.class
+					end
+				elseif self.metric == "interruptsOverall" then
+					local p = addon.CombatMeter.overallPlayers[playerGUID]
+					if p then
+						value = p.interrupts or 0
+						class = p.class
+					else
+						value = 0
+					end
+				else
+					if self.metric == "interrupts" then
+						local data = addon.CombatMeter.players[playerGUID]
+						if data then
+							value = data.interrupts or 0
+							class = data.class
+						else
+							value = 0
+						end
+					else
+						local duration
+						if addon.CombatMeter.inCombat then
+							duration = GetTime() - addon.CombatMeter.fightStartTime
+						else
+							duration = addon.CombatMeter.fightDuration
+						end
+						if duration <= 0 then duration = 1 end
+						local data = addon.CombatMeter.players[playerGUID]
+						if data then
+							if self.metric == "dps" then
+								total = data.damage
+								value = data.damage / duration
+							else
+								local raw = (data.healing or 0)
+								local sl = (data.spiritLinkDamage or 0)
+								local tb = (data.temperedDamage or 0)
+								total = raw - (sl + tb)
+								value = total / duration
+							end
+							class = data.class
+						else
+							total = 0
+							value = 0
+						end
+					end
+				end
 				if value then
 					if value > maxValue then maxValue = value end
 					tinsert(list, { guid = playerGUID, name = name, value = value, total = total, class = class })

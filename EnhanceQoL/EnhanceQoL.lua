@@ -537,6 +537,7 @@ local function removeInspectElements()
 		[16] = InspectMainHandSlot,
 		[17] = InspectSecondaryHandSlot,
 	}
+
 	for key, element in pairs(itemSlotsInspectList) do
 		if element.ilvl then element.ilvl:SetFormattedText("") end
 		if element.ilvlBackground then element.ilvlBackground:Hide() end
@@ -643,6 +644,12 @@ local function onInspect(arg1)
 		[16] = InspectMainHandSlot,
 		[17] = InspectSecondaryHandSlot,
 	}
+	local twoHandLocs = {
+		INVTYPE_2HWEAPON = true,
+		INVTYPE_RANGED = true,
+		INVTYPE_RANGEDRIGHT = true,
+		INVTYPE_FISHINGPOLE = true,
+	}
 
 	for key, element in pairs(itemSlotsInspectList) do
 		if nil == inspectDone[key] then
@@ -714,7 +721,13 @@ local function onInspect(arg1)
 						end
 
 						if addon.db["showIlvlOnCharframe"] then
-							itemCount = itemCount + 1
+							local double = false
+							if key == 16 then
+								local offhandLink = GetInventoryItemLink(unit, 17)
+								local _, _, _, itemEquipLoc = GetItemInfoInstant(itemLink)
+								if not offhandLink and twoHandLocs[itemEquipLoc] then double = true end
+							end
+							itemCount = itemCount + (double and 2 or 1)
 							if not element.ilvlBackground then
 								element.ilvlBackground = element:CreateTexture(nil, "BACKGROUND")
 								element.ilvlBackground:SetColorTexture(0, 0, 0, 0.8) -- Schwarzer Hintergrund mit 80% Transparenz
@@ -743,7 +756,7 @@ local function onInspect(arg1)
 							local color = eItem:GetItemQualityColor()
 							local itemLevelText = eItem:GetCurrentItemLevel()
 
-							ilvlSum = ilvlSum + itemLevelText
+							ilvlSum = ilvlSum + itemLevelText * (double and 2 or 1)
 							element.ilvl:SetFormattedText(itemLevelText)
 							element.ilvl:SetTextColor(color.r, color.g, color.b, 1)
 
@@ -782,7 +795,7 @@ local function onInspect(arg1)
 										or (nil ~= addon.variables.shouldEnchantedChecks[key] and addon.variables.shouldEnchantedChecks[key].func(eItem:GetCurrentItemLevel()))
 									then
 										if key == 17 then
-											local _, _, _, _, _, _, _, _, itemEquipLoc = C_Item.GetItemInfo(itemLink)
+											local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfoInstant(itemLink)
 											if addon.variables.allowedEnchantTypesForOffhand[itemEquipLoc] then
 												element.borderGradient:Show()
 												element.enchant:SetFormattedText(("|cff%02x%02x%02x"):format(255, 0, 0) .. L["MissingEnchant"] .. "|r")
@@ -803,7 +816,7 @@ local function onInspect(arg1)
 			end
 		end
 	end
-	if addon.db["showIlvlOnCharframe"] and ilvlSum > 0 and itemCount > 0 then pdElement.ilvl:SetText("" .. (math.floor((ilvlSum / itemCount) * 100 + 0.5) / 100)) end
+	if addon.db["showIlvlOnCharframe"] and ilvlSum > 0 then pdElement.ilvl:SetText("" .. (math.floor((ilvlSum / 16) * 100 + 0.5) / 100)) end
 end
 
 local function setIlvlText(element, slot)
@@ -914,7 +927,7 @@ local function setIlvlText(element, slot)
 							or (nil ~= addon.variables.shouldEnchantedChecks[slot] and addon.variables.shouldEnchantedChecks[slot].func(eItem:GetCurrentItemLevel()))
 						then
 							if slot == 17 then
-								local _, _, _, _, _, _, _, _, itemEquipLoc = C_Item.GetItemInfo(link)
+								local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfoInstant(link)
 								if addon.variables.allowedEnchantTypesForOffhand[itemEquipLoc] then
 									element.borderGradient:Show()
 									element.enchant:SetFormattedText(("|cff%02x%02x%02x"):format(255, 0, 0) .. L["MissingEnchant"] .. "|r")

@@ -4,7 +4,8 @@
 
 ### 🐛 Fixed
 
-- **Datapanel Currency:** Calculation issue to display _season maximum_
+- **DataPanel – Currency:** Fixed season cap calculation.
+- **Inspect – Item Level:** Corrected average item level computation (2H/off-hand handling).
 
 ## [4.9.0] – 2025-08-27
 
