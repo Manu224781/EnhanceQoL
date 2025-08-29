@@ -796,6 +796,11 @@ local powertypeClasses = {
 		[2] = { MAIN = "MANA", ESSENCE = true },
 		[3] = { MAIN = "ESSENCE", MANA = true },
 	},
+    WARRIOR = {
+		[1] = { MAIN = "RAGE" },
+		[2] = { MAIN = "RAGE" },
+		[3] = { MAIN = "RAGE" },
+    }
 }
 
 local powerTypeEnums = {}
@@ -1648,8 +1653,16 @@ function ResourceBars.ReanchorAll()
 	if healthBar then
 		local a = getAnchor("HEALTH", addon.variables.unitSpec)
 		if (a.relativeFrame or "UIParent") == "UIParent" then
-			a.point = "TOPLEFT"
-			a.relativePoint = "TOPLEFT"
+			a.point = a.point or "TOPLEFT"
+			a.relativePoint = a.relativePoint or "TOPLEFT"
+			if a.x == nil or a.y == nil then
+				local pw = UIParent and UIParent.GetWidth and UIParent:GetWidth() or 0
+				local ph = UIParent and UIParent.GetHeight and UIParent:GetHeight() or 0
+				local w = healthBar:GetWidth() or DEFAULT_HEALTH_WIDTH
+				local h = healthBar:GetHeight() or DEFAULT_HEALTH_HEIGHT
+				a.x = (pw - w) / 2
+				a.y = (h - ph) / 2
+			end
 		end
 		local rel, looped = resolveAnchor(a, "HEALTH")
 		if looped and (a.relativeFrame or "UIParent") ~= "UIParent" then
@@ -1673,8 +1686,16 @@ function ResourceBars.ReanchorAll()
 		if bar then
 			local a = getAnchor(pType, addon.variables.unitSpec)
 			if (a.relativeFrame or "UIParent") == "UIParent" then
-				a.point = "TOPLEFT"
-				a.relativePoint = "TOPLEFT"
+				a.point = a.point or "TOPLEFT"
+				a.relativePoint = a.relativePoint or "TOPLEFT"
+				if a.x == nil or a.y == nil then
+					local pw = UIParent and UIParent.GetWidth and UIParent:GetWidth() or 0
+					local ph = UIParent and UIParent.GetHeight and UIParent:GetHeight() or 0
+					local w = bar:GetWidth() or DEFAULT_POWER_WIDTH
+					local h = bar:GetHeight() or DEFAULT_POWER_HEIGHT
+					a.x = (pw - w) / 2
+					a.y = (h - ph) / 2
+				end
 			end
 			local rel, looped = resolveAnchor(a, pType)
 			if looped and (a.relativeFrame or "UIParent") ~= "UIParent" then
