@@ -682,12 +682,13 @@ local function updateHealthBar(evt)
 			healthBar:SetMinMaxValues(0, maxHealth)
 		end
 		local curHealth = UnitHealth("player")
-		local absorb
-		local lastAbs = (healthBar.absorbBar and healthBar.absorbBar._lastVal) or 0
+		local combined
+		local lastCombined = (healthBar.absorbBar and healthBar.absorbBar._lastVal) or curHealth
 		if evt == "UNIT_ABSORB_AMOUNT_CHANGED" or evt == "UNIT_MAXHEALTH" or healthBar._lastVal ~= curHealth then
-			absorb = UnitGetTotalAbsorbs("player") or 0
+			local abs = UnitGetTotalAbsorbs("player") or 0
+			combined = curHealth + abs
 		else
-			absorb = lastAbs
+			combined = lastCombined
 		end
 
 		-- Only push values to the bar if changed
@@ -733,7 +734,6 @@ local function updateHealthBar(evt)
 			healthBar._lastBracket = bracket
 		end
 
-		local combined = absorb
 		if combined > maxHealth then combined = maxHealth end
 		if healthBar.absorbBar._lastMax ~= maxHealth then
 			healthBar.absorbBar:SetMinMaxValues(0, maxHealth)
@@ -894,12 +894,13 @@ local function createHealthBar()
 
 	local absorbBar = CreateFrame("StatusBar", "EQOLAbsorbBar", healthBar)
 	absorbBar:SetAllPoints(healthBar)
-	absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + 1)
+	absorbBar:SetFrameStrata(healthBar:GetFrameStrata())
+	absorbBar:SetFrameLevel(max(0, (healthBar:GetFrameLevel() or 1) - 1))
 	absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
 	absorbBar:SetStatusBarColor(0.8, 0.8, 0.8, 0.8)
 	healthBar.absorbBar = absorbBar
 
-	updateHealthBar()
+	updateHealthBar("UNIT_ABSORB_AMOUNT_CHANGED")
 
 	-- Ensure any bars anchored to Health get reanchored when Health changes size
 	healthBar:SetScript("OnSizeChanged", function()
@@ -1009,6 +1010,7 @@ ResourceBars.separatorEligible = {
 	ARCANE_CHARGES = true,
 	CHI = true,
 	COMBO_POINTS = true,
+	RUNES = true,
 }
 
 function getBarSettings(pType)
@@ -1344,13 +1346,6 @@ function layoutRunes(bar)
 			sb.fs:Hide()
 		end
 	end
-end
-
-function ResourceBars.ForceRuneRecolor()
-	local rb = powerbar["RUNES"]
-	if not rb then return end
-	local spec = addon.variables.unitSpec
-	rb._dkColor = DK_SPEC_COLOR[spec] or DK_SPEC_COLOR[1]
 end
 
 local function createPowerBar(type, anchor)
@@ -1698,7 +1693,7 @@ local function eventHandler(self, event, unit, arg1)
 	elseif event == "TRAIT_CONFIG_UPDATED" then
 		scheduleSpecRefresh()
 	elseif event == "PLAYER_ENTERING_WORLD" then
-		updateHealthBar()
+		updateHealthBar("UNIT_ABSORB_AMOUNT_CHANGED")
 		setPowerbars()
 	elseif event == "UPDATE_SHAPESHIFT_FORM" then
 		setPowerbars()
@@ -1818,6 +1813,8 @@ end
 function ResourceBars.ForceRuneRecolor()
 	local rb = powerbar and powerbar.RUNES
 	if not rb or not rb.runes then return end
+	local spec = addon.variables.unitSpec
+	rb._dkColor = DK_SPEC_COLOR[spec] or DK_SPEC_COLOR[1]
 	for i = 1, 6 do
 		local sb = rb.runes[i]
 		if sb then
@@ -2197,7 +2194,7 @@ function ResourceBars.ReanchorAll()
 		end
 	end
 
-	updateHealthBar()
+	updateHealthBar("UNIT_ABSORB_AMOUNT_CHANGED")
 	ResourceBars._reanchoring = false
 end
 
