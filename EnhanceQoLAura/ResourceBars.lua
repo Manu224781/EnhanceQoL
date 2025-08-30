@@ -964,7 +964,6 @@ local function updatePowerBar(type, runeSlot)
                 -- Special handling for DK Runes: six sub-bars that fill as cooldown progresses
                 if type == "RUNES" then
                         local bar = powerbar[type]
-                        layoutRunes(bar)
                         local spec = GetSpecialization() or addon.variables.unitSpec
                         local r, g, b = 0.8, 0.1, 0.1 -- Blood default
                         if spec == 2 then
