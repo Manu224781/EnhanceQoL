@@ -23,6 +23,7 @@ local powerfrequent = {}
 local getBarSettings
 local getAnchor
 local layoutRunes
+local updatePowerBar
 local lastTabIndex
 local lastBarSelectionPerSpec = {}
 local BAR_STACK_SPACING = -1
@@ -47,35 +48,31 @@ function addon.Aura.functions.addResourceFrame(container)
 	wrapper:AddChild(groupCore)
 
 	local data = {
-			{
-				text = L["Enable Resource frame"],
-				var = "enableResourceFrame",
-				func = function(self, _, value)
-					addon.db["enableResourceFrame"] = value
-					if value then
-						addon.Aura.ResourceBars.EnableResourceBars()
-					elseif addon.Aura.ResourceBars and addon.Aura.ResourceBars.DisableResourceBars then
-						addon.Aura.ResourceBars.DisableResourceBars()
+		{
+			text = L["Enable Resource frame"],
+			var = "enableResourceFrame",
+			func = function(self, _, value)
+				addon.db["enableResourceFrame"] = value
+				if value then
+					addon.Aura.ResourceBars.EnableResourceBars()
+				elseif addon.Aura.ResourceBars and addon.Aura.ResourceBars.DisableResourceBars then
+					addon.Aura.ResourceBars.DisableResourceBars()
+				end
+				-- Rebuild the options UI to reflect enabled/disabled state
+				if container and container.ReleaseChildren then
+					container:ReleaseChildren()
+					-- Defer rebuild slightly to ensure enable/disable side effects settle
+					if C_Timer and C_Timer.After then
+						C_Timer.After(0, function()
+							if addon and addon.Aura and addon.Aura.functions and addon.Aura.functions.addResourceFrame then addon.Aura.functions.addResourceFrame(container) end
+						end)
+					else
+						if addon and addon.Aura and addon.Aura.functions and addon.Aura.functions.addResourceFrame then addon.Aura.functions.addResourceFrame(container) end
 					end
-					-- Rebuild the options UI to reflect enabled/disabled state
-					if container and container.ReleaseChildren then
-						container:ReleaseChildren()
-						-- Defer rebuild slightly to ensure enable/disable side effects settle
-						if C_Timer and C_Timer.After then
-							C_Timer.After(0, function()
-								if addon and addon.Aura and addon.Aura.functions and addon.Aura.functions.addResourceFrame then
-									addon.Aura.functions.addResourceFrame(container)
-								end
-							end)
-						else
-							if addon and addon.Aura and addon.Aura.functions and addon.Aura.functions.addResourceFrame then
-								addon.Aura.functions.addResourceFrame(container)
-							end
-						end
-					end
-				end,
-			},
-		}
+				end
+			end,
+		},
+	}
 
 	table.sort(data, function(a, b) return a.text < b.text end)
 
@@ -521,13 +518,19 @@ function addon.Aura.functions.addResourceFrame(container)
 					-- RUNES specific options
 					local cbRT = addon.functions.createCheckboxAce(L["Show cooldown text"], cfg.showCooldownText == true, function(self, _, val)
 						cfg.showCooldownText = val and true or false
-						addon.Aura.ResourceBars.Refresh()
+						if powerbar["RUNES"] then
+							layoutRunes(powerbar["RUNES"])
+							updatePowerBar("RUNES")
+						end
 					end)
 					groupConfig:AddChild(cbRT)
 
 					local sRTFont = addon.functions.createSliderAce(L["Cooldown Text Size"], cfg.cooldownTextFontSize or 16, 6, 64, 1, function(self, _, val)
 						cfg.cooldownTextFontSize = val
-						addon.Aura.ResourceBars.Refresh()
+						if powerbar["RUNES"] then
+							layoutRunes(powerbar["RUNES"])
+							updatePowerBar("RUNES")
+						end
 					end)
 					groupConfig:AddChild(sRTFont)
 				end
@@ -736,20 +739,20 @@ local function resolveAnchor(info, type)
 end
 
 local function createHealthBar()
-    if mainFrame then
-        -- Ensure correct parent when re-enabling
-        if mainFrame:GetParent() ~= UIParent then mainFrame:SetParent(UIParent) end
-        if healthBar and healthBar.GetParent and healthBar:GetParent() ~= UIParent then healthBar:SetParent(UIParent) end
-        mainFrame:Show()
-        healthBar:Show()
-        return
-    end
+	if mainFrame then
+		-- Ensure correct parent when re-enabling
+		if mainFrame:GetParent() ~= UIParent then mainFrame:SetParent(UIParent) end
+		if healthBar and healthBar.GetParent and healthBar:GetParent() ~= UIParent then healthBar:SetParent(UIParent) end
+		mainFrame:Show()
+		healthBar:Show()
+		return
+	end
 
-    -- Reuse existing named frames if they still exist from a previous enable
-    mainFrame = _G["EQOLResourceFrame"] or CreateFrame("frame", "EQOLResourceFrame", UIParent)
-    if mainFrame:GetParent() ~= UIParent then mainFrame:SetParent(UIParent) end
-    healthBar = _G["EQOLHealthBar"] or CreateFrame("StatusBar", "EQOLHealthBar", UIParent, "BackdropTemplate")
-    if healthBar:GetParent() ~= UIParent then healthBar:SetParent(UIParent) end
+	-- Reuse existing named frames if they still exist from a previous enable
+	mainFrame = _G["EQOLResourceFrame"] or CreateFrame("frame", "EQOLResourceFrame", UIParent)
+	if mainFrame:GetParent() ~= UIParent then mainFrame:SetParent(UIParent) end
+	healthBar = _G["EQOLHealthBar"] or CreateFrame("StatusBar", "EQOLHealthBar", UIParent, "BackdropTemplate")
+	if healthBar:GetParent() ~= UIParent then healthBar:SetParent(UIParent) end
 	do
 		local cfg = getBarSettings("HEALTH")
 		local w = (cfg and cfg.width) or DEFAULT_HEALTH_WIDTH
@@ -959,144 +962,140 @@ function getBarSettings(pType)
 	return nil
 end
 
-local function updatePowerBar(type, runeSlot)
-        if powerbar[type] and powerbar[type]:IsVisible() then
-                -- Special handling for DK Runes: six sub-bars that fill as cooldown progresses
-                if type == "RUNES" then
-                        local bar = powerbar[type]
-                        local spec = GetSpecialization() or addon.variables.unitSpec
-                        local r, g, b = 0.8, 0.1, 0.1 -- Blood default
-                        if spec == 2 then
-                                r, g, b = 0.2, 0.6, 1.0
-                        end -- Frost
-                        if spec == 3 then
-                                r, g, b = 0.0, 0.9, 0.3
-                        end -- Unholy
-                        local grey = 0.35
-                        local now = GetTime()
-                        bar._rune = bar._rune or {}
-                        bar._runeOrder = bar._runeOrder or {}
-                        local ready = {}
-                        local charging = {}
-                        for i = 1, 6 do
-                                local start, duration, readyFlag = GetRuneCooldown(i)
-                                bar._rune[i] = bar._rune[i] or {}
-                                bar._rune[i].start = start or 0
-                                bar._rune[i].duration = duration or 0
-                                bar._rune[i].ready = readyFlag
-                                if readyFlag then
-                                        table.insert(ready, i)
-                                else
-                                        table.insert(charging, i)
-                                end
-                        end
-                        table.sort(charging, function(a, b)
-                                local ra = (bar._rune[a].start + bar._rune[a].duration) - now
-                                local rb = (bar._rune[b].start + bar._rune[b].duration) - now
-                                return ra < rb
-                        end)
-                        for i = 1, 6 do bar._runeOrder[i] = nil end
-                        local pos = 1
-                        for _, idx in ipairs(ready) do
-                                bar._runeOrder[pos] = idx
-                                pos = pos + 1
-                        end
-                        for _, idx in ipairs(charging) do
-                                bar._runeOrder[pos] = idx
-                                pos = pos + 1
-                        end
+function updatePowerBar(type, runeSlot)
+	if powerbar[type] and powerbar[type]:IsVisible() then
+		-- Special handling for DK Runes: six sub-bars that fill as cooldown progresses
+		if type == "RUNES" then
+			local bar = powerbar[type]
+			local spec = GetSpecialization() or addon.variables.unitSpec
+			local r, g, b = 0.8, 0.1, 0.1 -- Blood default
+			if spec == 2 then
+				r, g, b = 0.2, 0.6, 1.0
+			end -- Frost
+			if spec == 3 then
+				r, g, b = 0.0, 0.9, 0.3
+			end -- Unholy
+			local grey = 0.35
+			local now = GetTime()
+			bar._rune = bar._rune or {}
+			bar._runeOrder = bar._runeOrder or {}
+			local ready = {}
+			local charging = {}
+			for i = 1, 6 do
+				local start, duration, readyFlag = GetRuneCooldown(i)
+				bar._rune[i] = bar._rune[i] or {}
+				bar._rune[i].start = start or 0
+				bar._rune[i].duration = duration or 0
+				bar._rune[i].ready = readyFlag
+				if readyFlag then
+					table.insert(ready, i)
+				else
+					table.insert(charging, i)
+				end
+			end
+			table.sort(charging, function(a, b)
+				local ra = (bar._rune[a].start + bar._rune[a].duration) - now
+				local rb = (bar._rune[b].start + bar._rune[b].duration) - now
+				return ra < rb
+			end)
+			for i = 1, 6 do
+				bar._runeOrder[i] = nil
+			end
+			local pos = 1
+			for _, idx in ipairs(ready) do
+				bar._runeOrder[pos] = idx
+				pos = pos + 1
+			end
+			for _, idx in ipairs(charging) do
+				bar._runeOrder[pos] = idx
+				pos = pos + 1
+			end
 
-                        local cfg = getBarSettings("RUNES") or {}
-                        local anyActive = #charging > 0
-                        now = GetTime()
-                        for i = 1, 6 do
-                                local runeIndex = bar._runeOrder[i]
-                                local info = runeIndex and bar._rune[runeIndex]
-                                local sb = bar.runes and bar.runes[i]
-                                if sb and info then
-                                        sb:SetMinMaxValues(0, 1)
-                                        local prog = info.ready and 1 or math.min(1, math.max(0, (now - info.start) / math.max(info.duration, 1)))
-                                        sb:SetValue(prog)
-                                        if info.ready or prog >= 1 then
-                                                sb:SetStatusBarColor(r, g, b)
-                                        else
-                                                sb:SetStatusBarColor(grey, grey, grey)
-                                        end
-                                        if sb.fs then
-                                                if cfg.showCooldownText then
-                                                        local remain = math.ceil((info.start + info.duration) - now)
-                                                        if remain > 0 and not info.ready then
-                                                                sb.fs:SetText(tostring(remain))
-                                                        else
-                                                                sb.fs:SetText("")
-                                                        end
-                                                        local size = cfg.cooldownTextFontSize or 16
-                                                        sb.fs:SetFont(addon.variables.defaultFont, size, "OUTLINE")
-                                                        sb.fs:Show()
-                                                else
-                                                        sb.fs:Hide()
-                                                end
-                                        end
-                                end
-                        end
+			local cfg = getBarSettings("RUNES") or {}
+			local anyActive = #charging > 0
+			now = GetTime()
+			for i = 1, 6 do
+				local runeIndex = bar._runeOrder[i]
+				local info = runeIndex and bar._rune[runeIndex]
+				local sb = bar.runes and bar.runes[i]
+				if sb and info then
+					sb:SetMinMaxValues(0, 1)
+					local prog = info.ready and 1 or math.min(1, math.max(0, (now - info.start) / math.max(info.duration, 1)))
+					sb:SetValue(prog)
+					if info.ready or prog >= 1 then
+						sb:SetStatusBarColor(r, g, b)
+					else
+						sb:SetStatusBarColor(grey, grey, grey)
+					end
+					if sb.fs then
+						if cfg.showCooldownText then
+							local remain = math.ceil((info.start + info.duration) - now)
+							if remain > 0 and not info.ready then
+								sb.fs:SetText(tostring(remain))
+							else
+								sb.fs:SetText("")
+							end
+						else
+							sb.fs:SetText("")
+						end
+					end
+				end
+			end
 
-                        if anyActive then
-                                bar._runesAnimating = true
-                                bar._runeAccum = 0
-                                local cfgOnUpdate = cfg
-                                bar:SetScript("OnUpdate", function(self, elapsed)
-                                        self._runeAccum = (self._runeAccum or 0) + (elapsed or 0)
-                                        if self._runeAccum > 0.08 then
-                                                self._runeAccum = 0
-                                                local n = GetTime()
-                                                local allReady = true
-                                                for pos = 1, 6 do
-                                                        local ri = self._runeOrder and self._runeOrder[pos]
-                                                        local data = ri and self._rune and self._rune[ri]
-                                                        local sb = self.runes and self.runes[pos]
-                                                        if data and sb then
-                                                                local prog
-                                                                if data.ready then
-                                                                        prog = 1
-                                                                else
-                                                                        prog = math.min(1, math.max(0, (n - data.start) / math.max(data.duration, 1)))
-                                                                        if prog >= 1 then
-                                                                                updatePowerBar("RUNES")
-                                                                                return
-                                                                        end
-                                                                        allReady = false
-                                                                end
-                                                                sb:SetValue(prog)
-                                                                if sb.fs then
-                                                                        if cfgOnUpdate.showCooldownText and not data.ready then
-                                                                                local remain = math.ceil((data.start + data.duration) - n)
-                                                                                if remain > 0 then
-                                                                                        sb.fs:SetText(tostring(remain))
-                                                                                else
-                                                                                        sb.fs:SetText("")
-                                                                                end
-                                                                                local size = cfgOnUpdate.cooldownTextFontSize or 16
-                                                                                sb.fs:SetFont(addon.variables.defaultFont, size, "OUTLINE")
-                                                                                sb.fs:Show()
-                                                                        else
-                                                                                sb.fs:Hide()
-                                                                        end
-                                                                end
-                                                        end
-                                                end
-                                                if allReady then
-                                                        self._runesAnimating = false
-                                                        self:SetScript("OnUpdate", nil)
-                                                end
-                                        end
-                                end)
-                        else
-                                bar._runesAnimating = false
-                                bar:SetScript("OnUpdate", nil)
-                        end
-                        if bar.text then bar.text:SetText("") end
-                        return
-                end
+			if anyActive then
+				bar._runesAnimating = true
+				bar._runeAccum = 0
+				local cfgOnUpdate = cfg
+				bar:SetScript("OnUpdate", function(self, elapsed)
+					self._runeAccum = (self._runeAccum or 0) + (elapsed or 0)
+					if self._runeAccum > 0.08 then
+						self._runeAccum = 0
+						local n = GetTime()
+						local allReady = true
+						for pos = 1, 6 do
+							local ri = self._runeOrder and self._runeOrder[pos]
+							local data = ri and self._rune and self._rune[ri]
+							local sb = self.runes and self.runes[pos]
+							if data and sb then
+								local prog
+								if data.ready then
+									prog = 1
+								else
+									prog = math.min(1, math.max(0, (n - data.start) / math.max(data.duration, 1)))
+									if prog >= 1 then
+										updatePowerBar("RUNES")
+										return
+									end
+									allReady = false
+								end
+								sb:SetValue(prog)
+								if sb.fs then
+									if cfgOnUpdate.showCooldownText and not data.ready then
+										local remain = math.ceil((data.start + data.duration) - n)
+										if remain > 0 then
+											sb.fs:SetText(tostring(remain))
+										else
+											sb.fs:SetText("")
+										end
+									else
+										sb.fs:SetText("")
+									end
+								end
+							end
+						end
+						if allReady then
+							self._runesAnimating = false
+							self:SetScript("OnUpdate", nil)
+						end
+					end
+				end)
+			else
+				bar._runesAnimating = false
+				bar:SetScript("OnUpdate", nil)
+			end
+			if bar.text then bar.text:SetText("") end
+			return
+		end
 		local pType = powerTypeEnums[type:gsub("_", "")]
 		local maxPower = UnitPowerMax("player", pType)
 		local curPower = UnitPower("player", pType)
@@ -1256,15 +1255,15 @@ function layoutRunes(bar)
 end
 
 local function createPowerBar(type, anchor)
-    -- Reuse existing bar if present; avoid destroying frames to preserve anchors
-    local bar = powerbar[type] or _G["EQOL" .. type .. "Bar"]
-    local isNew = false
-    if not bar then
-        bar = CreateFrame("StatusBar", "EQOL" .. type .. "Bar", UIParent, "BackdropTemplate")
-        isNew = true
-    end
-    -- Ensure a valid parent when reusing frames after disable
-    if bar:GetParent() ~= UIParent then bar:SetParent(UIParent) end
+	-- Reuse existing bar if present; avoid destroying frames to preserve anchors
+	local bar = powerbar[type] or _G["EQOL" .. type .. "Bar"]
+	local isNew = false
+	if not bar then
+		bar = CreateFrame("StatusBar", "EQOL" .. type .. "Bar", UIParent, "BackdropTemplate")
+		isNew = true
+	end
+	-- Ensure a valid parent when reusing frames after disable
+	if bar:GetParent() ~= UIParent then bar:SetParent(UIParent) end
 
 	local settings = getBarSettings(type)
 	local w = settings and settings.width or DEFAULT_POWER_WIDTH
@@ -1588,9 +1587,9 @@ local function eventHandler(self, event, unit, arg1)
 	elseif event == "UNIT_MAXPOWER" and powerbar[arg1] and powerbar[arg1]:IsShown() then
 		updatePowerBar(arg1)
 		updateBarSeparators(arg1)
-        elseif event == "RUNE_POWER_UPDATE" then
-                if powerbar["RUNES"] and powerbar["RUNES"]:IsShown() then updatePowerBar("RUNES", arg1) end
-        end
+	elseif event == "RUNE_POWER_UPDATE" then
+		if powerbar["RUNES"] and powerbar["RUNES"]:IsShown() then updatePowerBar("RUNES", arg1) end
+	end
 end
 
 function ResourceBars.EnableResourceBars()
@@ -1612,45 +1611,45 @@ function ResourceBars.EnableResourceBars()
 	frameAnchor:SetScript("OnEvent", eventHandler)
 	frameAnchor:Hide()
 
-    createHealthBar()
-    -- Build bars and anchor immediately; no deferred timers needed
-    if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.Refresh then
-        addon.Aura.ResourceBars.Refresh()
-    else
-        if setPowerbars then setPowerbars() end
-        if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.ReanchorAll then addon.Aura.ResourceBars.ReanchorAll() end
-    end
-    if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
+	createHealthBar()
+	-- Build bars and anchor immediately; no deferred timers needed
+	if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.Refresh then
+		addon.Aura.ResourceBars.Refresh()
+	else
+		if setPowerbars then setPowerbars() end
+		if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.ReanchorAll then addon.Aura.ResourceBars.ReanchorAll() end
+	end
+	if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
 end
 
 function ResourceBars.DisableResourceBars()
-    if frameAnchor then
-        frameAnchor:UnregisterAllEvents()
-        frameAnchor:SetScript("OnEvent", nil)
-        frameAnchor = nil
-        addon.Aura.anchorFrame = nil
-    end
-    if mainFrame then
-        mainFrame:Hide()
-        -- Keep parent to preserve frame and anchors for reuse
-        mainFrame = nil
-    end
-    if healthBar then
-        healthBar:Hide()
-        -- Keep parent to preserve frame and anchors for reuse
-        healthBar = nil
-    end
-    for pType, bar in pairs(powerbar) do
-        if bar then
-            bar:Hide()
-            if pType == "RUNES" then
-                bar:SetScript("OnUpdate", nil)
-                bar._runesAnimating = false
-            end
-        end
-        powerbar[pType] = nil
-    end
-    powerbar = {}
+	if frameAnchor then
+		frameAnchor:UnregisterAllEvents()
+		frameAnchor:SetScript("OnEvent", nil)
+		frameAnchor = nil
+		addon.Aura.anchorFrame = nil
+	end
+	if mainFrame then
+		mainFrame:Hide()
+		-- Keep parent to preserve frame and anchors for reuse
+		mainFrame = nil
+	end
+	if healthBar then
+		healthBar:Hide()
+		-- Keep parent to preserve frame and anchors for reuse
+		healthBar = nil
+	end
+	for pType, bar in pairs(powerbar) do
+		if bar then
+			bar:Hide()
+			if pType == "RUNES" then
+				bar:SetScript("OnUpdate", nil)
+				bar._runesAnimating = false
+			end
+		end
+		powerbar[pType] = nil
+	end
+	powerbar = {}
 end
 
 -- Register/unregister DK rune event depending on class and user config
