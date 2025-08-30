@@ -16,6 +16,17 @@ local AceGUI = addon.AceGUI
 local UnitPower, UnitPowerMax, UnitHealth, UnitHealthMax, UnitGetTotalAbsorbs, GetTime = UnitPower, UnitPowerMax, UnitHealth, UnitHealthMax, UnitGetTotalAbsorbs, GetTime
 local CreateFrame = CreateFrame
 local PowerBarColor = PowerBarColor
+local UIParent = UIParent
+local GetShapeshiftForm, GetShapeshiftFormInfo = GetShapeshiftForm, GetShapeshiftFormInfo
+local UnitPowerType = UnitPowerType
+local GetSpecializationInfoForClassID = GetSpecializationInfoForClassID
+local GetNumSpecializationsForClassID = C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID
+local GetRuneCooldown = GetRuneCooldown
+local IsShiftKeyDown = IsShiftKeyDown
+local After = C_Timer and C_Timer.After
+local EnumPowerType = Enum and Enum.PowerType
+local format = string.format
+local tostring = tostring
 local floor, max, min, ceil = math.floor, math.max, math.min, math.ceil
 local tinsert, tsort = table.insert, table.sort
 
@@ -99,8 +110,8 @@ function addon.Aura.functions.addResourceFrame(container)
 				if container and container.ReleaseChildren then
 					container:ReleaseChildren()
 					-- Defer rebuild slightly to ensure enable/disable side effects settle
-					if C_Timer and C_Timer.After then
-						C_Timer.After(0, function()
+					if After then
+						After(0, function()
 							if addon and addon.Aura and addon.Aura.functions and addon.Aura.functions.addResourceFrame then addon.Aura.functions.addResourceFrame(container) end
 						end)
 					else
@@ -163,7 +174,7 @@ function addon.Aura.functions.addResourceFrame(container)
 			info = info or {}
 			frameList = frameList or baseFrameList
 
-			local header = addon.functions.createLabelAce(string.format("%s %s", displayNameForBarType(barType), L["Anchor"]))
+			local header = addon.functions.createLabelAce(format("%s %s", displayNameForBarType(barType), L["Anchor"]))
 			parent:AddChild(header)
 
 			-- Filter choices to avoid creating loops
@@ -308,7 +319,7 @@ function addon.Aura.functions.addResourceFrame(container)
 		end
 
 		local specTabs = {}
-		for i = 1, C_SpecializationInfo.GetNumSpecializationsForClassID(addon.variables.unitClassID) do
+		for i = 1, (GetNumSpecializationsForClassID and GetNumSpecializationsForClassID(addon.variables.unitClassID) or 0) do
 			local _, specName = GetSpecializationInfoForClassID(addon.variables.unitClassID, i)
 			tinsert(specTabs, { text = specName, value = i })
 		end
@@ -976,7 +987,7 @@ local powertypeClasses = {
 }
 
 local POWER_ENUM = {}
-for k, v in pairs(Enum.PowerType) do
+for k, v in pairs(EnumPowerType or {}) do
 	local key = k:gsub("(%l)(%u)", "%1_%2"):upper()
 	POWER_ENUM[key] = v
 end
@@ -1134,8 +1145,8 @@ function updatePowerBar(type, runeSlot)
 									if prog >= 1 then
 										if not self._runeResync then
 											self._runeResync = true
-											if C_Timer and C_Timer.After then
-												C_Timer.After(0, function()
+											if After then
+												After(0, function()
 													self._runeResync = false
 													updatePowerBar("RUNES")
 												end)
@@ -1672,7 +1683,7 @@ end
 
 -- Coalesce spec/trait refreshes to avoid duplicate work or timing races
 local function scheduleSpecRefresh()
-	if not C_Timer or not C_Timer.After then
+	if not After then
 		-- First detach all bar points to avoid transient loops
 		if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.DetachAllBars then addon.Aura.ResourceBars.DetachAllBars() end
 		ResourceBars._suspendAnchors = true
@@ -1686,7 +1697,7 @@ local function scheduleSpecRefresh()
 	end
 	if frameAnchor and frameAnchor._specRefreshScheduled then return end
 	if frameAnchor then frameAnchor._specRefreshScheduled = true end
-	C_Timer.After(0.08, function()
+	After(0.08, function()
 		if frameAnchor then frameAnchor._specRefreshScheduled = false end
 		-- First detach all bar points to avoid transient loops
 		if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.DetachAllBars then addon.Aura.ResourceBars.DetachAllBars() end
@@ -1713,10 +1724,15 @@ local function eventHandler(self, event, unit, arg1)
 	elseif event == "UPDATE_SHAPESHIFT_FORM" then
 		setPowerbars()
 		-- After initial creation, run a re-anchor pass to ensure all dependent anchors resolve
-		C_Timer.After(0.05, function()
+		if After then
+			After(0.05, function()
+				if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.ReanchorAll then addon.Aura.ResourceBars.ReanchorAll() end
+				if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
+			end)
+		else
 			if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.ReanchorAll then addon.Aura.ResourceBars.ReanchorAll() end
 			if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
-		end)
+		end
 	elseif (event == "UNIT_MAXHEALTH" or event == "UNIT_HEALTH" or event == "UNIT_ABSORB_AMOUNT_CHANGED") and healthBar and healthBar:IsShown() then
 		if event == "UNIT_MAXHEALTH" then
 			local max = UnitHealthMax("player")
@@ -2051,23 +2067,24 @@ function ResourceBars.Refresh()
 	end
 	-- Apply text font sizes without forcing full rebuild
 
-		if healthBar and healthBar.text then
-			local hCfg = getBarSettings("HEALTH")
-			local fs = hCfg and hCfg.fontSize or 16
-			healthBar.text:SetFont(addon.variables.defaultFont, fs, "OUTLINE")
-		end
+	if healthBar and healthBar.text then
+		local hCfg = getBarSettings("HEALTH")
+		local fs = hCfg and hCfg.fontSize or 16
+		healthBar.text:SetFont(addon.variables.defaultFont, fs, "OUTLINE")
+	end
 
 	for pType, bar in pairs(powerbar) do
-			if bar and bar.text then
-				local cfg = getBarSettings(pType)
-				local fs = cfg and cfg.fontSize or 16
-				bar.text:SetFont(addon.variables.defaultFont, fs, "OUTLINE")
-			end
+		if bar and bar.text then
+			local cfg = getBarSettings(pType)
+			local fs = cfg and cfg.fontSize or 16
+			bar.text:SetFont(addon.variables.defaultFont, fs, "OUTLINE")
+		end
 	end
 	updateHealthBar("UNIT_ABSORB_AMOUNT_CHANGED")
 	if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
 	-- Ensure RUNES animation stops when not visible/enabled
-	local runesEnabled = specCfg and specCfg.RUNES and (specCfg.RUNES.enabled == true)
+	local rcfg = getBarSettings("RUNES")
+	local runesEnabled = rcfg and (rcfg.enabled == true)
 	if powerbar and powerbar.RUNES and (not powerbar.RUNES:IsShown() or not runesEnabled) then
 		powerbar.RUNES:SetScript("OnUpdate", nil)
 		powerbar.RUNES._runesAnimating = false
