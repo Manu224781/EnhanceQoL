@@ -636,15 +636,16 @@ end
 
 local function updateHealthBar()
 	if healthBar and healthBar:IsVisible() then
-		local maxHealth = UnitHealthMax("player")
+		local maxHealth = healthBar._lastMax
+		if not maxHealth then
+			maxHealth = UnitHealthMax("player")
+			healthBar._lastMax = maxHealth
+			healthBar:SetMinMaxValues(0, maxHealth)
+		end
 		local curHealth = UnitHealth("player")
 		local absorb = UnitGetTotalAbsorbs("player") or 0
 
 		-- Only push values to the bar if changed
-		if healthBar._lastMax ~= maxHealth then
-			healthBar:SetMinMaxValues(0, maxHealth)
-			healthBar._lastMax = maxHealth
-		end
 		if healthBar._lastVal ~= curHealth then
 			healthBar:SetValue(curHealth)
 			healthBar._lastVal = curHealth
@@ -1096,8 +1097,14 @@ function updatePowerBar(type, runeSlot)
 			if bar.text then bar.text:SetText("") end
 			return
 		end
+		local bar = powerbar[type]
 		local pType = powerTypeEnums[type:gsub("_", "")]
-		local maxPower = UnitPowerMax("player", pType)
+		local maxPower = bar._lastMax
+		if not maxPower then
+			maxPower = UnitPowerMax("player", pType)
+			bar._lastMax = maxPower
+			bar:SetMinMaxValues(0, maxPower)
+		end
 		local curPower = UnitPower("player", pType)
 
 		local settings = getBarSettings(type)
@@ -1111,11 +1118,6 @@ function updatePowerBar(type, runeSlot)
 			end
 		end
 
-		local bar = powerbar[type]
-		if bar._lastMax ~= maxPower then
-			bar:SetMinMaxValues(0, maxPower)
-			bar._lastMax = maxPower
-		end
 		if bar._lastVal ~= curPower then
 			bar:SetValue(curPower)
 			bar._lastVal = curPower
@@ -1579,12 +1581,24 @@ local function eventHandler(self, event, unit, arg1)
 			if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
 		end)
 	elseif (event == "UNIT_MAXHEALTH" or event == "UNIT_HEALTH" or event == "UNIT_ABSORB_AMOUNT_CHANGED") and healthBar and healthBar:IsShown() then
+		if event == "UNIT_MAXHEALTH" then
+			local max = UnitHealthMax("player")
+			healthBar._lastMax = max
+			healthBar:SetMinMaxValues(0, max)
+		end
 		updateHealthBar()
 	elseif event == "UNIT_POWER_UPDATE" and powerbar[arg1] and powerbar[arg1]:IsShown() and not powerfrequent[arg1] then
 		updatePowerBar(arg1)
 	elseif event == "UNIT_POWER_FREQUENT" and powerbar[arg1] and powerbar[arg1]:IsShown() and powerfrequent[arg1] then
 		updatePowerBar(arg1)
 	elseif event == "UNIT_MAXPOWER" and powerbar[arg1] and powerbar[arg1]:IsShown() then
+		local enum = powerTypeEnums[arg1:gsub("_", "")]
+		local bar = powerbar[arg1]
+		if enum and bar then
+			local max = UnitPowerMax("player", enum)
+			bar._lastMax = max
+			bar:SetMinMaxValues(0, max)
+		end
 		updatePowerBar(arg1)
 		updateBarSeparators(arg1)
 	elseif event == "RUNE_POWER_UPDATE" then
