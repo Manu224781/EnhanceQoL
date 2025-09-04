@@ -18,6 +18,9 @@ addon.functions.InitDBValue("TooltipMythicScoreRequireModifier", false)
 addon.functions.InitDBValue("TooltipMythicScoreModifier", "SHIFT")
 addon.functions.InitDBValue("TooltipShowClassColor", false)
 addon.functions.InitDBValue("TooltipShowNPCID", false)
+-- Unit inspect extras
+addon.functions.InitDBValue("TooltipUnitShowSpec", false)
+addon.functions.InitDBValue("TooltipUnitShowItemLevel", false)
 addon.functions.InitDBValue("TooltipUnitHideRightClickInstruction", false)
 
 -- Spell

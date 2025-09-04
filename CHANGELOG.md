@@ -1,15 +1,26 @@
 # Changelog
 
-## [4.9.0] – 2025-09-05
+## [4.11.0] – 2025-09-05
 
 ### ✨ Added
 
-- **Mouse**: Option to Show ring and Trail only in combat
-- **Mouse**: Option to set the ring/trail color to the class color
-- **Tooltip:** Option to hide "Right click for Frame..." on Unit Frames
-- **MythicPlus**: Option to Hide mythic rating until a modifier (shift/alt/ctrl) is pressed
+- **Tooltip · Unit:** Optional item level and specialization lines.
+  - Loads via Inspect on first hover (outside combat), then cached briefly.
+  - Updates the currently shown tooltip immediately when data arrives.
+- **Tooltip · Unit:** Toggle to hide the “Right‑click for options” instruction line.
+- **Tooltip · Mythic+ rating:** Optional modifier requirement (Shift/Alt/Ctrl) before showing the rating.
+- **Mouse:** Independent “only show in combat” toggles for Ring and Trail.
+- **Mouse:** Optional class‑color tint for Ring and Trail (disables the color picker while active).
+
+### 🔄 Changed
+
+- **Tooltip · Inspect performance:** Fully opt‑in. INSPECT_READY is only registered while the new Unit options (item level/spec) are enabled; no background overhead otherwise.
+- **Mouse:** Ring and Trail logic decoupled. Ring visibility no longer suppresses the Trail update path.
 
 ### 🐛 Fixed
+
+- **Mouse:** Trail could stop updating when “Show ring only in combat” was enabled. Trail now runs independently.
+- **DataPanel – Friends:** Cross‑realm display sanitized (no repeated realm suffixes like “-Antonidas-Antonidas”).
 
 ## [4.10.1] – 2025-09-03
 
