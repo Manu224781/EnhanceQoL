@@ -17,16 +17,26 @@ local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_MythicPlus")
 local MPlus = {}
 MPlus.active = false
 MPlus.weights = {} -- [npcId] = forcesCount (or weight)
-MPlus.inPullGUID = {} -- set: [guid] = true
+MPlus.inPullGUID = {} -- map: [guid] = npcId (or true before cache fill)
 MPlus.inPullByNPC = {} -- [npcId] = { guids = set, _count = int }
 MPlus.pullForces = 0 -- absolute forces for current pull
 MPlus.maxForces = 0 -- from MDT objective cap
 MPlus.uiThrottle = 0
+MPlus._weightsReady = false
+MPlus._nextWeightsAttemptTime = 0
 addon.MPlusData = MPlus
 
 -- forward declarations for locals referenced earlier
 local EnsureUILabel
 local UpdateUILabel
+local RecomputePullForces
+
+-- Localize frequently used globals for hot paths
+local CombatLogGetCurrentEventInfo = CombatLogGetCurrentEventInfo
+local tonumber = tonumber
+local strsplit = strsplit
+local GetTime = GetTime
+local max = math.max
 
 local function NPCIDFromGUID(guid)
 	-- guid: Creature-0-*-*-*-<npcId>-*
@@ -45,6 +55,7 @@ local function BuildWeightsFromMDT()
 	isTeeming = okIsTeeming and isTeeming or false
 
 	local sData = C_ScenarioInfo.GetScenarioStepInfo()
+	if not sData or not sData.numCriteria then return end
 
 	for criteriaIndex = 1, sData.numCriteria do
 		local criteriaInfo = C_ScenarioInfo.GetCriteriaInfo(criteriaIndex)
@@ -61,7 +72,9 @@ local function BuildWeightsFromMDT()
 				if entry.id and entry.count then MPlus.weights[entry.id] = entry.count * 100 / MPlus.maxForces end
 			end
 		end
-		if UpdateUILabel then UpdateUILabel() end
+		-- mark weights as ready and recompute current pull once
+		MPlus._weightsReady = next(MPlus.weights) ~= nil
+		RecomputePullForces()
 	end
 end
 
@@ -72,7 +85,8 @@ local function ResetPull()
 	if UpdateUILabel then UpdateUILabel() end
 end
 
-local function RecomputePullForces()
+-- Full recompute: used when weights change
+function RecomputePullForces()
 	local sum = 0
 	for npcId, data in pairs(MPlus.inPullByNPC) do
 		local perMob = MPlus.weights[npcId]
@@ -89,7 +103,8 @@ local function AddGUIDToPull(guid)
 	local perMob = MPlus.weights[npcId]
 	if not perMob then return end -- ignorieren (kein Forces-Eintrag, Minion o.ä.)
 
-	MPlus.inPullGUID[guid] = true
+	-- cache npcId per GUID to avoid reparsing on remove
+	MPlus.inPullGUID[guid] = npcId
 	local b = MPlus.inPullByNPC[npcId]
 	if not b then
 		b = { guids = {}, _count = 0 }
@@ -97,20 +112,27 @@ local function AddGUIDToPull(guid)
 	end
 	b.guids[guid] = true
 	b._count = b._count + 1
-	RecomputePullForces()
+	-- Incremental update
+	MPlus.pullForces = MPlus.pullForces + perMob
+	if UpdateUILabel then UpdateUILabel() end
 end
 
 local function RemoveGUIDFromPull(guid)
-	if not MPlus.inPullGUID[guid] then return end
-	MPlus.inPullGUID[guid] = nil
-	local npcId = NPCIDFromGUID(guid)
+	local cachedNpc = MPlus.inPullGUID[guid]
+	if not cachedNpc then return end
+	local npcId = type(cachedNpc) == "number" and cachedNpc or NPCIDFromGUID(guid)
 	local b = npcId and MPlus.inPullByNPC[npcId]
 	if b and b.guids[guid] then
 		b.guids[guid] = nil
-		b._count = math.max(0, (b._count or 1) - 1)
+		b._count = max(0, (b._count or 1) - 1)
 		if b._count == 0 then MPlus.inPullByNPC[npcId] = nil end
-		RecomputePullForces()
+		-- Decremental update
+		local perMob = MPlus.weights[npcId]
+		if perMob then MPlus.pullForces = max(0, MPlus.pullForces - perMob) end
+		if UpdateUILabel then UpdateUILabel() end
 	end
+	-- remove cache entry after using it
+	MPlus.inPullGUID[guid] = nil
 end
 
 -- Prozent (optional)
@@ -141,6 +163,10 @@ function UpdateUILabel()
 		if MPlus.uiFrame then MPlus.uiFrame:Hide() end
 		return
 	end
+	-- Throttle UI updates (max ~10/s)
+	local now = GetTime()
+	if now < (MPlus.uiThrottle or 0) then return end
+	MPlus.uiThrottle = now + 0.1
 	EnsureUILabel()
 	if not MPlus.uiFrame then return end
 
@@ -179,10 +205,8 @@ local function isHostileNPC(flags) return band(flags or 0, MASK_HOSTILE) ~= 0 an
 
 local allowedSub = {
 	SWING_DAMAGE = true,
-	SWING_MISSED = true,
 	RANGE_DAMAGE = true,
 	SPELL_DAMAGE = true,
-	SPELL_MISSED = true,
 	SPELL_PERIODIC_DAMAGE = true,
 	SPELL_CAST_START = true,
 	SPELL_CAST_SUCCESS = true,
@@ -214,6 +238,8 @@ local function ActivateRun()
 	if MPlus.active then return end
 	MPlus.active = true
 	ResetPull()
+	MPlus._weightsReady = false
+	MPlus._nextWeightsAttemptTime = 0
 	BuildWeightsFromMDT()
 	SetCombatLogActive(true)
 	UpdateUILabel()
@@ -224,6 +250,7 @@ local function DeactivateRun()
 	MPlus.active = false
 	ResetPull()
 	SetCombatLogActive(false)
+	MPlus._weightsReady = false
 	UpdateUILabel()
 end
 
@@ -287,14 +314,20 @@ f:SetScript("OnEvent", function(_, ev, arg1)
 
     if ev == "COMBAT_LOG_EVENT_UNFILTERED" then
 		if not MDT or not MPlus.active then return end
-		-- Late MDT init guard: try once more to build weights when first combat events arrive
-		if (MPlus.maxForces or 0) == 0 or (next(MPlus.weights) == nil) then BuildWeightsFromMDT() end
+		-- Late MDT init guard: try again with backoff if weights not ready
+		if not MPlus._weightsReady then
+			local now = GetTime()
+			if now >= (MPlus._nextWeightsAttemptTime or 0) then
+				BuildWeightsFromMDT()
+				MPlus._nextWeightsAttemptTime = now + 0.75
+			end
+		end
 		local _, sub, _, srcGUID, _, srcFlags, _, dstGUID, _, dstFlags = CombatLogGetCurrentEventInfo()
 		if not allowedSub[sub] then return end
 
 		-- Source
 		if srcGUID and not MPlus.inPullGUID[srcGUID] and isHostileNPC(srcFlags) then
-			print("Added", "source")
+			if addon and addon.debug then print("Added", "source") end
 			AddGUIDToPull(srcGUID)
 		end
 		-- Destination
