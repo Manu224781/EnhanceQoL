@@ -26,6 +26,7 @@
 - **Mouse:** Trail could stop updating when “Show ring only in combat” was enabled. Trail now runs independently.
 - **DataPanel – Friends:** Cross‑realm display sanitized (no repeated realm suffixes like “-Antonidas-Antonidas”).
 - **Dungeon Portal:** Division-by-zero when no teleports were available under certain filters.
+- **Mythic+ – Talent Reminder:** Skip loadout entries missing a `text` field to avoid errors.
 
 ---
 
