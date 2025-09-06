@@ -161,11 +161,26 @@ local function getFriends(stream)
                     totalUnique = totalUnique + 1
                     local classNameLocalized = ga.className
                     local classDisp, color = classDisplayAndColor(classNameLocalized)
+                    -- BNet presence / status details
+                    local bnName = info and (info.accountName or (info.battleTag and info.battleTag:match("^[^#]+"))) or nil
+                    -- Prefer game-specific AFK/DND, fall back to account level
+                    local isAFK = (ga.isGameAFK == true) or (info and info.isAFK == true)
+                    local isDND = (ga.isGameBusy == true) or (info and info.isDND == true)
+                    local status
+                    if isDND then
+                        status = "DND"
+                    elseif isAFK then
+                        status = "AFK"
+                    end
                     table.insert(tooltipData.bnet, {
                         name = displayName(ga.characterName, ga.realmName),
                         level = ga.characterLevel,
                         class = classDisp,
                         color = color,
+                        bnName = bnName,
+                        status = status,
+                        client = ga.clientProgram,
+                        presence = ga.richPresence or ga.gameText,
                     })
                 end
             end
@@ -188,6 +203,9 @@ local function getFriends(stream)
                     level = friendInfo.level,
                     class = classDisp,
                     color = color,
+                    status = (friendInfo.dnd and "DND") or (friendInfo.afk and "AFK") or nil,
+                    presence = friendInfo.area,
+                    note = friendInfo.notes,
                 })
             end
         end
@@ -225,6 +243,117 @@ local function getFriends(stream)
 
     stream.snapshot.fontSize = db and db.fontSize or 13
     stream.snapshot.text = totalUnique .. " " .. FRIENDS
+
+    -- If our extended window is open, refresh its content
+    if listWindow and listWindow.frame and listWindow.frame:IsShown() then
+        populateListWindow()
+    end
+end
+
+-- Expanded list window ------------------------------------------------------
+local listWindow -- AceGUI window
+local function ensureListWindow()
+    if listWindow and listWindow.frame and listWindow.frame:IsShown() then return listWindow end
+    local frame = AceGUI:Create("Window")
+    listWindow = frame
+    frame:SetTitle(FRIENDS)
+    frame:SetWidth(720)
+    frame:SetHeight(520)
+    frame:SetLayout("Fill")
+
+    local scroll = AceGUI:Create("ScrollFrame")
+    scroll:SetLayout("Flow")
+    frame:AddChild(scroll)
+
+    frame._scroll = scroll
+    return frame
+end
+
+local function colorizedName(name, color)
+    if not color then return name end
+    local r, g, b = color.r or 1, color.g or 1, color.b or 1
+    return string.format("|cff%02x%02x%02x%s|r", r * 255, g * 255, b * 255, name)
+end
+
+local function addHeader(scroll, title)
+    local header = AceGUI:Create("Label")
+    header:SetFullWidth(true)
+    header:SetText("|cffffd100" .. title .. "|r")
+    header:SetFont(addon.variables and addon.variables.defaultFont or GameFontNormal:GetFont(), 14, "OUTLINE")
+    scroll:AddChild(header)
+end
+
+local function addRow(scroll, cols)
+    -- cols: array of { text=..., width=relativeWidth }
+    local row = AceGUI:Create("SimpleGroup")
+    row:SetFullWidth(true)
+    row:SetLayout("Flow")
+    for i, col in ipairs(cols) do
+        local lbl = AceGUI:Create("Label")
+        lbl:SetRelativeWidth(col.width or (1 / #cols))
+        lbl:SetText(col.text or "")
+        scroll:AddChild(lbl)
+    end
+end
+
+local function populateListWindow()
+    if not (listWindow and listWindow._scroll) then return end
+    local scroll = listWindow._scroll
+    scroll:ReleaseChildren()
+
+    -- Header row
+    local headerRow = AceGUI:Create("SimpleGroup")
+    headerRow:SetFullWidth(true)
+    headerRow:SetLayout("Flow")
+    local function headerLabel(text, width)
+        local lbl = AceGUI:Create("Label")
+        lbl:SetText("|cffcccccc" .. text .. "|r")
+        lbl:SetRelativeWidth(width)
+        headerRow:AddChild(lbl)
+    end
+    headerLabel(NAME, 0.30)
+    headerLabel("Client", 0.12)
+    headerLabel(PRESENCE or L["Presence"] or "Presence", 0.38)
+    headerLabel(NOTES_LABEL or "Note", 0.20)
+    scroll:AddChild(headerRow)
+
+    -- Battle.net section
+    addHeader(scroll, BATTLENET_OPTIONS_LABEL or "Battle.net")
+    for _, v in ipairs(tooltipData.bnet) do
+        local bnSuffix = v.bnName and (" |cff80bfff(" .. v.bnName .. ")|r") or ""
+        local status = v.status == "DND" and " |cffff5050[DND]|r" or (v.status == "AFK" and " |cffffb84d[AFK]|r" or "")
+        local nameText = colorizedName(v.name, v.color) .. bnSuffix .. status
+        addRow(scroll, {
+            { text = nameText, width = 0.30 },
+            { text = v.client or "WoW", width = 0.12 },
+            { text = v.presence or "", width = 0.38 },
+            { text = v.note or "", width = 0.20 },
+        })
+    end
+
+    -- Regular WoW friends (excluding those already shown via BNet)
+    addHeader(scroll, FRIENDS)
+    for _, v in ipairs(tooltipData.friends) do
+        local status = v.status == "DND" and " |cffff5050[DND]|r" or (v.status == "AFK" and " |cffffb84d[AFK]|r" or "")
+        local nameText = colorizedName(v.name, v.color) .. status
+        local presence = v.presence or ((v.class and v.level) and (v.class .. " (" .. tostring(v.level) .. ")") or "")
+        addRow(scroll, {
+            { text = nameText, width = 0.30 },
+            { text = "WoW", width = 0.12 },
+            { text = presence, width = 0.38 },
+            { text = v.note or "", width = 0.20 },
+        })
+    end
+end
+
+local function toggleListWindow()
+    local frame = ensureListWindow()
+    if frame.frame:IsShown() then
+        frame:Hide()
+    else
+        frame:Show()
+        populateListWindow()
+    end
 end
 
 local provider = {
@@ -232,15 +361,20 @@ local provider = {
 	version = 1,
 	title = FRIENDS,
 	update = getFriends,
-	events = {
-		PLAYER_LOGIN = function(stream) addon.DataHub:RequestUpdate(stream) end,
-		BN_FRIEND_ACCOUNT_ONLINE = function(stream) addon.DataHub:RequestUpdate(stream) end,
-		BN_FRIEND_ACCOUNT_OFFLINE = function(stream) addon.DataHub:RequestUpdate(stream) end,
-		FRIENDLIST_UPDATE = function(stream) addon.DataHub:RequestUpdate(stream) end,
-	},
-	OnClick = function(_, btn)
-		if btn == "RightButton" then createAceWindow() end
-	end,
+    events = {
+        PLAYER_LOGIN = function(stream) addon.DataHub:RequestUpdate(stream) end,
+        BN_FRIEND_ACCOUNT_ONLINE = function(stream) addon.DataHub:RequestUpdate(stream) end,
+        BN_FRIEND_ACCOUNT_OFFLINE = function(stream) addon.DataHub:RequestUpdate(stream) end,
+        BN_FRIEND_INFO_CHANGED = function(stream) addon.DataHub:RequestUpdate(stream) end,
+        FRIENDLIST_UPDATE = function(stream) addon.DataHub:RequestUpdate(stream) end,
+    },
+    OnClick = function(_, btn)
+        if btn == "RightButton" then
+            createAceWindow()
+        else
+            toggleListWindow()
+        end
+    end,
     OnMouseEnter = function(btn)
         local tip = GameTooltip
         tip:ClearLines()
@@ -253,10 +387,21 @@ local provider = {
             for _, v in ipairs(items) do
                 local right = v.level or ""
                 if v.class and v.level then right = string.format("%s (%s)", v.class, v.level) end
+                -- Append BN name and status for BNet entries; presence for others
+                local left = v.name
+                if v.bnName then left = string.format("%s |cff80bfff(%s)|r", left, v.bnName) end
+                if v.status == "DND" then
+                    left = left .. " |cffff5050[DND]|r"
+                elseif v.status == "AFK" then
+                    left = left .. " |cffffb84d[AFK]|r"
+                end
+                if (not v.bnName) and v.presence then
+                    right = v.presence
+                end
                 if v.color then
-                    tip:AddDoubleLine(v.name, right, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, v.color.r, v.color.g, v.color.b)
+                    tip:AddDoubleLine(left, right, NORMAL_FONT_COLOR.r, NORMAL_FONT_COLOR.g, NORMAL_FONT_COLOR.b, v.color.r, v.color.g, v.color.b)
                 else
-                    tip:AddDoubleLine(v.name, right)
+                    tip:AddDoubleLine(left, right)
                 end
             end
             tip:AddLine(" ")
@@ -286,5 +431,10 @@ local provider = {
 }
 
 stream = EnhanceQoL.DataHub.RegisterStream(provider)
+
+-- If the list window is open during updates, refresh its contents
+hooksecurefunc(addon.DataHub, "RequestUpdate", function(_)
+    if listWindow and listWindow.frame and listWindow.frame:IsShown() then populateListWindow() end
+end)
 
 return provider
