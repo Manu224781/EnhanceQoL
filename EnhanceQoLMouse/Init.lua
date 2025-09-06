@@ -15,3 +15,8 @@ addon.functions.InitDBValue("mouseTrailEnabled", false)
 addon.functions.InitDBValue("mouseTrailDensity", 1)
 addon.functions.InitDBValue("mouseRingSize", 70)
 addon.functions.InitDBValue("mouseRingHideDot", false)
+-- New options
+addon.functions.InitDBValue("mouseRingOnlyInCombat", false)
+addon.functions.InitDBValue("mouseTrailOnlyInCombat", false)
+addon.functions.InitDBValue("mouseRingUseClassColor", false)
+addon.functions.InitDBValue("mouseTrailUseClassColor", false)

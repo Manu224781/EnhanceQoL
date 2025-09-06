@@ -129,22 +129,28 @@ local function UpdateMouseTrail(delta, cursorX, cursorY, effectiveScale)
 	local distanceSq = dx * dx + dy * dy
 
 	-- Neues Trail-Element anlegen?
-	if timeAccumulator >= Density and distanceSq >= MaxActuationPointSq then
-		timeAccumulator = 0
+    if timeAccumulator >= Density and distanceSq >= MaxActuationPointSq then
+        timeAccumulator = 0
 
-		if activeCount < ElementCap and #trailPool > 0 then
-			local element = trailPool[#trailPool]
-			trailPool[#trailPool] = nil
-			activeCount = activeCount + 1
+        if activeCount < ElementCap and #trailPool > 0 then
+            local element = trailPool[#trailPool]
+            trailPool[#trailPool] = nil
+            activeCount = activeCount + 1
 
 			element:SetPoint("CENTER", UIParent, "BOTTOMLEFT", PresentCursorX / effectiveScale, PresentCursorY / effectiveScale)
 
-			local color = addon.db["mouseTrailColor"]
-			if color then
-				element:SetVertexColor(color.r, color.g, color.b, color.a or 1)
-			else
-				element:SetVertexColor(1, 1, 1, 1)
-			end
+            local function getTrailColor()
+                if addon.db["mouseTrailUseClassColor"] then
+                    local _, class = UnitClass("player")
+                    local r, g, b = GetClassColor(class)
+                    return r or 1, g or 1, b or 1, 1
+                end
+                local c = addon.db["mouseTrailColor"]
+                if c then return c.r, c.g, c.b, c.a or 1 end
+                return 1, 1, 1, 1
+            end
+            local r, g, b, a = getTrailColor()
+            element:SetVertexColor(r, g, b, a)
 
 			element:SetSize(35, 35)
 			element.fade:SetDuration(duration)
@@ -161,26 +167,31 @@ local function createMouseRing()
 		imageFrame:SetBackdropColor(0, 0, 0, 0)
 		imageFrame:SetFrameStrata("TOOLTIP")
 
-		imageFrame:SetScript("OnUpdate", function(self, delta)
-			local x, y = GetCursorPosition()
-			local scale = UIParent:GetEffectiveScale()
-			self:ClearAllPoints()
-			self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
+        imageFrame:SetScript("OnUpdate", function(self, delta)
+            local x, y = GetCursorPosition()
+            local scale = UIParent:GetEffectiveScale()
+            self:ClearAllPoints()
+            self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / scale, y / scale)
 
-			if addon.db["mouseTrailEnabled"] then UpdateMouseTrail(delta, x, y, scale) end
-		end)
+            -- Ring update only handles its own position. Trail is updated by a dedicated runner.
+        end)
 
 		local texture1 = imageFrame:CreateTexture(nil, "BACKGROUND")
 		texture1:SetTexture(TEX_MOUSE)
 		texture1:SetSize(addon.db["mouseRingSize"], addon.db["mouseRingSize"])
 		texture1:SetPoint("CENTER", imageFrame, "CENTER", 0, 0)
-		local color = addon.db["mouseRingColor"]
-		if color then
-			texture1:SetVertexColor(color.r, color.g, color.b, color.a or 1)
-		else
-			-- Wenn der Nutzer keine Custom-Farbe eingestellt hat, nutze deine Standardfarbe
-			texture1:SetVertexColor(1, 1, 1, 1)
-		end
+        local function getRingColor()
+            if addon.db["mouseRingUseClassColor"] then
+                local _, class = UnitClass("player")
+                local r, g, b = GetClassColor(class)
+                return r or 1, g or 1, b or 1, 1
+            end
+            local c = addon.db["mouseRingColor"]
+            if c then return c.r, c.g, c.b, c.a or 1 end
+            return 1, 1, 1, 1
+        end
+        local rr, rg, rb, ra = getRingColor()
+        texture1:SetVertexColor(rr, rg, rb, ra)
 
 		local texture2
 		if not addon.db["mouseRingHideDot"] then
@@ -190,11 +201,11 @@ local function createMouseRing()
 			texture2:SetPoint("CENTER", imageFrame, "CENTER", 0, 0)
 		end
 
-		imageFrame:Show()
-		addon.mousePointer = imageFrame
-		addon.mousePointer.texture1 = texture1
-		addon.mousePointer.dot = texture2
-	end
+        imageFrame:Show()
+        addon.mousePointer = imageFrame
+        addon.mousePointer.texture1 = texture1
+        addon.mousePointer.dot = texture2
+    end
 end
 
 local function removeMouseRing()
@@ -212,42 +223,76 @@ local function addGeneralFrame(container)
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
 	wrapper:AddChild(groupCore)
 
-	local data = {
-		{
-			text = L["mouseRingEnabled"],
-			var = "mouseRingEnabled",
-			func = function(self, _, value)
-				addon.db["mouseRingEnabled"] = value
-				if value then
-					createMouseRing()
-				else
-					removeMouseRing()
-				end
-				container:ReleaseChildren()
-				addGeneralFrame(container)
-			end,
-		},
-		{
-			text = L["mouseRingHideDot"],
-			var = "mouseRingHideDot",
-			func = function(self, _, value)
-				addon.db["mouseRingHideDot"] = value
-				if addon.mousePointer and addon.mousePointer.dot then
-					if value then
-						addon.mousePointer.dot:Hide()
-					else
-						addon.mousePointer.dot:Show()
-					end
-				elseif addon.mousePointer and not value then
-					local dot = addon.mousePointer:CreateTexture(nil, "BACKGROUND")
-					dot:SetTexture(TEX_DOT)
-					dot:SetSize(10, 10)
-					dot:SetPoint("CENTER", addon.mousePointer, "CENTER", 0, 0)
-					addon.mousePointer.dot = dot
-				end
-			end,
-		},
-	}
+    local data = {
+        {
+            text = L["mouseRingEnabled"],
+            var = "mouseRingEnabled",
+            func = function(self, _, value)
+                addon.db["mouseRingEnabled"] = value
+                if value then
+                    createMouseRing()
+                else
+                    removeMouseRing()
+                end
+                container:ReleaseChildren()
+                addGeneralFrame(container)
+            end,
+        },
+        {
+            text = L["mouseRingHideDot"],
+            var = "mouseRingHideDot",
+            func = function(self, _, value)
+                addon.db["mouseRingHideDot"] = value
+                if addon.mousePointer and addon.mousePointer.dot then
+                    if value then
+                        addon.mousePointer.dot:Hide()
+                    else
+                        addon.mousePointer.dot:Show()
+                    end
+                elseif addon.mousePointer and not value then
+                    local dot = addon.mousePointer:CreateTexture(nil, "BACKGROUND")
+                    dot:SetTexture(TEX_DOT)
+                    dot:SetSize(10, 10)
+                    dot:SetPoint("CENTER", addon.mousePointer, "CENTER", 0, 0)
+                    addon.mousePointer.dot = dot
+                end
+            end,
+        },
+        {
+            text = L["mouseRingOnlyInCombat"],
+            var = "mouseRingOnlyInCombat",
+            func = function(self, _, value)
+                addon.db["mouseRingOnlyInCombat"] = value
+                -- Update visibility immediately
+                if addon.mousePointer then
+                    if value and not UnitAffectingCombat("player") then
+                        addon.mousePointer:Hide()
+                    elseif addon.db["mouseRingEnabled"] then
+                        addon.mousePointer:Show()
+                    end
+                end
+            end,
+        },
+        {
+            text = L["mouseRingUseClassColor"],
+            var = "mouseRingUseClassColor",
+            func = function(self, _, value)
+                addon.db["mouseRingUseClassColor"] = value
+                if addon.mousePointer and addon.mousePointer.texture1 then
+                    local _, class = UnitClass("player")
+                    if value then
+                        local r, g, b = GetClassColor(class)
+                        addon.mousePointer.texture1:SetVertexColor(r or 1, g or 1, b or 1, 1)
+                    else
+                        local c = addon.db["mouseRingColor"] or { r = 1, g = 1, b = 1, a = 1 }
+                        addon.mousePointer.texture1:SetVertexColor(c.r, c.g, c.b, c.a or 1)
+                    end
+                end
+                container:ReleaseChildren()
+                addGeneralFrame(container)
+            end,
+        },
+    }
 
 	table.sort(data, function(a, b) return a.text < b.text end)
 
@@ -256,28 +301,30 @@ local function addGeneralFrame(container)
 		groupCore:AddChild(cbElement)
 	end
 
-	if addon.db["mouseRingEnabled"] then
-		groupCore:AddChild(addon.functions.createSpacerAce())
+    if addon.db["mouseRingEnabled"] then
+        groupCore:AddChild(addon.functions.createSpacerAce())
 
 		-- Direkt hinter dem DropDown:
-		local colorPicker = AceGUI:Create("ColorPicker")
-		colorPicker:SetLabel(L["Ring Color"])
-		-- colorPicker:SetHasAlpha(true) -- Falls du Transparenz erlauben willst
-		-- Alte Werte (falls gesetzt) aus dem SavedVariables laden:
-		if addon.db["mouseRingColor"] then
-			local c = addon.db["mouseRingColor"]
-			colorPicker:SetColor(c.r, c.g, c.b, c.a or 1)
-		else
-			-- Falls keine Custom-Farbe gesetzt ist, könntest du z.B. Weiß nehmen
-			colorPicker:SetColor(1, 1, 1, 1)
-		end
+        local colorPicker = AceGUI:Create("ColorPicker")
+        colorPicker:SetLabel(L["Ring Color"])
+        -- colorPicker:SetHasAlpha(true) -- Falls du Transparenz erlauben willst
+        -- Alte Werte (falls gesetzt) aus dem SavedVariables laden:
+        if addon.db["mouseRingColor"] then
+            local c = addon.db["mouseRingColor"]
+            colorPicker:SetColor(c.r, c.g, c.b, c.a or 1)
+        else
+            -- Falls keine Custom-Farbe gesetzt ist, könntest du z.B. Weiß nehmen
+            colorPicker:SetColor(1, 1, 1, 1)
+        end
 
-		colorPicker:SetCallback("OnValueChanged", function(widget, event, r, g, b, a)
-			addon.db["mouseRingColor"] = { r = r, g = g, b = b, a = a }
-			if addon.mousePointer and addon.mousePointer.texture1 then addon.mousePointer.texture1:SetVertexColor(r, g, b, a) end
-		end)
+        colorPicker:SetCallback("OnValueChanged", function(widget, event, r, g, b, a)
+            addon.db["mouseRingColor"] = { r = r, g = g, b = b, a = a }
+            if addon.mousePointer and addon.mousePointer.texture1 then addon.mousePointer.texture1:SetVertexColor(r, g, b, a) end
+        end)
 
-		groupCore:AddChild(colorPicker)
+        if colorPicker.SetDisabled then colorPicker:SetDisabled(addon.db["mouseRingUseClassColor"]) end
+
+        groupCore:AddChild(colorPicker)
 
 		local sliderRingSize = addon.functions.createSliderAce(L["mouseRingSize"] .. ": " .. addon.db["mouseRingSize"], addon.db["mouseRingSize"], 20, 200, 1, function(self, _, value2)
 			addon.db["mouseRingSize"] = value2
@@ -290,18 +337,24 @@ local function addGeneralFrame(container)
 		groupTrail:SetTitle(L["Trailinfo"])
 		wrapper:AddChild(groupTrail)
 
-		local cbElement = addon.functions.createCheckboxAce(L["mouseTrailEnabled"], addon.db["mouseTrailEnabled"], function(self, _, value)
-			addon.db["mouseTrailEnabled"] = value
-			container:ReleaseChildren()
-			addGeneralFrame(container)
-		end)
-		groupTrail:AddChild(cbElement)
+        local cbElement = addon.functions.createCheckboxAce(L["mouseTrailEnabled"], addon.db["mouseTrailEnabled"], function(self, _, value)
+            addon.db["mouseTrailEnabled"] = value
+            container:ReleaseChildren()
+            addGeneralFrame(container)
+        end)
+        groupTrail:AddChild(cbElement)
 
-		if addon.db["mouseTrailEnabled"] then
-			local list, order = addon.functions.prepareListForDropdown(
-				{ [1] = VIDEO_OPTIONS_LOW, [2] = VIDEO_OPTIONS_MEDIUM, [3] = VIDEO_OPTIONS_HIGH, [4] = VIDEO_OPTIONS_ULTRA, [5] = VIDEO_OPTIONS_ULTRA_HIGH },
-				true
-			)
+        if addon.db["mouseTrailEnabled"] then
+            -- Only in combat toggle for trail
+            local cbOnlyCombat = addon.functions.createCheckboxAce(L["mouseTrailOnlyInCombat"], addon.db["mouseTrailOnlyInCombat"], function(self, _, value)
+                addon.db["mouseTrailOnlyInCombat"] = value
+            end)
+            groupTrail:AddChild(cbOnlyCombat)
+
+            local list, order = addon.functions.prepareListForDropdown(
+                { [1] = VIDEO_OPTIONS_LOW, [2] = VIDEO_OPTIONS_MEDIUM, [3] = VIDEO_OPTIONS_HIGH, [4] = VIDEO_OPTIONS_ULTRA, [5] = VIDEO_OPTIONS_ULTRA_HIGH },
+                true
+            )
 
 			local dropPullTimerType = addon.functions.createDropdownAce(L["mouseTrailDensity"], list, order, function(self, _, value)
 				addon.db["mouseTrailDensity"] = value
@@ -312,12 +365,12 @@ local function addGeneralFrame(container)
 			dropPullTimerType:SetWidth(200)
 			groupTrail:AddChild(dropPullTimerType)
 
-			groupTrail:AddChild(addon.functions.createSpacerAce())
+            groupTrail:AddChild(addon.functions.createSpacerAce())
 
 			-- Direkt hinter dem DropDown:
-			local colorPicker = AceGUI:Create("ColorPicker")
-			colorPicker:SetLabel(L["Trail Color"])
-			colorPicker:SetHasAlpha(true) -- Falls du Transparenz erlauben willst
+            local colorPicker = AceGUI:Create("ColorPicker")
+            colorPicker:SetLabel(L["Trail Color"])
+            colorPicker:SetHasAlpha(true) -- Falls du Transparenz erlauben willst
 			-- Alte Werte (falls gesetzt) aus dem SavedVariables laden:
 			if addon.db["mouseTrailColor"] then
 				local c = addon.db["mouseTrailColor"]
@@ -327,11 +380,20 @@ local function addGeneralFrame(container)
 				colorPicker:SetColor(1, 1, 1, 1)
 			end
 
-			colorPicker:SetCallback("OnValueChanged", function(widget, event, r, g, b, a) addon.db["mouseTrailColor"] = { r = r, g = g, b = b, a = a } end)
+            colorPicker:SetCallback("OnValueChanged", function(widget, event, r, g, b, a) addon.db["mouseTrailColor"] = { r = r, g = g, b = b, a = a } end)
+            if colorPicker.SetDisabled then colorPicker:SetDisabled(addon.db["mouseTrailUseClassColor"]) end
 
-			groupTrail:AddChild(colorPicker)
-		end
-	end
+            groupTrail:AddChild(colorPicker)
+
+            -- Use class color for trail
+            local cbUseClass = addon.functions.createCheckboxAce(L["mouseTrailUseClassColor"], addon.db["mouseTrailUseClassColor"], function(self, _, value)
+                addon.db["mouseTrailUseClassColor"] = value
+                container:ReleaseChildren()
+                addGeneralFrame(container)
+            end)
+            groupTrail:AddChild(cbUseClass)
+        end
+    end
 end
 
 addon.variables.statusTable.groups["mouse"] = true
@@ -352,3 +414,36 @@ end
 if addon.db["mouseRingEnabled"] then createMouseRing() end
 
 applyPreset(addon.db["mouseTrailDensity"])
+
+-- Manage visibility of the ring based on combat state
+local eventFrame = CreateFrame("Frame")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED") -- enter combat
+eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED") -- leave combat
+eventFrame:SetScript("OnEvent", function()
+    if not addon.db["mouseRingEnabled"] then return end
+    if addon.db["mouseRingOnlyInCombat"] then
+        if UnitAffectingCombat("player") then
+            if not addon.mousePointer then createMouseRing() end
+            if addon.mousePointer then addon.mousePointer:Show() end
+        else
+            if addon.mousePointer then addon.mousePointer:Hide() end
+        end
+    else
+        if not addon.mousePointer then createMouseRing() end
+        if addon.mousePointer then addon.mousePointer:Show() end
+    end
+end)
+
+-- Dedicated trail update runner (independent from ring visibility)
+if not addon.mouseTrailRunner then
+    local runner = CreateFrame("Frame")
+    runner:SetScript("OnUpdate", function(self, delta)
+        if not addon.db["mouseTrailEnabled"] then return end
+        if addon.db["mouseTrailOnlyInCombat"] and not UnitAffectingCombat("player") then return end
+        local x, y = GetCursorPosition()
+        local scale = UIParent:GetEffectiveScale()
+        UpdateMouseTrail(delta, x, y, scale)
+    end)
+    addon.mouseTrailRunner = runner
+end

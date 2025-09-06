@@ -1,10 +1,41 @@
 # Changelog
 
+## [4.11.0] – 2025-09-05
+
+### ✨ Added
+
+- **Tooltip · Unit:** Optional item level and specialization lines.
+  - Loads via Inspect on first hover (outside combat), then cached briefly.
+  - Updates the currently shown tooltip immediately when data arrives.
+- **Tooltip · Unit:** Toggle to hide the “Right‑click for options” instruction line.
+- **Tooltip · Mythic+ rating:** Optional modifier requirement (Shift/Alt/Ctrl) before showing the rating.
+- **Mouse:** Independent “only show in combat” toggles for Ring and Trail.
+- **Mouse:** Optional class‑color tint for Ring and Trail (disables the color picker while active).
+- **Drink Macro · Health Macro:** New macro that always picks the best available Healthstone/potion, with options to use both in a castsequence, reorder by cooldown outside combat, and support for Demonic Healthstone.
+
+### 🔄 Changed
+
+- **Tooltip · Inspect performance:** Fully opt‑in. INSPECT_READY is only registered while the new Unit options (item level/spec) are enabled; no background overhead otherwise.
+- **Mouse:** Ring and Trail logic decoupled. Ring visibility no longer suppresses the Trail update path.
+- **TOC Update:** Updated TOC for 11.2.5 PTR and fixed some bugs to be compatible with PTR
+
+### 🐛 Fixed
+
+- **Vehicle Exit** was hidden, when ActionBar set to mouseover
+- **Mouse:** Trail could stop updating when “Show ring only in combat” was enabled. Trail now runs independently.
+- **DataPanel – Friends:** Cross‑realm display sanitized (no repeated realm suffixes like “-Antonidas-Antonidas”).
+- **Dungeon Portal:** Division-by-zero when no teleports were available under certain filters.
+- **Mythic+ – Talent Reminder:** Skip loadout entries missing a `text` field to avoid errors.
+
+---
+
 ## [4.10.2] – 2025-09-04
 
 ### 🐛 Fixed
 
 - **Resource Bars** were not visible at all
+
+---
 
 ## [4.10.1] – 2025-09-03
 

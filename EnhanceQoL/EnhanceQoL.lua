@@ -377,6 +377,12 @@ local function UpdateActionBarMouseover(barName, enable, variable)
 
 	local btnPrefix
 	if barName == "MainMenuBar" then
+		-- we have to change the Vehice Leave Button behaviour
+		local leave = _G.MainMenuBarVehicleLeaveButton
+		if leave then
+			leave:SetIgnoreParentAlpha(true)
+			leave:SetAlpha(1)
+		end
 		btnPrefix = "ActionButton"
 	elseif barName == "PetActionBar" then
 		btnPrefix = "PetActionButton"
@@ -779,7 +785,7 @@ local function onInspect(arg1)
 							local double = false
 							if key == 16 then
 								local offhandLink = GetInventoryItemLink(unit, 17)
-								local _, _, _, itemEquipLoc = GetItemInfoInstant(itemLink)
+								local _, _, _, itemEquipLoc = C_Item.GetItemInfoInstant(itemLink)
 								if not offhandLink and twoHandLocs[itemEquipLoc] then double = true end
 							end
 							itemCount = itemCount + (double and 2 or 1)
@@ -850,7 +856,7 @@ local function onInspect(arg1)
 										or (nil ~= addon.variables.shouldEnchantedChecks[key] and addon.variables.shouldEnchantedChecks[key].func(eItem:GetCurrentItemLevel()))
 									then
 										if key == 17 then
-											local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfoInstant(itemLink)
+											local _, _, _, _, _, _, _, _, itemEquipLoc = C_Item.GetItemInfoInstant(itemLink)
 											if addon.variables.allowedEnchantTypesForOffhand[itemEquipLoc] then
 												element.borderGradient:Show()
 												element.enchant:SetFormattedText(("|cff%02x%02x%02x"):format(255, 0, 0) .. L["MissingEnchant"] .. "|r")
@@ -982,7 +988,7 @@ local function setIlvlText(element, slot)
 							or (nil ~= addon.variables.shouldEnchantedChecks[slot] and addon.variables.shouldEnchantedChecks[slot].func(eItem:GetCurrentItemLevel()))
 						then
 							if slot == 17 then
-								local _, _, _, _, _, _, _, _, itemEquipLoc = GetItemInfoInstant(link)
+								local _, _, _, _, _, _, _, _, itemEquipLoc = C_Item.GetItemInfoInstant(link)
 								if addon.variables.allowedEnchantTypesForOffhand[itemEquipLoc] then
 									element.borderGradient:Show()
 									element.enchant:SetFormattedText(("|cff%02x%02x%02x"):format(255, 0, 0) .. L["MissingEnchant"] .. "|r")

@@ -69,7 +69,10 @@ function addon.MythicPlus.functions.getAllLoadouts()
 		if TalentLoadoutEx then
 			if TalentLoadoutEx[addon.variables.unitClass] and TalentLoadoutEx[addon.variables.unitClass][i] then
 				for _, v in pairs(TalentLoadoutEx[addon.variables.unitClass][i]) do
-					addon.MythicPlus.variables.knownLoadout[specID][v.text .. "_" .. v.name] = "TLE: " .. v.name
+					if v.name then
+						local key = v.text and (v.text .. "_" .. v.name) or v.name
+						addon.MythicPlus.variables.knownLoadout[specID][key] = "TLE: " .. v.name
+					end
 				end
 			end
 		end

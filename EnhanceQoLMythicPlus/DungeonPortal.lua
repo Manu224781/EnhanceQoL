@@ -338,15 +338,20 @@ local function CreatePortalButtonsWithCooldown(frame, spells)
 		table.insert(sortedSpells, v)
 	end
 
-	-- Berechne dynamische Anzahl der Buttons
+	-- Berechne dynamische Anzahl der Buttons (robust, falls 0 Einträge)
 	local totalButtons = #sortedSpells
-	local buttonsPerRow = math.ceil(totalButtons / 2)
-	local totalButtonWidth = (buttonSize * buttonsPerRow) + (spacing * (buttonsPerRow - 1))
+	local buttonsPerRow = (totalButtons > 0) and math.ceil(totalButtons / 2) or 1
+	local totalButtonWidth
+	if totalButtons > 0 then
+		totalButtonWidth = (buttonSize * buttonsPerRow) + (spacing * (buttonsPerRow - 1))
+	else
+		totalButtonWidth = 0
+	end
 	local frameWidth = math.max(totalButtonWidth + 40, title:GetStringWidth() + 20, minFrameSize)
-	local initialSpacing = math.max(0, (frameWidth - totalButtonWidth) / 2)
+	local initialSpacing = (totalButtonWidth > 0) and math.max(0, (frameWidth - totalButtonWidth) / 2) or 0
 
 	-- Dynamische Höhe
-	local rows = math.ceil(totalButtons / buttonsPerRow)
+	local rows = (totalButtons > 0) and math.ceil(totalButtons / buttonsPerRow) or 0
 	local frameHeight = math.max(title:GetStringHeight() + 20, 40 + rows * (buttonSize + hSpacing))
 	SafeSetSize(frame, frameWidth, frameHeight)
 

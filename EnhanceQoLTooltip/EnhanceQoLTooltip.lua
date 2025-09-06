@@ -13,6 +13,166 @@ local AceGUI = addon.AceGUI
 
 local frameLoad = CreateFrame("Frame")
 
+-- ==== Inspect cache (spec/ilvl/score) ====
+local InspectCache = {}   -- [guid] = { ilvl, specName, score, last }
+local CACHE_TTL = 30      -- seconds
+local function now() return GetTime() end
+
+local function GetUnitTokenFromTooltip(tt)
+    local owner = tt and tt:GetOwner()
+    if owner then
+        if owner.unit then return owner.unit end
+        if owner.GetAttribute then
+            local u = owner:GetAttribute("unit")
+            if u then return u end
+        end
+    end
+    local _, unit = tt:GetUnit()
+    return unit
+end
+
+-- no compact score formatting needed anymore
+
+local pendingGUID, pendingUnit
+local fInspect = CreateFrame("Frame")
+
+-- Decide whether we need INSPECT_READY at all (opt-in)
+local function ShouldUseInspectFeature()
+    return (addon.db and (addon.db["TooltipUnitShowSpec"] or addon.db["TooltipUnitShowItemLevel"])) or false
+end
+
+local function UpdateInspectEventRegistration()
+    if not fInspect then return end
+    fInspect:UnregisterEvent("INSPECT_READY")
+    if ShouldUseInspectFeature() then
+        fInspect:RegisterEvent("INSPECT_READY")
+    else
+        pendingGUID, pendingUnit = nil, nil
+        if ClearInspectPlayer then ClearInspectPlayer() end
+    end
+end
+
+local function FindLineIndexByLabel(tt, label)
+    local name = tt:GetName()
+    for i = 1, tt:NumLines() do
+        local left = _G[name .. "TextLeft" .. i]
+        local text = left and left:GetText()
+        if text and text:find(label, 1, true) then return i end
+    end
+    return nil
+end
+
+local function RefreshTooltipForGUID(guid)
+    if not GameTooltip or not GameTooltip:IsShown() then return end
+    local tt = GameTooltip
+    local unit = GetUnitTokenFromTooltip(tt)
+    if not unit then return end
+    local uGuid = UnitGUID(unit)
+    if uGuid ~= guid then return end
+    local c = InspectCache[guid]
+    if not c then return end
+
+    local showSpec = addon.db["TooltipUnitShowSpec"] and c.specName
+    local showIlvl = addon.db["TooltipUnitShowItemLevel"] and c.ilvl
+    if not showSpec and not showIlvl then return end
+
+    local labelSpec = SPECIALIZATION
+    local labelIlvl = STAT_AVERAGE_ITEM_LEVEL or ITEM_LEVEL or "Item Level"
+
+    local haveSpecLine = FindLineIndexByLabel(tt, labelSpec)
+    local haveIlvlLine = FindLineIndexByLabel(tt, labelIlvl)
+
+    local addedAny = false
+    if showSpec then
+        if haveSpecLine then
+            local right = _G[tt:GetName() .. "TextRight" .. haveSpecLine]
+            if right then right:SetText(c.specName) end
+        else
+            if not (haveSpecLine or haveIlvlLine) then tt:AddLine(" ") end
+            tt:AddDoubleLine("|cffffd200" .. labelSpec .. "|r", c.specName)
+            addedAny = true
+        end
+    end
+    if showIlvl then
+        if haveIlvlLine then
+            local right = _G[tt:GetName() .. "TextRight" .. haveIlvlLine]
+            if right then right:SetText(tostring(c.ilvl)) end
+        else
+            if not (haveSpecLine or haveIlvlLine) and not addedAny and not showSpec then tt:AddLine(" ") end
+            tt:AddDoubleLine("|cffffd200" .. labelIlvl .. "|r", tostring(c.ilvl))
+            addedAny = true
+        end
+    end
+    if addedAny then tt:Show() end
+end
+
+fInspect:SetScript("OnEvent", function(_, ev, guid)
+    if ev ~= "INSPECT_READY" or not guid or guid ~= pendingGUID then return end
+    local unit = (pendingUnit and UnitGUID(pendingUnit) == guid) and pendingUnit or nil
+    pendingGUID, pendingUnit = nil, nil
+    if not unit or not UnitExists(unit) then return end
+
+    local ilvl
+    if C_PaperDollInfo and C_PaperDollInfo.GetInspectItemLevel then
+        ilvl = C_PaperDollInfo.GetInspectItemLevel(unit)
+        if ilvl then ilvl = tonumber(string.format("%.1f", ilvl)) end
+    end
+    local specID = GetInspectSpecialization and GetInspectSpecialization(unit)
+    local specName
+    if specID and specID > 0 then
+        local _, name = GetSpecializationInfoByID(specID)
+        specName = name
+    end
+    local score
+    if C_PlayerInfo and C_PlayerInfo.GetPlayerMythicPlusRatingSummary then
+        local s = C_PlayerInfo.GetPlayerMythicPlusRatingSummary(unit)
+        score = s and s.currentSeasonScore or score
+    end
+
+    local c = InspectCache[guid] or {}
+    c.ilvl = ilvl
+    c.specName = specName
+    c.score = score
+    c.last = now()
+    InspectCache[guid] = c
+
+    if ClearInspectPlayer then ClearInspectPlayer() end
+    -- If the currently shown tooltip is for this unit, update it immediately
+    RefreshTooltipForGUID(guid)
+end)
+
+local function EnsureUnitData(unit)
+    if not unit or not UnitIsPlayer(unit) then return end
+    -- Only fetch if at least one feature is enabled (opt-in)
+    if not (addon.db["TooltipUnitShowSpec"] or addon.db["TooltipUnitShowItemLevel"]) then return end
+    local guid = UnitGUID(unit)
+    if not guid then return end
+    local c = InspectCache[guid]
+    if c and (now() - (c.last or 0) < CACHE_TTL) then return end
+
+    -- Self: no inspect needed
+    if UnitIsUnit(unit, "player") then
+        local ilvl
+        if GetAverageItemLevel then
+            local _, eq = GetAverageItemLevel()
+            ilvl = eq and tonumber(string.format("%.1f", eq))
+        end
+        local specName
+        local si = GetSpecialization and GetSpecialization()
+        if si then specName = select(2, GetSpecializationInfo(si)) end
+        local score = C_ChallengeMode and C_ChallengeMode.GetOverallDungeonScore and C_ChallengeMode.GetOverallDungeonScore()
+        InspectCache[guid] = { ilvl = ilvl, specName = specName, score = score, last = now() }
+        return
+    end
+
+    -- Others: request inspect if possible
+    if CanInspect and CanInspect(unit) and not InCombatLockdown() then
+        pendingGUID = guid
+        pendingUnit = unit
+        if NotifyInspect then NotifyInspect(unit) end
+    end
+end
+
 local function GetNPCIDFromGUID(guid)
 	if guid then
 		local type, _, _, _, _, npcID = strsplit("-", guid)
@@ -142,7 +302,13 @@ local function checkAdditionalTooltip(tooltip)
 			end
 		end
 	end
-	if addon.db["TooltipShowMythicScore"] and UnitCanAttack("player", "mouseover") == false and addon.Tooltip.variables.maxLevel == UnitLevel("mouseover") then
+	local showMythic = addon.db["TooltipShowMythicScore"] and UnitCanAttack("player", "mouseover") == false and addon.Tooltip.variables.maxLevel == UnitLevel("mouseover")
+	if showMythic and addon.db["TooltipMythicScoreRequireModifier"] then
+		local mod = addon.db["TooltipMythicScoreModifier"] or "SHIFT"
+		local modDown = (mod == "SHIFT" and IsShiftKeyDown()) or (mod == "ALT" and IsAltKeyDown()) or (mod == "CTRL" and IsControlKeyDown())
+		if not modDown then showMythic = false end
+	end
+	if showMythic then
 		local _, _, timeLimit
 		local rating = C_PlayerInfo.GetPlayerMythicPlusRatingSummary("mouseover")
 		if rating then
@@ -373,7 +539,7 @@ local function checkAura(tooltip, id, name)
 end
 
 if TooltipDataProcessor then
-	TooltipDataProcessor.AddTooltipPostCall(TooltipDataProcessor.AllTypes, function(tooltip, data)
+    TooltipDataProcessor.AddTooltipPostCall(TooltipDataProcessor.AllTypes, function(tooltip, data)
 		if not data or not data.type then return end
 
 		local id, name, _, timeLimit
@@ -407,7 +573,36 @@ if TooltipDataProcessor then
 			checkCurrency(tooltip, id)
 			return
 		end
-	end)
+    end)
+end
+
+-- Compact inspect lines on Unit tooltips (spec / ilvl / simple score)
+if TooltipDataProcessor then
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tt)
+        if not (addon.db["TooltipUnitShowSpec"] or addon.db["TooltipUnitShowItemLevel"]) then return end
+        local unit = GetUnitTokenFromTooltip(tt)
+        if not unit or not UnitIsPlayer(unit) then return end
+
+        EnsureUnitData(unit)
+        local guid = UnitGUID(unit)
+        local c = guid and InspectCache[guid] or nil
+        if not c then return end
+
+        local added = false
+        if (addon.db["TooltipUnitShowSpec"] and c.specName) or (addon.db["TooltipUnitShowItemLevel"] and c.ilvl) then
+            tt:AddLine(" ")
+            added = true
+        end
+
+        if addon.db["TooltipUnitShowSpec"] and c.specName then
+            tt:AddDoubleLine("|cffffd200" .. SPECIALIZATION .. "|r", c.specName)
+        end
+        if addon.db["TooltipUnitShowItemLevel"] and c.ilvl then
+            local label = STAT_AVERAGE_ITEM_LEVEL or ITEM_LEVEL or "Item Level"
+            tt:AddDoubleLine("|cffffd200" .. label .. "|r", tostring(c.ilvl))
+        end
+        if added then tt:Show() end
+    end)
 end
 
 hooksecurefunc("GameTooltip_SetDefaultAnchor", function(s, p)
@@ -420,6 +615,9 @@ hooksecurefunc("GameTooltip_SetDefaultAnchor", function(s, p)
 	local yOffset = addon.db["TooltipAnchorOffsetY"]
 	s:SetOwner(p, anchor, xOffset, yOffset)
 end)
+
+-- Initial registration based on current settings (opt-in)
+UpdateInspectEventRegistration()
 
 addon.variables.statusTable.groups["tooltip"] = true
 
@@ -562,6 +760,10 @@ local function addUnitFrame(container)
 		{ text = L["TooltipUnitHideInCombat"], var = "TooltipUnitHideInCombat" },
 		{ text = L["TooltipUnitHideInDungeon"], var = "TooltipUnitHideInDungeon" },
 		{ text = L["TooltipShowMythicScore"]:format(DUNGEON_SCORE), var = "TooltipShowMythicScore" },
+		{ text = L["TooltipMythicScoreRequireModifier"]:format(DUNGEON_SCORE), var = "TooltipMythicScoreRequireModifier" },
+		{ text = L["TooltipUnitHideRightClickInstruction"]:format(UNIT_POPUP_RIGHT_CLICK), var = "TooltipUnitHideRightClickInstruction" },
+		{ text = L["TooltipUnitShowItemLevel"], var = "TooltipUnitShowItemLevel", desc = L["TooltipUnitShowItemLevel_desc"] },
+		{ text = L["TooltipUnitShowSpec"], var = "TooltipUnitShowSpec", desc = L["TooltipUnitShowSpec_desc"] },
 		{ text = L["TooltipShowClassColor"], var = "TooltipShowClassColor" },
 		{ text = L["TooltipShowNPCID"], var = "TooltipShowNPCID" },
 		-- { text = L["TooltipUnitShowHealthText"], var = "TooltipUnitShowHealthText" },
@@ -570,8 +772,33 @@ local function addUnitFrame(container)
 	table.sort(data, function(a, b) return a.text < b.text end)
 
 	for _, cbData in ipairs(data) do
-		local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], function(self, _, value) addon.db[cbData.var] = value end)
+		local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], function(self, _, value)
+			addon.db[cbData.var] = value
+			if cbData.text == L["TooltipMythicScoreRequireModifier"]:format(DUNGEON_SCORE) then
+				container:ReleaseChildren()
+				addUnitFrame(container)
+			end
+			if cbData.var == "TooltipUnitShowSpec" or cbData.var == "TooltipUnitShowItemLevel" then
+				UpdateInspectEventRegistration()
+			end
+		end, cbData.desc)
 		groupCore:AddChild(cbElement)
+	end
+
+	if addon.db["TooltipMythicScoreRequireModifier"] then
+		-- Dropdown for required modifier key (Shift/Alt/Ctrl) when gating Mythic score
+		local modList = { SHIFT = SHIFT_KEY_TEXT, ALT = ALT_KEY_TEXT, CTRL = CTRL_KEY_TEXT }
+		local list2, order2 = addon.functions.prepareListForDropdown(modList)
+		local dropMod = addon.functions.createDropdownAce(
+			L["TooltipMythicScoreModifier"]:format(DUNGEON_SCORE),
+			list2,
+			order2,
+			function(self, _, value) addon.db["TooltipMythicScoreModifier"] = self:GetValue() end
+		)
+		dropMod:SetValue(addon.db["TooltipMythicScoreModifier"])
+		dropMod:SetFullWidth(false)
+		dropMod:SetWidth(300)
+		groupCore:AddChild(dropMod)
 	end
 end
 
@@ -675,5 +902,27 @@ hooksecurefunc("QuestMapLogTitleButton_OnEnter", function(self)
 				GameTooltip:Show()
 			end
 		end
+	end
+end)
+
+local function IsUnitTooltip(tt)
+	local owner = tt and tt:GetOwner()
+	if not owner then return false end
+	return owner.unit or (owner.GetAttribute and owner:GetAttribute("unit"))
+end
+
+-- Optionally hide the default "Right-click for options" instruction on unit tooltips
+hooksecurefunc("GameTooltip_AddInstructionLine", function(tt, text)
+	if not addon.db["TooltipUnitHideRightClickInstruction"] then return end
+	if tt ~= GameTooltip then return end
+	if text ~= UNIT_POPUP_RIGHT_CLICK then return end
+	if not IsUnitTooltip(tt) then return end
+
+	local i = tt:NumLines()
+	local line = _G[tt:GetName() .. "TextLeft" .. i]
+	if line and line:GetText() == text then
+		line:SetText("")
+		line:Hide()
+		tt:Show()
 	end
 end)

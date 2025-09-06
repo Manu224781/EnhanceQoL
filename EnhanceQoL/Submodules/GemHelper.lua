@@ -2,6 +2,9 @@ local addonName, addon = ...
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL")
 
+local NumSockets = C_ItemSocketInfo and C_ItemSocketInfo.GetNumSockets or GetNumSockets
+local TypeSockets = C_ItemSocketInfo and C_ItemSocketInfo.GetSocketTypes or GetSocketTypes
+
 local GEM_TYPE_INFO = {}
 GEM_TYPE_INFO["Yellow"] = 9
 GEM_TYPE_INFO["Red"] = 9
@@ -160,9 +163,9 @@ local function checkGems()
 
 	local aSockets = {}
 	local aSocketColors = {}
-	local numSockets = GetNumSockets()
+	local numSockets = NumSockets()
 	for i = 1, numSockets do
-		local gemColor = GetSocketTypes(i)
+		local gemColor = TypeSockets(i)
 		aSocketColors[gemColor] = true
 		if GEM_TYPE_INFO[gemColor] then
 			if type(GEM_TYPE_INFO[gemColor]) == "table" then

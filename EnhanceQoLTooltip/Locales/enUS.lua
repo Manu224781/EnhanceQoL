@@ -37,9 +37,17 @@ L["TooltipUnitHideInCombat"] = "Only hide it in combat"
 L["TooltipUnitHideInDungeon"] = "Only hide it in dungeons"
 L["BestMythic+run"] = "Best run"
 L["TooltipShowMythicScore"] = "Show %s on Tooltip"
+L["TooltipMythicScoreRequireModifier"] = "Only show %s when holding a modifier"
+L["TooltipMythicScoreModifier"] = "Required modifier for %s"
+L["TooltipUnitHideRightClickInstruction"] = "Hide %s on unit Tooltip"
 L["TooltipShowClassColor"] = "Show class color on Tooltip"
 L["TooltipShowNPCID"] = "Show NPC ID"
 L["NPCID"] = "ID"
+-- Unit inspect extras
+L["TooltipUnitShowSpec"] = "Show specialization on Tooltip"
+L["TooltipUnitShowItemLevel"] = "Show item level on Tooltip"
+L["TooltipUnitShowSpec_desc"] = "Loads via Inspect on first hover (only outside combat). It may take a brief moment; values are cached for a short time."
+L["TooltipUnitShowItemLevel_desc"] = "Loads via Inspect on first hover (only outside combat). It may take a brief moment; values are cached for a short time."
 
 -- Spell
 L["TooltipSpellHideType"] = "Hide tooltip on Spells"
