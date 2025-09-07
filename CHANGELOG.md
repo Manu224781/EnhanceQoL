@@ -6,8 +6,8 @@
 
 - **Upgrade Merchant – flyout menu:** could show stale item levels; now displays the correct values.
 - **Health Macro:** fixed a Lua error on login for Warlock characters.
-- **Tooltip – spell icon ID:** hovering pet spells could trigger a Lua error; fixed.
-- **LibOpenKeystone:** perfomance bugfixes
+- **Tooltip – spell icon ID:** hovering pet spells could trigger a Lua error.
+- **LibOpenKeystone:** perfomance bugfixes.
 
 ---
 
