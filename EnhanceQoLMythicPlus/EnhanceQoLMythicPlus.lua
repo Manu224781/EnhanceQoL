@@ -654,7 +654,7 @@ local function addPotionTrackerFrame(container)
 		end
 
 		local list, order = buildPotionTextureOptions()
-		local dropTex = addon.functions.createDropdownAce(L["potionTrackerBarTexture"] or "Bar Texture", list, order, function(_, _, key)
+		local dropTex = addon.functions.createDropdownAce(L["Bar Texture"], list, order, function(_, _, key)
 			addon.db["potionTrackerBarTexture"] = key
 			if addon.MythicPlus.functions.applyPotionBarTexture then addon.MythicPlus.functions.applyPotionBarTexture() end
 		end)

@@ -668,7 +668,7 @@ local function buildCategoryOptions(container, catId)
 	end
 
 	local listTex, orderTex = buildTextureOptions()
-	local dropTex = addon.functions.createDropdownAce(L["CastTrackerBarTexture"] or "Bar Texture", listTex, orderTex, function(_, _, key)
+	local dropTex = addon.functions.createDropdownAce(L["Bar Texture"], listTex, orderTex, function(_, _, key)
 		db.barTexture = key
 		UpdateActiveBars(catId)
 	end)
