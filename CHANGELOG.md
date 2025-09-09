@@ -5,6 +5,7 @@
 ### ✨ Added
 
 - **LibSharedMedia support:** **Combat Meter**, **Cast Tracker**, **Potion Tracker**, and **Resource Bars** now support styling via **LibSharedMedia** (bar textures, fonts, sounds).
+- **Datapanel Latency:** New Datastream to show FPS and Ping (world | home) as Stream
 
 ---
 
