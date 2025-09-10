@@ -1657,6 +1657,14 @@ local function addAuctionHouseFrame(container)
 			var = "persistAuctionHouseFilter",
 			func = function(self, _, value) addon.db["persistAuctionHouseFilter"] = value end,
 		},
+		{
+			text = (function()
+				local label = _G["AUCTION_HOUSE_FILTER_CURRENTEXPANSION_ONLY"] or "Current Expansion Only"
+				return L["alwaysUserCurExpAuctionHouse"]:format(label)
+			end)(),
+			var = "alwaysUserCurExpAuctionHouse",
+			func = function(self, _, value) addon.db["alwaysUserCurExpAuctionHouse"] = value end,
+		},
 	}
 	table.sort(data, function(a, b) return a.text < b.text end)
 
@@ -4249,6 +4257,7 @@ local function initUI()
 	addon.functions.InitDBValue("hideQuickJoinToast", false)
 	addon.functions.InitDBValue("enableSquareMinimap", false)
 	addon.functions.InitDBValue("persistAuctionHouseFilter", false)
+	addon.functions.InitDBValue("alwaysUserCurExpAuctionHouse", false)
 	addon.functions.InitDBValue("hideDynamicFlightBar", false)
 	addon.functions.InitDBValue("showInstanceDifficulty", false)
 	-- addon.functions.InitDBValue("instanceDifficultyUseIcon", false)
@@ -5487,37 +5496,29 @@ local function setAllHooks()
 	initLootToast()
 	initBagsFrame()
 
-    local LSM = LibStub("LibSharedMedia-3.0")
-    local lsmSoundDirty = false
-    LSM:RegisterCallback("LibSharedMedia_Registered", function(event, mediaType, ...)
-        if mediaType == "sound" then
-            if not lsmSoundDirty then
-                lsmSoundDirty = true
-                C_Timer.After(1, function()
-                    lsmSoundDirty = false
-                    if addon.Aura and addon.Aura.functions and addon.Aura.functions.BuildSoundTable then addon.Aura.functions.BuildSoundTable() end
-                    if addon.ChatIM and addon.ChatIM.BuildSoundTable then addon.ChatIM:BuildSoundTable() end
-                end)
-            end
-        elseif mediaType == "statusbar" then
-            -- When new statusbar textures are registered, refresh any UI using them
-            if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.RefreshBarTextureDropdown then
-                addon.CombatMeter.functions.RefreshBarTextureDropdown()
-            end
-            if addon.MythicPlus and addon.MythicPlus.functions and addon.MythicPlus.functions.RefreshPotionTextureDropdown then
-                addon.MythicPlus.functions.RefreshPotionTextureDropdown()
-            end
-            if addon.MythicPlus and addon.MythicPlus.functions and addon.MythicPlus.functions.applyPotionBarTexture then
-                addon.MythicPlus.functions.applyPotionBarTexture()
-            end
-            if addon.Aura and addon.Aura.CastTracker and addon.Aura.CastTracker.functions and addon.Aura.CastTracker.functions.RefreshTextureDropdown then
-                addon.Aura.CastTracker.functions.RefreshTextureDropdown()
-            end
-            if addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.RefreshTextureDropdown then
-                addon.Aura.ResourceBars.RefreshTextureDropdown()
-            end
-        end
-    end)
+	local LSM = LibStub("LibSharedMedia-3.0")
+	local lsmSoundDirty = false
+	LSM:RegisterCallback("LibSharedMedia_Registered", function(event, mediaType, ...)
+		if mediaType == "sound" then
+			if not lsmSoundDirty then
+				lsmSoundDirty = true
+				C_Timer.After(1, function()
+					lsmSoundDirty = false
+					if addon.Aura and addon.Aura.functions and addon.Aura.functions.BuildSoundTable then addon.Aura.functions.BuildSoundTable() end
+					if addon.ChatIM and addon.ChatIM.BuildSoundTable then addon.ChatIM:BuildSoundTable() end
+				end)
+			end
+		elseif mediaType == "statusbar" then
+			-- When new statusbar textures are registered, refresh any UI using them
+			if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.RefreshBarTextureDropdown then addon.CombatMeter.functions.RefreshBarTextureDropdown() end
+			if addon.MythicPlus and addon.MythicPlus.functions and addon.MythicPlus.functions.RefreshPotionTextureDropdown then addon.MythicPlus.functions.RefreshPotionTextureDropdown() end
+			if addon.MythicPlus and addon.MythicPlus.functions and addon.MythicPlus.functions.applyPotionBarTexture then addon.MythicPlus.functions.applyPotionBarTexture() end
+			if addon.Aura and addon.Aura.CastTracker and addon.Aura.CastTracker.functions and addon.Aura.CastTracker.functions.RefreshTextureDropdown then
+				addon.Aura.CastTracker.functions.RefreshTextureDropdown()
+			end
+			if addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.RefreshTextureDropdown then addon.Aura.ResourceBars.RefreshTextureDropdown() end
+		end
+	end)
 end
 
 function loadMain()
@@ -6056,17 +6057,31 @@ local eventHandlers = {
 	end,
 
 	["AUCTION_HOUSE_SHOW"] = function()
-		if not addon.db["persistAuctionHouseFilter"] then return end
-		if not AuctionHouseFrame.SearchBar.FilterButton.eqolHooked then
-			hooksecurefunc(AuctionHouseFrame.SearchBar.FilterButton, "Reset", function(self)
-				if not addon.db["persistAuctionHouseFilter"] or not addon.variables.safedAuctionFilters then return end
-				if addon.variables.safedAuctionFilters then AuctionHouseFrame.SearchBar.FilterButton.filters = addon.variables.safedAuctionFilters end
-				AuctionHouseFrame.SearchBar.FilterButton.minLevel = addon.variables.safedAuctionMinlevel
-				AuctionHouseFrame.SearchBar.FilterButton.maxLevel = addon.variables.safedAuctionMaxlevel
-				addon.variables.safedAuctionFilters = nil
-				self.ClearFiltersButton:Show()
+		if addon.db["persistAuctionHouseFilter"] then
+			if not AuctionHouseFrame.SearchBar.FilterButton.eqolHooked then
+				hooksecurefunc(AuctionHouseFrame.SearchBar.FilterButton, "Reset", function(self)
+					if not addon.db["persistAuctionHouseFilter"] or not addon.variables.safedAuctionFilters then
+					else
+						if addon.variables.safedAuctionFilters then AuctionHouseFrame.SearchBar.FilterButton.filters = addon.variables.safedAuctionFilters end
+						AuctionHouseFrame.SearchBar.FilterButton.minLevel = addon.variables.safedAuctionMinlevel
+						AuctionHouseFrame.SearchBar.FilterButton.maxLevel = addon.variables.safedAuctionMaxlevel
+						addon.variables.safedAuctionFilters = nil
+						self.ClearFiltersButton:Show()
+						-- Ensure the Current Expansion filter remains enforced when both options are enabled
+						if addon.db["alwaysUserCurExpAuctionHouse"] then
+							AuctionHouseFrame.SearchBar.FilterButton.filters[Enum.AuctionHouseFilter.CurrentExpansionOnly] = true
+							AuctionHouseFrame.SearchBar:UpdateClearFiltersButton()
+						end
+					end
+				end)
+				AuctionHouseFrame.SearchBar.FilterButton.eqolHooked = true
+			end
+		end
+		if addon.db["alwaysUserCurExpAuctionHouse"] then
+			C_Timer.After(0, function()
+				AuctionHouseFrame.SearchBar.FilterButton.filters[Enum.AuctionHouseFilter.CurrentExpansionOnly] = true
+				AuctionHouseFrame.SearchBar:UpdateClearFiltersButton()
 			end)
-			AuctionHouseFrame.SearchBar.FilterButton.eqolHooked = true
 		end
 	end,
 	["AUCTION_HOUSE_CLOSED"] = function()

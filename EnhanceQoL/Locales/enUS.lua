@@ -286,6 +286,7 @@ L["wayErrorPlacePing"] = "You can't place a waypoint here"
 L["wayMapUnknown"] = "Map unknown – try again outdoors."
 
 L["persistAuctionHouseFilter"] = "Remember Auction House filters for this session"
+L["alwaysUserCurExpAuctionHouse"] = "Always set the filter for \"%s\""
 
 L["Excluded NPCs"] = "Excluded NPCs"
 L["hideDynamicFlightBar"] = "Hide %s Vigor bar while on the ground"

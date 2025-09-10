@@ -16,6 +16,19 @@ addon.Health = {}
 addon.Health.functions = {}
 addon.Health.filteredHealth = {}
 
+-- Shared Recuperate spell info (used by Drink and Health macros)
+addon.Recuperate = addon.Recuperate or {
+    id = 1231411, -- Recuperate spell id
+    name = nil,
+    known = false,
+}
+
+function addon.Recuperate.Update()
+    local spellInfo = C_Spell.GetSpellInfo(addon.Recuperate.id)
+    addon.Recuperate.name = spellInfo and spellInfo.name or nil
+    addon.Recuperate.known = addon.Recuperate.name and C_SpellBook.IsSpellInSpellBook(addon.Recuperate.id) or false
+end
+
 function addon.functions.newItem(id, name, isSpell)
     local self = {}
 

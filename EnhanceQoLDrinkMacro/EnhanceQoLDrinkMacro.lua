@@ -8,14 +8,7 @@ local GetMacroInfo = GetMacroInfo
 local EditMacro = EditMacro
 local CreateMacro = CreateMacro
 
-local recuperateSpellName
-local recuperateSpellKnown
-
-local function updateRecuperateData()
-	local spellInfo = C_Spell.GetSpellInfo(1231411)
-	recuperateSpellName = spellInfo and spellInfo.name
-	recuperateSpellKnown = recuperateSpellName and C_SpellBook.IsSpellInSpellBook(1231411) or false
-end
+-- Recuperate info is shared via addon.Recuperate (Init.lua)
 
 if _G[parentAddonName] then
 	addon = _G[parentAddonName]
@@ -34,8 +27,8 @@ local function buildMacroString(item)
 	local resetType = "combat"
 	local recuperateString = ""
 
-	if addon.db.allowRecuperate and addon.db.useRecuperateWithDrinks and recuperateSpellName and recuperateSpellKnown and item ~= recuperateSpellName then
-		recuperateString = "\n/cast " .. recuperateSpellName
+	if addon.db.allowRecuperate and addon.db.useRecuperateWithDrinks and addon.Recuperate and addon.Recuperate.name and addon.Recuperate.known and item ~= addon.Recuperate.name then
+		recuperateString = "\n/cast " .. addon.Recuperate.name
 	end
 
 	if item == nil then
@@ -112,7 +105,7 @@ local function eventHandler(self, event, arg1, arg2, arg3, arg4)
 			end)
 		end
 	elseif event == "PLAYER_LOGIN" then
-		updateRecuperateData()
+		if addon.Recuperate and addon.Recuperate.Update then addon.Recuperate.Update() end
 		-- on login always load the macro
 		addon.functions.updateAllowedDrinks()
 		addon.functions.updateAvailableDrinks(false)
@@ -124,7 +117,7 @@ local function eventHandler(self, event, arg1, arg2, arg3, arg4)
 		addon.functions.updateAllowedDrinks()
 		addon.functions.updateAvailableDrinks(true)
 	elseif event == "SPELLS_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
-		updateRecuperateData()
+		if addon.Recuperate and addon.Recuperate.Update then addon.Recuperate.Update() end
 		addon.functions.updateAvailableDrinks(false)
 	end
 end

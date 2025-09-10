@@ -2,6 +2,11 @@
 
 ## [4.13.1] – 2025-09-10
 
+### ✨ Added
+
+- **Auction House:** Option to automatically select "Current Expension only" by default on opening
+- **HealthMacro:** Option to allow "Recuperate" out of combat. This sets the healthstone/potion to combat only
+
 ### 🐛 Fixed
 
 - **Active Talentbuild:** Wrong default value initilized

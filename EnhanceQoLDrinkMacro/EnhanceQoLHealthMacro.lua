@@ -25,6 +25,7 @@ addon.functions.InitDBValue("healthPreferStoneFirst", true)
 addon.functions.InitDBValue("healthReset", "combat")
 addon.functions.InitDBValue("healthAllowOther", false)
 addon.functions.InitDBValue("healthReorderByCooldown", true)
+addon.functions.InitDBValue("healthUseRecuperate", false)
 
 local function createMacroIfMissing()
 	if not addon.db.healthMacroEnabled then return end
@@ -164,25 +165,58 @@ local function buildMacro()
 
 	local macroBody
 	local key
+
+	-- Optional Recuperate (out of combat) line
+	local recuperateLine = ""
+	local recuperateKey = ""
+	if addon.db.healthUseRecuperate and addon.Recuperate and addon.Recuperate.name and addon.Recuperate.known then
+		recuperateLine = string.format("/cast [nocombat] %s", addon.Recuperate.name)
+		recuperateKey = "|recup"
+	end
 	if first and second then
 		-- castsequence (always using item: ids); ensure not identical
 		local function toUse(v) return v and v.getId() or nil end
 		local a = toUse(first)
 		local b = toUse(second)
 		if a and b and a == b then
-			macroBody = buildMacroString(a)
-			key = string.format("single:%s", a)
+			local parts = { "#showtooltip" }
+			if recuperateLine ~= "" then table.insert(parts, recuperateLine) end
+			if a then
+				if recuperateLine ~= "" then
+					table.insert(parts, string.format("/use [combat] %s", a))
+				else
+					table.insert(parts, string.format("/use %s", a))
+				end
+			end
+			macroBody = table.concat(parts, "\n")
+			key = string.format("single:%s%s", a or "", recuperateKey)
 		else
-			macroBody = string.format("#showtooltip\n/castsequence reset=%s %s, %s", resetType, a or "", b or "")
-			key = string.format("seq:%s|%s|%s", a or "", b or "", resetType)
+			local parts = { "#showtooltip" }
+			if recuperateLine ~= "" then table.insert(parts, recuperateLine) end
+			if recuperateLine ~= "" then
+				table.insert(parts, string.format("/castsequence [combat] reset=%s %s, %s", resetType, a or "", b or ""))
+			else
+				table.insert(parts, string.format("/castsequence reset=%s %s, %s", resetType, a or "", b or ""))
+			end
+			macroBody = table.concat(parts, "\n")
+			key = string.format("seq:%s|%s|%s%s", a or "", b or "", resetType, recuperateKey)
 		end
 	elseif first then
 		-- single use: use the actual item found
-		macroBody = buildMacroString(first.getId())
-		key = string.format("single:%s", first.getId())
+		local parts = { "#showtooltip" }
+		if recuperateLine ~= "" then table.insert(parts, recuperateLine) end
+		if recuperateLine ~= "" then
+			table.insert(parts, string.format("/use [combat] %s", first.getId()))
+		else
+			table.insert(parts, string.format("/use %s", first.getId()))
+		end
+		macroBody = table.concat(parts, "\n")
+		key = string.format("single:%s%s", first.getId(), recuperateKey)
 	else
-		macroBody = buildMacroString(nil)
-		key = "empty"
+		local parts = { "#showtooltip" }
+		if recuperateLine ~= "" then table.insert(parts, recuperateLine) end
+		macroBody = table.concat(parts, "\n")
+		key = "empty" .. recuperateKey
 	end
 
 	if key ~= lastMacroKey then
@@ -215,6 +249,7 @@ frame:RegisterEvent("BAG_UPDATE_COOLDOWN")
 local pendingUpdate = false
 frame:SetScript("OnEvent", function(_, event, arg1)
 	if event == "PLAYER_LOGIN" then
+		if addon.Recuperate and addon.Recuperate.Update then addon.Recuperate.Update() end
 		if addon.Health and addon.Health.functions and addon.Health.functions.refreshTalentCache then addon.Health.functions.refreshTalentCache() end
 		addon.Health.functions.updateAllowedHealth()
 		addon.Health.functions.updateHealthMacro(false)
@@ -234,6 +269,7 @@ frame:SetScript("OnEvent", function(_, event, arg1)
 		addon.Health.functions.updateAllowedHealth()
 		if not UnitAffectingCombat("player") then addon.Health.functions.updateHealthMacro(true) end
 	elseif event == "SPELLS_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
+		if addon.Recuperate and addon.Recuperate.Update then addon.Recuperate.Update() end
 		if addon.Health and addon.Health.functions and addon.Health.functions.refreshTalentCache then addon.Health.functions.refreshTalentCache() end
 		addon.Health.functions.updateAllowedHealth()
 		addon.Health.functions.updateHealthMacro(false)
@@ -274,6 +310,13 @@ function addon.Health.functions.addHealthFrame(container)
 		addon.Health.functions.addHealthFrame(container)
 	end)
 	group:AddChild(cbBoth)
+
+	-- Recuperate option (casts Recuperate out of combat)
+	local cbRecup = addon.functions.createCheckboxAce(L["Use Recuperate out of combat"], addon.db["healthUseRecuperate"], function(_, _, value)
+		addon.db["healthUseRecuperate"] = value
+		addon.Health.functions.updateHealthMacro(false)
+	end)
+	group:AddChild(cbRecup)
 
 	if addon.db["healthUseBoth"] then
 		local cbPrefer = addon.functions.createCheckboxAce(L["Prefer Healthstone first"], addon.db["healthPreferStoneFirst"], function(_, _, value)

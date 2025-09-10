@@ -21,6 +21,8 @@ addon.functions.InitDBValue("TooltipShowNPCID", false)
 -- Unit inspect extras
 addon.functions.InitDBValue("TooltipUnitShowSpec", false)
 addon.functions.InitDBValue("TooltipUnitShowItemLevel", false)
+-- Gate spec/ilvl lines behind a modifier (uses same modifier as Mythic+ when enabled)
+addon.functions.InitDBValue("TooltipUnitInspectRequireModifier", false)
 addon.functions.InitDBValue("TooltipUnitHideRightClickInstruction", false)
 
 -- Spell
