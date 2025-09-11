@@ -1379,17 +1379,19 @@ local function addMinimapFrame(container)
 				addon.functions.checkReloadFrame()
 			end,
 		},
-		{
-			parent = "",
-			var = "showInstanceDifficulty",
-			desc = L["showInstanceDifficultyDesc"],
-			text = L["showInstanceDifficulty"],
-			type = "CheckBox",
-			callback = function(self, _, value)
-				addon.db["showInstanceDifficulty"] = value
-				if addon.InstanceDifficulty and addon.InstanceDifficulty.SetEnabled then addon.InstanceDifficulty:SetEnabled(value) end
-			end,
-		},
+        {
+            parent = "",
+            var = "showInstanceDifficulty",
+            desc = L["showInstanceDifficultyDesc"],
+            text = L["showInstanceDifficulty"],
+            type = "CheckBox",
+            callback = function(self, _, value)
+                addon.db["showInstanceDifficulty"] = value
+                if addon.InstanceDifficulty and addon.InstanceDifficulty.SetEnabled then addon.InstanceDifficulty:SetEnabled(value) end
+                container:ReleaseChildren()
+                addMinimapFrame(container)
+            end,
+        },
 		{
 			parent = "",
 			var = "enableLandingPageMenu",
@@ -1483,6 +1485,146 @@ local function addMinimapFrame(container)
 		})
 	end
 	-- custom icon path removed
+
+	-- Instance Difficulty extra settings (position + colors)
+	if addon.db["showInstanceDifficulty"] then
+
+        -- Font size
+        table.insert(data, {
+            parent = L["showInstanceDifficulty"],
+            var = "instanceDifficultyFontSize",
+            type = "Slider",
+            text = L["instanceDifficultyFontSize"],
+            value = addon.db["instanceDifficultyFontSize"],
+            min = 8,
+            max = 28,
+            step = 1,
+            displayOrder = 10,
+            callback = function(_, _, val)
+                addon.db["instanceDifficultyFontSize"] = val
+                if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+            end,
+        })
+
+		-- Offsets
+        table.insert(data, {
+            parent = L["showInstanceDifficulty"],
+            var = "instanceDifficultyOffsetX",
+            type = "Slider",
+            text = L["instanceDifficultyOffsetX"],
+            value = addon.db["instanceDifficultyOffsetX"],
+            min = -400,
+            max = 400,
+            step = 1,
+            displayOrder = 20,
+            callback = function(_, _, val)
+                addon.db["instanceDifficultyOffsetX"] = val
+                if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+            end,
+        })
+        table.insert(data, {
+            parent = L["showInstanceDifficulty"],
+            var = "instanceDifficultyOffsetY",
+            type = "Slider",
+            text = L["instanceDifficultyOffsetY"],
+            value = addon.db["instanceDifficultyOffsetY"],
+            min = -400,
+            max = 400,
+            step = 1,
+            displayOrder = 30,
+            callback = function(_, _, val)
+                addon.db["instanceDifficultyOffsetY"] = val
+                if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+            end,
+        })
+
+        table.insert(data, {
+            parent = L["showInstanceDifficulty"],
+            var = "instanceDifficultyUseColors",
+            type = "CheckBox",
+            text = L["instanceDifficultyUseColors"],
+            value = addon.db["instanceDifficultyUseColors"],
+            displayOrder = 40,
+            callback = function(self, _, v)
+                addon.db["instanceDifficultyUseColors"] = v
+                if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                container:ReleaseChildren()
+                addMinimapFrame(container)
+            end,
+        })
+
+        if addon.db["instanceDifficultyUseColors"] then
+            local colors = addon.db["instanceDifficultyColors"] or {}
+            table.insert(data, {
+                parent = L["showInstanceDifficulty"],
+                type = "ColorPicker",
+                text = _G["PLAYER_DIFFICULTY1"] or "Normal",
+                value = colors.NM,
+                displayOrder = 60,
+                callback = function(r, g, b)
+                    addon.db["instanceDifficultyColors"].NM = { r = r, g = g, b = b }
+                    if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                end,
+            })
+            table.insert(data, {
+                parent = L["showInstanceDifficulty"],
+                type = "ColorPicker",
+                text = _G["PLAYER_DIFFICULTY2"] or "Heroic",
+                value = colors.HC,
+                displayOrder = 70,
+                callback = function(r, g, b)
+                    addon.db["instanceDifficultyColors"].HC = { r = r, g = g, b = b }
+                    if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                end,
+            })
+            table.insert(data, {
+                parent = L["showInstanceDifficulty"],
+                type = "ColorPicker",
+                text = _G["PLAYER_DIFFICULTY6"] or "Mythic",
+                value = colors.M,
+                displayOrder = 80,
+                callback = function(r, g, b)
+                    addon.db["instanceDifficultyColors"].M = { r = r, g = g, b = b }
+                    if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                end,
+            })
+            table.insert(data, {
+                parent = L["showInstanceDifficulty"],
+                type = "ColorPicker",
+                text = _G["PLAYER_DIFFICULTY_MYTHIC_PLUS"] or "Mythic+",
+                value = colors.MPLUS,
+                displayOrder = 90,
+                callback = function(r, g, b)
+                    addon.db["instanceDifficultyColors"].MPLUS = { r = r, g = g, b = b }
+                    if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                end,
+            })
+            table.insert(data, {
+                parent = L["showInstanceDifficulty"],
+                type = "ColorPicker",
+                text = _G["PLAYER_DIFFICULTY3"] or "Raid Finder",
+                value = colors.LFR,
+                displayOrder = 50,
+                callback = function(r, g, b)
+                    addon.db["instanceDifficultyColors"].LFR = { r = r, g = g, b = b }
+                    if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                end,
+            })
+            table.insert(data, {
+                parent = L["showInstanceDifficulty"],
+                type = "ColorPicker",
+                text = _G["PLAYER_DIFFICULTY_TIMEWALKER"] or "Timewalking",
+                value = colors.TW,
+                displayOrder = 100,
+                callback = function(r, g, b)
+                    addon.db["instanceDifficultyColors"].TW = { r = r, g = g, b = b }
+                    if addon.InstanceDifficulty then addon.InstanceDifficulty:Update() end
+                end,
+            })
+        end
+	end
+
+	-- Build UI
 	local wrapper = addon.functions.createWrapperData(data, container, L)
 end
 
@@ -4303,7 +4445,25 @@ local function initUI()
 	addon.functions.InitDBValue("persistAuctionHouseFilter", false)
 	addon.functions.InitDBValue("alwaysUserCurExpAuctionHouse", false)
 	addon.functions.InitDBValue("hideDynamicFlightBar", false)
-	addon.functions.InitDBValue("showInstanceDifficulty", false)
+    addon.functions.InitDBValue("showInstanceDifficulty", false)
+    -- anchor no longer used; position controlled by offsets from CENTER
+    addon.functions.InitDBValue("instanceDifficultyOffsetX", 0)
+    addon.functions.InitDBValue("instanceDifficultyOffsetY", 0)
+    addon.functions.InitDBValue("instanceDifficultyFontSize", 14)
+    addon.functions.InitDBValue("instanceDifficultyUseColors", false)
+    if type(addon.db["instanceDifficultyColors"]) ~= "table" then addon.db["instanceDifficultyColors"] = {} end
+    -- Ensure default color entries exist
+    local defaultColors = {
+        NM = { r = 0.20, g = 0.95, b = 0.20 }, -- Normal: Green
+        HC = { r = 0.25, g = 0.55, b = 1.00 }, -- Heroic: Blue
+        M = { r = 0.80, g = 0.40, b = 1.00 }, -- Mythic: Violet
+        MPLUS = { r = 0.80, g = 0.40, b = 1.00 }, -- Mythic+: Violet
+        LFR = { r = 1.00, g = 1.00, b = 1.00 }, -- LFR: White (editable)
+        TW = { r = 1.00, g = 1.00, b = 1.00 }, -- Timewalking: White (editable)
+    }
+    for k, v in pairs(defaultColors) do
+        if type(addon.db["instanceDifficultyColors"][k]) ~= "table" then addon.db["instanceDifficultyColors"][k] = v end
+    end
 	-- addon.functions.InitDBValue("instanceDifficultyUseIcon", false)
 
 	table.insert(addon.variables.unitFrameNames, {
