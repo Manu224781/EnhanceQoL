@@ -516,6 +516,8 @@ addon.MythicPlus.variables.portalCompendium = {
 			[281404] = { text = "Daza", isClassTP = "MAGE", faction = FACTION_HORDE },
 			[281402] = { text = "Daza", isMagePortal = true, faction = FACTION_HORDE },
 			[396591] = { text = "HS", isItem = true, itemID = 202046, isHearthstone = true, icon = 2203919 },
+
+			[289284] = { text = "HS", isItem = true, itemID = 166560, isHearthstone = true, icon = 804960, equipSlot = 11, faction = FACTION_ALLIANCE },
 		},
 	},
 	[80] = {
@@ -538,6 +540,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[223444] = { text = "HS", isToy = true, toyID = 140324, isHearthstone = true, icon = 237445, map = 680 },
 
 			[200061] = { text = "HS", isItem = true, itemID = { 144341, 132523 }, isEngineering = true, icon = 1405815, isReaves = true },
+			[231054] = { text = "HS", isItem = true, itemID = 142469, isHearthstone = true, icon = 1391739, equipSlot = 11 },
 		},
 	},
 	[70] = {
@@ -588,6 +591,8 @@ addon.MythicPlus.variables.portalCompendium = {
 			[140295] = { text = "HS", isToy = true, toyID = 95567, isHearthstone = true, icon = 801132, map = { [504] = true, [508] = true }, faction = FACTION_ALLIANCE },
 			-- Horde beacon
 			[140300] = { text = "HS", isToy = true, toyID = 95568, isHearthstone = true, icon = 838819, map = { [504] = true, [508] = true }, faction = FACTION_HORDE },
+
+			[145430] = { text = "HS", isItem = true, itemID = 103678, isHearthstone = true, icon = 643915, equipSlot = 13 },
 		},
 	},
 	[50] = {
@@ -669,6 +674,14 @@ addon.MythicPlus.variables.portalCompendium = {
 	[11] = {
 		headline = HOME,
 		spells = {},
+	},
+	[12] = {
+		headline = GUILD,
+		spells = {
+			[89157] = { text = "HS", isItem = true, itemID = 65360, isHearthstone = true, icon = 461812, equipSlot = 15 },
+			[1221360] = { text = "HS", isItem = true, itemID = 63206, isHearthstone = true, icon = 461811, equipSlot = 15 },
+			[1221359] = { text = "HS", isItem = true, itemID = 63352, isHearthstone = true, icon = 461810, equipSlot = 15 },
+		},
 	},
 }
 

@@ -18,6 +18,12 @@
   - Reaves Module: Wormhole Generator Mode (Special option)
   - Kirin Tor Beacon (Zone based - Throne of Thunder/Isle of Thunder)
   - Sunreaver Beacon (Zone based - Throne of Thunder/Isle of Thunder)
+  - Shroud of Cooperation
+  - Cloak of Coordination
+  - Wrap of Unity
+  - Time-Lost Artifact
+  - Captain's Signet of Command
+  - Violet Seal of the Grand Magus
 - **Bigger Merchant Frame:** Option to increase the Merchant Frame size
 
 ---
