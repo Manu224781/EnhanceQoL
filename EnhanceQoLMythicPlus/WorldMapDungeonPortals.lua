@@ -131,8 +131,8 @@ local function EnsurePanel(parent)
 	if panel and panel:GetParent() ~= parent then panel:SetParent(parent) end
 	if panel then return panel end
 
-	panel = CreateFrame("Frame", "EQOLWorldMapDungeonPortalsPanel", parent, "BackdropTemplate")
-	panel:ClearAllPoints()
+    panel = CreateFrame("Frame", "EQOLWorldMapDungeonPortalsPanel", parent, "BackdropTemplate")
+    panel:ClearAllPoints()
 
 	local function anchorPanel()
 		local host = panel:GetParent() or parent
@@ -146,46 +146,78 @@ local function EnsurePanel(parent)
 		end
 	end
 
-	anchorPanel()
+    anchorPanel()
 	-- In case layout isn't ready on first tick, re-anchor shortly after
 	C_Timer.After(0, anchorPanel)
 	C_Timer.After(0.1, anchorPanel)
 	-- Ensure our panel is on top of Blizzard content frames
-	if QuestMapFrame then
-		panel:SetFrameStrata(QuestMapFrame:GetFrameStrata())
-		panel:SetFrameLevel(QuestMapFrame:GetFrameLevel() + 10)
-	end
-	panel:Hide()
+    if QuestMapFrame then
+        panel:SetFrameStrata("HIGH")
+        panel:SetFrameLevel((QuestMapFrame:GetFrameLevel() or 0) + 200)
+    else
+        panel:SetFrameStrata("HIGH")
+    end
+    panel:SetToplevel(true)
+    panel:EnableMouse(true)
+    panel:EnableMouseWheel(true)
+    panel:Hide()
 
-	-- Try to mimic Blizzard side-panel visuals: use inset background
-	if panel.NineSlice == nil then
-		panel:SetBackdrop({
-			bgFile = "Interface/Tooltips/UI-Tooltip-Background",
-			edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
-			tile = true,
-			tileSize = 16,
-			edgeSize = 16,
-			insets = { left = 4, right = 4, top = 4, bottom = 4 },
-		})
-		panel:SetBackdropColor(0, 0, 0, 0.65)
-	end
+    -- Background similar to Map Legend (fallbacks to black if atlas not found)
+    if not panel.Background then
+        local bg = panel:CreateTexture(nil, "BACKGROUND")
+        if bg.SetAtlas and bg:SetAtlas("QuestLog-main-background", true) then
+            -- Atlas applied
+        else
+            bg:SetColorTexture(0, 0, 0, 0.65)
+        end
+        bg:SetPoint("TOPLEFT")
+        bg:SetPoint("BOTTOMRIGHT")
+        panel.Background = bg
+    end
 
-	local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-	title:SetPoint("TOPLEFT", 12, -12)
-	title:SetText(L["DungeonCompendium"] or "Dungeon Portals")
-	panel.Title = title
+    -- Subtle border fallback for clarity
+    if not panel._eqolBackdrop then
+        panel:SetBackdrop({
+            bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+            edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        panel:SetBackdropColor(0, 0, 0, 0.55)
+        panel._eqolBackdrop = true
+    end
+
+    local title = panel:CreateFontString(nil, "OVERLAY", "Game15Font_Shadow")
+    title:SetPoint("TOP", 0, -8)
+    title:SetText(L["DungeonCompendium"] or "Dungeon Portals")
+    panel.Title = title
 
 	-- Scroll area
-	local s = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
-	s:SetPoint("TOPLEFT", 8, -36)
-	s:SetPoint("BOTTOMRIGHT", -28, 10)
+    local s = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+    s:SetPoint("TOPLEFT", 8, -36)
+    s:SetPoint("BOTTOMRIGHT", -28, 10)
 
-	local content = CreateFrame("Frame", nil, s)
-	content:SetSize(1, 1)
-	s:SetScrollChild(content)
+    -- Ensure scrollbar is visible and nicely placed (like Map Legend)
+    if s.ScrollBar and not s._eqolBarAnchored then
+        s.ScrollBar:ClearAllPoints()
+        s.ScrollBar:SetPoint("TOPLEFT", s, "TOPRIGHT", 8, 2)
+        s.ScrollBar:SetPoint("BOTTOMLEFT", s, "BOTTOMRIGHT", 8, -4)
+        s._eqolBarAnchored = true
+    end
 
-	panel.Content = content
-	panel.Scroll = s
+    local content = CreateFrame("Frame", nil, s)
+    content:SetSize(1, 1)
+    s:SetScrollChild(content)
+
+    panel.Content = content
+    panel.Scroll = s
+
+    -- Ensure our interactive content renders above any sibling art
+    local baseLevel = panel:GetFrameLevel() or 1
+    s:SetFrameLevel(baseLevel + 1)
+    content:SetFrameLevel(baseLevel + 2)
 
 	scrollBox = content
 	-- Integrate with QuestLog display system
@@ -197,8 +229,8 @@ local function EnsurePanel(parent)
 		end)
 		s._eqolSizeHook = true
 	end
-	panel.displayMode = DISPLAY_MODE
-	return panel
+    panel.displayMode = DISPLAY_MODE
+    return panel
 end
 
 local function ClearContent()
@@ -210,9 +242,15 @@ local function ClearContent()
 end
 
 local function CreateSecureSpellButton(parent, entry)
-	local b = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate, UIPanelButtonTemplate")
-	b:SetSize(28, 28)
-	b.entry = entry
+    local b = CreateFrame("Button", nil, parent, "SecureActionButtonTemplate, UIPanelButtonTemplate")
+    b:SetSize(28, 28)
+    b.entry = entry
+
+    -- Keep buttons above any background art
+    if panel then
+        b:SetFrameStrata(panel:GetFrameStrata())
+        b:SetFrameLevel((panel:GetFrameLevel() or 1) + 10)
+    end
 
 	local tex = b:CreateTexture(nil, "ARTWORK")
 	tex:SetAllPoints(b)
@@ -355,8 +393,8 @@ local function EnsureTab(parent, anchorTo)
 	if tabButton and tabButton:GetParent() ~= parent then tabButton:SetParent(parent) end
 	if tabButton then return tabButton end
 
-	-- Use Blizzard QuestLog tab template for a perfect visual match
-	tabButton = CreateFrame("Button", "EQOLWorldMapDungeonPortalsTab", parent, "QuestLogTabButtonTemplate")
+    -- Use Blizzard QuestLog tab template for a perfect visual match
+    tabButton = CreateFrame("Button", "EQOLWorldMapDungeonPortalsTab", parent, "QuestLogTabButtonTemplate")
 	tabButton:SetSize(32, 32)
 	if anchorTo then
 		tabButton:SetPoint("TOP", anchorTo, "BOTTOM", 0, -15)
@@ -367,8 +405,8 @@ local function EnsureTab(parent, anchorTo)
 	-- Mirror hover/selected visuals via the template, but we'll supply our own icon
 	tabButton.activeAtlas = "questlog-tab-icon-maplegend"
 	tabButton.inactiveAtlas = "questlog-tab-icon-maplegend-inactive"
-	tabButton.tooltipText = (L["DungeonCompendium"] or "Dungeon Portals")
-	tabButton.displayMode = DISPLAY_MODE
+    tabButton.tooltipText = (L["DungeonCompendium"] or "Dungeon Portals")
+    tabButton.displayMode = DISPLAY_MODE
 
 	-- Hide template's atlas-driven icon and add our persistent custom icon
 	if tabButton.Icon then tabButton.Icon:Hide() end
@@ -424,7 +462,7 @@ local function EnsureTab(parent, anchorTo)
 		end
 	end)
 
-	return tabButton
+    return tabButton
 end
 
 -- Glue into World Map ------------------------------------------------------
@@ -477,17 +515,26 @@ function f:TryInit()
 	local anchor = QuestMapFrame.MapLegendTab or QuestMapFrame.QuestsTab or (QuestMapFrame.DetailsFrame and QuestMapFrame.DetailsFrame.BackFrame)
 	EnsureTab(parent, anchor)
 
-	-- Inject our panel into ContentFrames so SetDisplayMode can manage visibility
-	if QuestMapFrame.ContentFrames then
-		local exists = false
-		for _, frame in ipairs(QuestMapFrame.ContentFrames) do
-			if frame == panel then
-				exists = true
-				break
-			end
-		end
-		if not exists then table.insert(QuestMapFrame.ContentFrames, panel) end
-	end
+    -- Inject our panel into ContentFrames so SetDisplayMode can manage visibility
+    if QuestMapFrame.ContentFrames then
+        local exists = false
+        for _, frame in ipairs(QuestMapFrame.ContentFrames) do
+            if frame == panel then
+                exists = true
+                break
+            end
+        end
+        if not exists then table.insert(QuestMapFrame.ContentFrames, panel) end
+    end
+
+    -- Also register our tab as a managed tab for consistent checked state
+    if QuestMapFrame.TabButtons then
+        local present = false
+        for _, b in ipairs(QuestMapFrame.TabButtons) do
+            if b == tabButton then present = true break end
+        end
+        if not present then table.insert(QuestMapFrame.TabButtons, tabButton) end
+    end
 
 	-- Track display mode changes to update our tab state and refresh content
 	if EventRegistry and not f._eqolDisplayEvent then
