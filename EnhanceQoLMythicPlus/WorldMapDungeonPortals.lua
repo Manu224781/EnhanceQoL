@@ -133,12 +133,23 @@ local function EnsurePanel(parent)
 
 	panel = CreateFrame("Frame", "EQOLWorldMapDungeonPortalsPanel", parent, "BackdropTemplate")
 	panel:ClearAllPoints()
-	if QuestMapFrame and QuestMapFrame.ContentsAnchor then
-		panel:SetPoint("TOPLEFT", QuestMapFrame.ContentsAnchor, "TOPLEFT", 0, -29)
-		panel:SetPoint("BOTTOMRIGHT", QuestMapFrame.ContentsAnchor, "BOTTOMRIGHT", -22, 0)
-	else
-		panel:SetAllPoints(parent)
+
+	local function anchorPanel()
+		local host = panel:GetParent() or parent
+		local ca = QuestMapFrame and QuestMapFrame.ContentsAnchor
+		panel:ClearAllPoints()
+		if ca and ca.GetWidth and ca:GetWidth() > 0 and ca:GetHeight() > 0 then
+			panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, -29)
+			panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", -22, 0)
+		else
+			panel:SetAllPoints(host)
+		end
 	end
+
+	anchorPanel()
+	-- In case layout isn't ready on first tick, re-anchor shortly after
+	C_Timer.After(0, anchorPanel)
+	C_Timer.After(0.1, anchorPanel)
 	-- Ensure our panel is on top of Blizzard content frames
 	if QuestMapFrame then
 		panel:SetFrameStrata(QuestMapFrame:GetFrameStrata())
@@ -178,6 +189,14 @@ local function EnsurePanel(parent)
 
 	scrollBox = content
 	-- Integrate with QuestLog display system
+
+	-- Keep content up-to-date if the scroll area changes size after layout
+	if not s._eqolSizeHook then
+		s:HookScript("OnSizeChanged", function()
+			if panel and panel:IsShown() then f:RefreshPanel() end
+		end)
+		s._eqolSizeHook = true
+	end
 	panel.displayMode = DISPLAY_MODE
 	return panel
 end
@@ -278,7 +297,11 @@ local function PopulatePanel()
 	local xStart = 10
 	local x = xStart
 	local scrollW = panel.Scroll:GetWidth()
-	if not scrollW or scrollW <= 0 then scrollW = (panel:GetWidth() or 330) - 30 end
+	if not scrollW or scrollW <= 1 then
+		local pw = panel:GetWidth() or 0
+		if pw <= 1 then pw = (panel:GetParent() and panel:GetParent():GetWidth()) or 0 end
+		scrollW = (pw > 1 and pw or 330) - 30
+	end
 	local maxWidth = math.max(100, scrollW - 50)
 	local perRow = math.max(1, math.floor(maxWidth / 44))
 	local countInRow = 0
@@ -336,54 +359,49 @@ local function EnsureTab(parent, anchorTo)
 	tabButton = CreateFrame("Button", "EQOLWorldMapDungeonPortalsTab", parent, "QuestLogTabButtonTemplate")
 	tabButton:SetSize(32, 32)
 	if anchorTo then
-		tabButton:SetPoint("TOP", anchorTo, "BOTTOM", 0, -3)
+		tabButton:SetPoint("TOP", anchorTo, "BOTTOM", 0, -15)
 	else
 		tabButton:SetPoint("TOPRIGHT", -6, -100)
 	end
 
-	-- Mirror the MapLegendTab key values (hover/selected visuals via the template)
+	-- Mirror hover/selected visuals via the template, but we'll supply our own icon
 	tabButton.activeAtlas = "questlog-tab-icon-maplegend"
 	tabButton.inactiveAtlas = "questlog-tab-icon-maplegend-inactive"
 	tabButton.tooltipText = (L["DungeonCompendium"] or "Dungeon Portals")
 	tabButton.displayMode = DISPLAY_MODE
 
-	-- Ensure an icon texture layer exists (we always use our custom icon)
-	if not tabButton.Icon then
-		local icon = tabButton:CreateTexture(nil, "ARTWORK")
-		icon:SetAllPoints(tabButton)
-		tabButton.Icon = icon
-	end
+	-- Hide template's atlas-driven icon and add our persistent custom icon
+	if tabButton.Icon then tabButton.Icon:Hide() end
+	local customIcon = tabButton:CreateTexture(nil, "ARTWORK")
+	customIcon:SetPoint("CENTER", -2, 0)
+	customIcon:SetSize(20, 20)
+	customIcon:SetTexture("Interface\\AddOns\\EnhanceQoL\\Icons\\Dungeon.tga")
+	customIcon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+	tabButton.CustomIcon = customIcon
 
-	-- Apply custom Dungeon icon texture (overrides atlas)
-	local function ApplyCustomDungeonIcon()
-		if not tabButton or not tabButton.Icon then return end
-		tabButton.Icon:ClearAllPoints()
-		tabButton.Icon:SetPoint("CENTER", -2, 0)
-		tabButton.Icon:SetTexture("Interface\\AddOns\\EnhanceQoL\\Icons\\Dungeon.tga")
-		tabButton.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-		tabButton.Icon:SetSize(20, 20)
+	-- Guard against Blizzard re-showing the template icon
+	if tabButton.Icon and not tabButton.Icon._eqolHook then
+		hooksecurefunc(tabButton.Icon, "Show", function(icon) icon:Hide() end)
+		hooksecurefunc(tabButton.Icon, "SetAtlas", function(icon) icon:Hide() end)
+		tabButton.Icon._eqolHook = true
 	end
-
-	ApplyCustomDungeonIcon()
 
 	-- make sure we're not selected by default
 	if tabButton.SetChecked then tabButton:SetChecked(false) end
 	if tabButton.SelectedTexture then tabButton.SelectedTexture:Hide() end
 
-	-- keep custom icon persistent if Blizzard toggles our checked state
-	if not tabButton._eqolHookedChecked then
-		hooksecurefunc(tabButton, "SetChecked", function(self, checked)
-			-- reapply custom icon so atlas never shows
-			if self.Icon then
-				self.Icon:ClearAllPoints()
-				self.Icon:SetPoint("CENTER", -2, 0)
-				self.Icon:SetTexture("Interface\\AddOns\\EnhanceQoL\\Icons\\Dungeon.tga")
-				self.Icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
-				self.Icon:SetSize(20, 20)
-				self.Icon:SetDesaturated(false)
-			end
+	-- Keep custom icon clear on state changes
+	if not tabButton._eqolStateHooks then
+		hooksecurefunc(tabButton, "SetChecked", function(self)
+			if self.CustomIcon then self.CustomIcon:SetDesaturated(false) end
 		end)
-		tabButton._eqolHookedChecked = true
+		hooksecurefunc(tabButton, "Disable", function(self)
+			if self.CustomIcon then self.CustomIcon:SetDesaturated(true) end
+		end)
+		hooksecurefunc(tabButton, "Enable", function(self)
+			if self.CustomIcon then self.CustomIcon:SetDesaturated(false) end
+		end)
+		tabButton._eqolStateHooks = true
 	end
 
 	tabButton:SetScript("OnEnter", function(self)
@@ -420,6 +438,40 @@ function f:TryInit()
 	local hostPanel = parent.DetailsFrame or parent
 
 	EnsurePanel(hostPanel)
+
+	-- Re-anchor our panel whenever the map resizes or the content anchor becomes valid
+	if not parent._eqolSizeHook then
+		parent:HookScript("OnSizeChanged", function()
+			if panel and panel:GetParent() then
+				panel:ClearAllPoints()
+				local ca = QuestMapFrame and QuestMapFrame.ContentsAnchor
+				if ca and ca.GetWidth and ca:GetWidth() > 0 and ca:GetHeight() > 0 then
+					panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, -29)
+					panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", -22, 0)
+				else
+					panel:SetAllPoints(panel:GetParent())
+				end
+				f:RefreshPanel()
+			end
+		end)
+		parent._eqolSizeHook = true
+	end
+	if QuestMapFrame.ContentsAnchor and not QuestMapFrame.ContentsAnchor._eqolSizeHook then
+		QuestMapFrame.ContentsAnchor:HookScript("OnSizeChanged", function()
+			if panel and panel:GetParent() then
+				panel:ClearAllPoints()
+				local ca = QuestMapFrame and QuestMapFrame.ContentsAnchor
+				if ca and ca.GetWidth and ca:GetWidth() > 0 and ca:GetHeight() > 0 then
+					panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, -29)
+					panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", -22, 0)
+				else
+					panel:SetAllPoints(panel:GetParent())
+				end
+				f:RefreshPanel()
+			end
+		end)
+		QuestMapFrame.ContentsAnchor._eqolSizeHook = true
+	end
 
 	-- Anchor the tab under the Map Legend tab if we can find it
 	local anchor = QuestMapFrame.MapLegendTab or QuestMapFrame.QuestsTab or (QuestMapFrame.DetailsFrame and QuestMapFrame.DetailsFrame.BackFrame)
@@ -480,6 +532,9 @@ f:RegisterEvent("TOYS_UPDATED")
 
 -- make sure we also initialize when the WorldMap opens
 if WorldMapFrame and not WorldMapFrame._eqolTeleportHook then
-	WorldMapFrame:HookScript("OnShow", function() f:TryInit() end)
+	WorldMapFrame:HookScript("OnShow", function()
+		f:TryInit()
+		C_Timer.After(0, function() f:RefreshPanel() end)
+	end)
 	WorldMapFrame._eqolTeleportHook = true
 end
