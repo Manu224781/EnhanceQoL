@@ -438,6 +438,8 @@ addon.MythicPlus.variables.portalCompendium = {
 			[1223041] = { text = "HS", isItem = true, itemID = 234389, isRaid = true, icon = 3718248, map = 2406 },
 			[1239155] = { text = "MFO", isRaid = true },
 			[467470] = { text = "DELVE", isToy = true, toyID = 230850 },
+
+			[1234526] = { text = "HS", isItem = true, itemID = 243056, isHearthstone = true, icon = 7137505 },
 		},
 	},
 	[110] = {
@@ -531,6 +533,11 @@ addon.MythicPlus.variables.portalCompendium = {
 			[224871] = { text = "DalB", isMagePortal = true },
 
 			[227334] = { text = "HS", isItem = true, itemID = 141605, isHearthstone = true, icon = 132161 },
+			[82674] = { text = "HS", isItem = true, itemID = 64457, isHearthstone = true, icon = 458240 },
+			[223444] = { text = "HS", isToy = true, toyID = 140324, isHearthstone = true, icon = 237445, map = 680 },
+
+			[200061] = { text = "HS", isItem = true, itemID = 144341, isEngineering = true, icon = 1405815, isReaves = true },
+			[200061] = { text = "HS", isItem = true, itemID = 132523, isEngineering = true, icon = 1405815, isReaves = true },
 		},
 	},
 	[70] = {

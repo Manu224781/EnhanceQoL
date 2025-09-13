@@ -11,6 +11,9 @@
   - Dimensional Ripper - Everlook
   - Ultrasafe Transporter: Toshley's Station
   - Ultrasafe Transporter: Gadgetzan
+  - Delver's Mana-Bound Ethergate
+  - The Last Relic of Argus
+  - Mobile Telemancy Beacon (Zone based - Only in Suramar)
 
 ---
 

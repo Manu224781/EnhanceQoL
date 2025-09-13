@@ -505,6 +505,7 @@ local function CreatePortalCompendium(frame, compendium)
 	if hasEngineering then
 		hasGnomish, hasGoblin = GetEngineeringBranch()
 	end
+	local aMapID = C_Map.GetBestMapForUnit("player")
 	addon.MythicPlus.functions.setRandomHearthstone()
 	-- Entferne alle bestehenden Elemente
 	for _, button in pairs(frame.buttons or {}) do
@@ -564,7 +565,7 @@ local function CreatePortalCompendium(frame, compendium)
 
 				local showSpell = specOk
 					and (not data.faction or data.faction == faction)
-					and (not data.map or (data.map == C_Map.GetBestMapForUnit("player")))
+					and (not data.map or (data.map == aMapID))
 					and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
 					and (not addon.db["hideActualSeason"] or not portalSpells[spellID])
 					and (addon.db["portalShowRaidTeleports"] or not data.isRaid)
