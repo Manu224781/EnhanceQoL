@@ -604,6 +604,7 @@ local function CreatePortalCompendium(frame, compendium)
 								icon = data.icon or false,
 								isClassTP = data.isClassTP or false,
 								isMagePortal = data.isMagePortal or false,
+								equipSlot = data.equipSlot,
 								isFavorite = favorites[spellID],
 							})
 						end
@@ -648,6 +649,7 @@ local function CreatePortalCompendium(frame, compendium)
 							icon = data.icon or false,
 							isClassTP = data.isClassTP or false,
 							isMagePortal = data.isMagePortal or false,
+							equipSlot = data.equipSlot,
 							isFavorite = favorites[spellID],
 						})
 					end
@@ -794,8 +796,26 @@ local function CreatePortalCompendium(frame, compendium)
 					if spellData.isKnown then
 						local useID = FirstOwnedItemID(spellData.itemID)
 						button.itemID = useID
+						button.equipSlot = spellData.equipSlot
 						button:SetAttribute("type1", "macro")
+						-- default macro: directly use the item
 						button:SetAttribute("macrotext1", "/use item:" .. useID)
+						-- if an equipSlot is defined, dynamically choose action on click (two-click flow)
+						if spellData.equipSlot then
+							button:SetScript("PreClick", function(self)
+								local slot = self.equipSlot
+								if not slot or not self.itemID then return end
+								local equippedID = GetInventoryItemID("player", slot)
+								if equippedID ~= self.itemID then
+									self:SetAttribute("type1", "macro")
+									-- first click equips only; user clicks again to use
+									self:SetAttribute("macrotext1", "/equip item:" .. self.itemID)
+								else
+									self:SetAttribute("type1", "macro")
+									self:SetAttribute("macrotext1", "/use item:" .. self.itemID)
+								end
+							end)
+						end
 						button:SetAttribute("type2", nil)
 						button:SetAttribute("macrotext2", nil)
 					end
