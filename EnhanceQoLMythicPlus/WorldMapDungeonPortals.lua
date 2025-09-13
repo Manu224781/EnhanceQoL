@@ -140,8 +140,9 @@ local function EnsurePanel(parent)
         local ca = QuestMapFrame and QuestMapFrame.ContentsAnchor
         panel:ClearAllPoints()
         if ca and ca.GetWidth and ca:GetWidth() > 0 and ca:GetHeight() > 0 then
-            panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, 0)
-            panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", 0, 0)
+            -- Match Blizzard MapLegend anchoring to ContentsAnchor
+            panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, -29)
+            panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", -22, 0)
         else
             panel:SetAllPoints(host)
         end
@@ -167,21 +168,28 @@ local function EnsurePanel(parent)
     if not panel.BorderFrame then
         local bf = CreateFrame("Frame", nil, panel, "QuestLogBorderFrameTemplate")
         bf:SetAllPoints(panel)
+        -- Keep border art above background & content
+        bf:SetFrameStrata(panel:GetFrameStrata())
+        bf:SetFrameLevel((panel:GetFrameLevel() or 2) + 3)
         panel.BorderFrame = bf
+    else
+        panel.BorderFrame:SetFrameStrata(panel:GetFrameStrata())
+        panel.BorderFrame:SetFrameLevel((panel:GetFrameLevel() or 2) + 3)
     end
 
     local title = panel:CreateFontString(nil, "OVERLAY", "Game15Font_Shadow")
-    -- Keep title inside the frame, slightly below top edge
-    title:SetPoint("TOP", panel, "TOP", 0, -6)
+    -- Match MapLegend XML: BOTTOM of text to TOP of BorderFrame, x=-1, y=3
+    title:ClearAllPoints()
+    title:SetPoint("BOTTOM", panel.BorderFrame, "TOP", -1, 3)
     title:SetText(L["DungeonCompendium"] or "Dungeon Portals")
     panel.Title = title
 
 	-- Scroll area
     local s = CreateFrame("ScrollFrame", "EQOLWorldMapDungeonPortalsScrollFrame", panel, "ScrollFrameTemplate")
-    -- Inset to keep background and scrollbar inside border
+    -- Fill interior; ScrollBar will sit in the right gutter via offsets
     s:ClearAllPoints()
-    s:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -28)
-    s:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 8)
+    s:SetPoint("TOPLEFT")
+    s:SetPoint("BOTTOMRIGHT")
 
     -- Background inside the scrollframe similar to MapLegend
     if not s.Background then
@@ -195,8 +203,8 @@ local function EnsurePanel(parent)
     -- Align scrollbar like MapLegend: x=+8, topY=+2, bottomY=-4
     if s.ScrollBar and not s._eqolBarAnchored then
         s.ScrollBar:ClearAllPoints()
-        s.ScrollBar:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -24)
-        s.ScrollBar:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -8, 6)
+        s.ScrollBar:SetPoint("TOPLEFT", s, "TOPRIGHT", 8, 2)
+        s.ScrollBar:SetPoint("BOTTOMLEFT", s, "BOTTOMRIGHT", 8, -4)
         s._eqolBarAnchored = true
     end
 
@@ -324,8 +332,8 @@ local function PopulatePanel()
 		return
 	end
 
-    local y = -25 -- topPadding like MapLegend
-    local xStart = 12 -- leftPadding like MapLegend
+    local y = -24 -- approximate topPadding like MapLegend
+    local xStart = 12 -- left padding like MapLegend
 	local x = xStart
     local scrollW = panel.Scroll:GetWidth()
 	if not scrollW or scrollW <= 1 then
@@ -333,7 +341,9 @@ local function PopulatePanel()
 		if pw <= 1 then pw = (panel:GetParent() and panel:GetParent():GetWidth()) or 0 end
 		scrollW = (pw > 1 and pw or 330) - 30
 	end
-    local maxWidth = math.max(100, scrollW - 12)
+    -- subtract an allowance for the scrollbar + right padding
+    local scrollbarWidth = (panel.Scroll.ScrollBar and panel.Scroll.ScrollBar:GetWidth()) or 18
+    local maxWidth = math.max(100, scrollW - scrollbarWidth - 20)
     local perRow = math.max(1, math.floor(maxWidth / 44))
 	local countInRow = 0
 
@@ -475,8 +485,8 @@ function f:TryInit()
 				panel:ClearAllPoints()
 				local ca = QuestMapFrame and QuestMapFrame.ContentsAnchor
                 if ca and ca.GetWidth and ca:GetWidth() > 0 and ca:GetHeight() > 0 then
-                    panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, 0)
-                    panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", 0, 0)
+                    panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, -29)
+                    panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", -22, 0)
                 else
                     panel:SetAllPoints(panel:GetParent())
                 end
@@ -491,8 +501,8 @@ function f:TryInit()
 				panel:ClearAllPoints()
 				local ca = QuestMapFrame and QuestMapFrame.ContentsAnchor
                 if ca and ca.GetWidth and ca:GetWidth() > 0 and ca:GetHeight() > 0 then
-                    panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, 0)
-                    panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", 0, 0)
+                    panel:SetPoint("TOPLEFT", ca, "TOPLEFT", 0, -29)
+                    panel:SetPoint("BOTTOMRIGHT", ca, "BOTTOMRIGHT", -22, 0)
                 else
                     panel:SetAllPoints(panel:GetParent())
                 end
