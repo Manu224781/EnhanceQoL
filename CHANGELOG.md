@@ -28,6 +28,8 @@
   - Blessed Medallion of Karabor
   - Kirin Tor Rings
 - **Bigger Merchant Frame:** Option to increase the Merchant Frame size
+- **Tooltip:** Option to choose what mythic+ score information to see on units (score, best dungeon, season dungeon overview)
+- **Teleport Compendium:** New and modern UI option intecrated into the world map, seemless integration, you will think blizzard added this
 
 ---
 
