@@ -751,43 +751,27 @@ local function addTeleportFrame(container)
 	wrapper:AddChild(groupCore)
 	groupCore:SetTitle(L["teleportsHeadline"])
 
-	local cbTeleportsEnabled = addon.functions.createCheckboxAce(L["teleportEnabled"], addon.db["teleportFrame"], function(self, _, value)
-		addon.db["teleportFrame"] = value
-		container:ReleaseChildren()
-		addTeleportFrame(container)
-		addon.MythicPlus.functions.toggleFrame()
-	end)
-	groupCore:AddChild(cbTeleportsEnabled)
+    local cbTeleportsEnabled = addon.functions.createCheckboxAce(L["teleportEnabled"], addon.db["teleportFrame"], function(self, _, value)
+        addon.db["teleportFrame"] = value
+        container:ReleaseChildren()
+        addTeleportFrame(container)
+        addon.MythicPlus.functions.toggleFrame()
+    end, L["teleportEnabledDesc"])
+    groupCore:AddChild(cbTeleportsEnabled)
 
-	-- if addon.db["teleportFrame"] then
-	local data = {
-		{
-			text = L["teleportsEnableCompendium"],
-			var = "teleportsEnableCompendium",
-			func = function(self, _, value)
-				addon.db["teleportsEnableCompendium"] = value
-				container:ReleaseChildren()
-				addTeleportFrame(container)
-				addon.MythicPlus.functions.toggleFrame()
-				if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
-			end,
-		},
-		{
-			text = L["teleportsWorldMapUseModern"],
-			var = "teleportsWorldMapUseModern",
-			func = function(self, _, value)
-				addon.db["teleportsWorldMapUseModern"] = value
-				if value == false then addon.variables.requireReload = true end
-				container:ReleaseChildren()
-				addTeleportFrame(container)
-				-- World map panel will initialize itself on next map open or immediately if visible
-				if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
-			end,
-		},
-		{
-			text = L["portalHideMissing"],
-			var = "portalHideMissing",
-		},
+    -- World Map Compendium toggle, independent of Teleport Frame
+    local cbWorldMapEnabled = addon.functions.createCheckboxAce(L["teleportsWorldMapEnabled"], addon.db["teleportsWorldMapEnabled"], function(self, _, value)
+        addon.db["teleportsWorldMapEnabled"] = value
+        if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
+    end, L["teleportsWorldMapEnabledDesc"])
+    groupCore:AddChild(cbWorldMapEnabled)
+
+    -- if addon.db["teleportFrame"] then
+    local data = {
+        {
+            text = L["portalHideMissing"],
+            var = "portalHideMissing",
+        },
 		{
 			text = L["portalShowTooltip"],
 			var = "portalShowTooltip",
@@ -812,113 +796,7 @@ local function addTeleportFrame(container)
 	end
 	-- end
 
-	if addon.db["teleportsEnableCompendium"] then
-		local groupCompendiumAddition = addon.functions.createContainer("InlineGroup", "List")
-		wrapper:AddChild(groupCompendiumAddition)
-		groupCompendiumAddition:SetTitle(L["teleportCompendiumAdditionHeadline"])
-		data = {
-			{
-				text = L["hideActualSeason"],
-				var = "hideActualSeason",
-			},
-			{
-				text = L["portalShowDungeonTeleports"],
-				var = "portalShowDungeonTeleports",
-			},
-			{
-				text = L["portalShowRaidTeleports"],
-				var = "portalShowRaidTeleports",
-			},
-			{
-				text = L["portalShowEngineering"],
-				var = "portalShowEngineering",
-			},
-			{
-				text = L["portalUseReavesModule"],
-				var = "portalUseReavesModule",
-			},
-			{
-				text = L["portalShowToyHearthstones"],
-				var = "portalShowToyHearthstones",
-			},
-			{
-				text = L["portalShowClassTeleport"],
-				var = "portalShowClassTeleport",
-			},
-			{
-				text = L["portalShowMagePortal"],
-				var = "portalShowMagePortal",
-			},
-		}
-
-		for _, cbData in ipairs(data) do
-			local uFunc = function(self, _, value)
-				addon.db[cbData.var] = value
-				addon.MythicPlus.functions.toggleFrame()
-				if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
-			end
-			if cbData.func then uFunc = cbData.func end
-			local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], uFunc)
-			groupCompendiumAddition:AddChild(cbElement)
-		end
-
-		local groupCompendiumFavorite = addon.functions.createContainer("InlineGroup", "List")
-		wrapper:AddChild(groupCompendiumFavorite)
-		groupCompendiumFavorite:SetTitle(L["teleportFavoritesHeadline"])
-		local data = {
-			{
-				text = L["teleportFavoritesIgnoreExpansionHide"],
-				var = "teleportFavoritesIgnoreExpansionHide",
-			},
-			{
-				text = L["teleportFavoritesIgnoreFilters"],
-				desc = L["teleportFavoritesIgnoreFiltersDesc"],
-				var = "teleportFavoritesIgnoreFilters",
-			},
-		}
-
-		for _, cbData in ipairs(data) do
-			local uFunc = function(self, _, value)
-				addon.db[cbData.var] = value
-				addon.MythicPlus.functions.toggleFrame()
-				if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
-			end
-			if cbData.func then uFunc = cbData.func end
-			local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], uFunc, cbData.desc)
-			groupCompendiumFavorite:AddChild(cbElement)
-		end
-
-		local groupCompendium = addon.functions.createContainer("InlineGroup", "List")
-		wrapper:AddChild(groupCompendium)
-		groupCompendium:SetTitle(L["teleportCompendiumHeadline"])
-		data = {}
-
-		local sortedIndexes = {}
-		for key, _ in pairs(addon.MythicPlus.variables.portalCompendium) do
-			table.insert(sortedIndexes, key)
-		end
-
-		table.sort(sortedIndexes, function(a, b) return a > b end)
-
-		for _, key in ipairs(sortedIndexes) do
-			local v = addon.MythicPlus.variables.portalCompendium[key]
-			table.insert(data, {
-				text = HIDE .. " " .. v.headline,
-				var = "teleportsCompendiumHide" .. v.headline,
-			})
-		end
-
-		for _, cbData in ipairs(data) do
-			local uFunc = function(self, _, value)
-				addon.db[cbData.var] = value
-				addon.MythicPlus.functions.toggleFrame()
-				if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
-			end
-			if cbData.func then uFunc = cbData.func end
-			local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], uFunc)
-			groupCompendium:AddChild(cbElement)
-		end
-	end
+	-- Legacy/old compendium options removed; modern World Map compendium is always used.
 
 	scroll:DoLayout()
 	wrapper:DoLayout()

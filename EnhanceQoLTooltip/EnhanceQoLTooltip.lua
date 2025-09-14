@@ -641,13 +641,7 @@ addon.functions.addToTree(nil, {
 	value = "tooltip",
 	text = L["Tooltip"],
 	children = {
-		{ value = "general", text = GENERAL },
-		{ value = "buff_debuff", text = L["Buff_Debuff"] },
-		{ value = "item", text = L["Item"] },
-		{ value = "spell", text = L["Spell"] },
 		{ value = "unit", text = L["Unit"] },
-		{ value = "quests", text = QUESTLOG_BUTTON },
-		{ value = "currency", text = CURRENCY },
 	},
 })
 
@@ -656,6 +650,7 @@ local function addBuffDebuffFrame(container)
 	container:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(L["Buff_Debuff"]) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 	local list, order = addon.functions.prepareListForDropdown({ [1] = L["TooltipOFF"], [2] = L["TooltipON"] })
 
@@ -683,6 +678,7 @@ local function addItemFrame(container)
 	container:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(L["Item"]) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 	local list, order = addon.functions.prepareListForDropdown({ [1] = L["TooltipOFF"], [2] = L["TooltipON"] })
 
@@ -714,6 +710,7 @@ local function addSpellFrame(container)
 	container:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(L["Spell"]) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 	local list, order = addon.functions.prepareListForDropdown({ [1] = L["TooltipOFF"], [2] = L["TooltipON"] })
 
@@ -743,6 +740,7 @@ local function addQuestsFrame(container)
 	container:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(QUESTLOG_BUTTON) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 	local list, order = addon.functions.prepareListForDropdown({ [1] = L["None"], [2] = L["Enemies"], [3] = L["Friendly"], [4] = L["Both"] })
 
@@ -763,6 +761,7 @@ local function addUnitFrame(container)
 	container:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(L["Unit"]) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 	local list, order = addon.functions.prepareListForDropdown({ [1] = L["None"], [2] = L["Enemies"], [3] = L["Friendly"], [4] = L["Both"] })
 
@@ -867,19 +866,26 @@ local function addUnitFrame(container)
 	end
 end
 
-local function addGeneralFrame(container)
-	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
-	container:AddChild(wrapper)
+local function addGeneralFrame(container, existingWrapper)
+	local wrapper
+	if existingWrapper then
+		wrapper = existingWrapper
+		wrapper:ReleaseChildren()
+	else
+		wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
+		container:AddChild(wrapper)
+	end
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(GENERAL) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 
 	local list, order = addon.functions.prepareListForDropdown({ [1] = DEFAULT, [2] = L["CursorCenter"], [3] = L["CursorLeft"], [4] = L["CursorRight"] })
 
 	local dropTooltipUnitHideType = addon.functions.createDropdownAce(L["TooltipAnchorType"], list, order, function(self, _, value)
 		addon.db["TooltipAnchorType"] = self:GetValue()
-		container:ReleaseChildren()
-		addGeneralFrame(container)
+		-- Nur den General-Abschnitt neu aufbauen
+		addGeneralFrame(container, wrapper)
 	end)
 	dropTooltipUnitHideType:SetValue(addon.db["TooltipAnchorType"])
 	dropTooltipUnitHideType:SetFullWidth(false)
@@ -920,6 +926,7 @@ local function addCurrencyFrame(container)
 	container:AddChild(wrapper)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	groupCore:SetTitle(CURRENCY) -- Headline matching old name
 	wrapper:AddChild(groupCore)
 
 	local data = {
@@ -937,25 +944,26 @@ end
 
 function addon.Tooltip.functions.treeCallback(container, group)
 	container:ReleaseChildren() -- Entfernt vorherige Inhalte
-	-- Prüfen, welche Gruppe ausgewählt wurde
-	if group == "tooltip\001buff_debuff" then
-		addBuffDebuffFrame(container)
-	elseif group == "tooltip\001item" then
-		addItemFrame(container)
-	elseif group == "tooltip\001quests" then
-		addQuestsFrame(container)
-	elseif group == "tooltip\001spell" then
-		addSpellFrame(container)
+	-- Root-Ansicht von Tooltip zeigt alle außer Unit zusammen
+	if group == "tooltip" then
+		local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
+		container:AddChild(scroll)
+		local inner = addon.functions.createContainer("SimpleGroup", "Flow")
+		scroll:AddChild(inner)
+
+		-- Reihenfolge: Buff/Debuff, Currency, Item, General, Quest Log, Spell
+		addBuffDebuffFrame(inner)
+		addCurrencyFrame(inner)
+		addItemFrame(inner)
+		addGeneralFrame(inner)
+		addQuestsFrame(inner)
+		addSpellFrame(inner)
+		-- Unit bleibt als eigene, separate Ansicht
+		scroll:DoLayout()
 	elseif group == "tooltip\001unit" then
 		addUnitFrame(container)
-	elseif group == "tooltip\001general" then
-		addGeneralFrame(container)
-	elseif group == "tooltip\001currency" then
-		addCurrencyFrame(container)
 	else
-		-- local label = AceGUI:Create("Label")
-		-- label:SetText("No content defined for this section.")
-		-- container:AddChild(label)
+		-- Kein Inhalt für andere (nicht mehr vorhandene) Unterkategorien
 	end
 end
 

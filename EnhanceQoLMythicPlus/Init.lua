@@ -103,17 +103,15 @@ addon.MythicPlus.variables = {}
 addon.functions.InitDBValue("teleportFrame", false)
 addon.functions.InitDBValue("portalHideMissing", false)
 addon.functions.InitDBValue("portalShowTooltip", false)
-addon.functions.InitDBValue("teleportsEnableCompendium", false)
--- World Map: modern compendium toggle
-addon.functions.InitDBValue("teleportsWorldMapUseModern", false)
+-- World Map panel enable toggle (modern compendium)
+-- Cache for resolved map/zone names used by modern frame
+addon.functions.InitDBValue("teleportNameCache", {})
 addon.functions.InitDBValue("teleportFavorites", {})
-addon.functions.InitDBValue("teleportFavoritesIgnoreExpansionHide", false)
-addon.functions.InitDBValue("teleportFavoritesIgnoreFilters", false)
+-- Enable/disable World Map Teleport Panel independently
+addon.functions.InitDBValue("teleportsWorldMapEnabled", true)
+-- Favorites override is now always active in code
 addon.functions.InitDBValue("teleportFrameLocked", true)
 addon.functions.InitDBValue("teleportFrameData", {})
-addon.functions.InitDBValue("teleportCompendiumLocked", true)
-addon.functions.InitDBValue("teleportCompendiumFrameData", {})
-addon.functions.InitDBValue("portalUseReavesModule", false)
 addon.functions.InitDBValue("dungeonScoreFrameLocked", true)
 addon.functions.InitDBValue("dungeonScoreFrameData", {})
 
@@ -420,18 +418,25 @@ function addon.MythicPlus.functions.removeExistingButton()
 	addon.MythicPlus.nrOfButtons = 0
 end
 
+-- dumb the map cursor position: /dump WorldMapFrame:GetMapID(), WorldMapFrame.ScrollContainer:GetNormalizedCursorPosition()
+-- WorldMapFrame:GetMapID()
 addon.MythicPlus.variables.portalCompendium = {
+
+	[9999] = {
+		headline = HOME,
+		spells = {},
+	},
 	[120] = {
 		headline = EXPANSION_NAME10,
 		spells = {
 			[445269] = { text = "SV", cId = { [501] = true }, mapID = 2652 },
-			[445416] = { text = "COT", cId = { [502] = true }, mapID = 2663 },
-			[445414] = { text = "DAWN", cId = { [505] = true }, mapID = 2662 },
-			[445417] = { text = "ARAK", cId = { [503] = true }, mapID = 2660 },
-			[1216786] = { text = "FLOOD", cId = { [525] = true }, mapID = 2773 },
+			[445416] = { text = "COT", cId = { [502] = true }, mapID = 2663, locID = 2255, x = 0.4667, y = 0.6922 },
+			[445414] = { text = "DAWN", cId = { [505] = true }, mapID = 2662, locID = 2215, x = 0.5492, y = 0.6276 },
+			[445417] = { text = "ARAK", cId = { [503] = true }, mapID = 2660, locID = 2255, x = 0.494, y = 0.808 },
+			[1216786] = { text = "FLOOD", cId = { [525] = true }, mapID = 2773, locID = 2214, x = 0.4201, y = 0.3952 },
 			[1237215] = { text = "ED", cId = { [542] = true }, mapID = 2830 },
-			[445440] = { text = "BREW", cId = { [506] = true }, mapID = 2661 },
-			[445444] = { text = "PSF", cId = { [499] = true }, mapID = 2649 },
+			[445440] = { text = "BREW", cId = { [506] = true }, mapID = 2661, locID = 2248, x = 0.7656, y = 0.4383 },
+			[445444] = { text = "PSF", cId = { [499] = true }, mapID = 2649, locID = 2215, x = 0.4129, y = 0.4939 },
 			[445441] = { text = "DFC", cId = { [504] = true }, mapID = 2651 },
 			[445443] = { text = "ROOK", cId = { [500] = true }, mapID = 2648 },
 			[448126] = { text = "ENGI", isToy = true, toyID = 221966, isEngineering = true },
@@ -658,7 +663,7 @@ addon.MythicPlus.variables.portalCompendium = {
 				icon = 135226,
 				equipSlot = 16,
 			},
-			[39937] = { text = "KARA", isItem = true, itemID = 28585, isHearthstone = true, icon = 132566, equipSlot = 8 },
+			[39937] = { text = "HS", isItem = true, itemID = 28585, isHearthstone = true, icon = 132566, equipSlot = 8 },
 		},
 	},
 	[20] = {
@@ -683,15 +688,15 @@ addon.MythicPlus.variables.portalCompendium = {
 			[23453] = { text = "ENGI", isToy = true, toyID = 18986, isEngineering = true, isGnomish = true },
 			[23442] = { text = "ENGI", isToy = true, toyID = 18984, isEngineering = true, isGoblin = true },
 
-			[89157] = { text = "SW", isItem = true, itemID = 65360, isHearthstone = true, icon = 461812, equipSlot = 15, faction = FACTION_ALLIANCE },
-			[1221360] = { text = "SW", isItem = true, itemID = 63206, isHearthstone = true, icon = 461811, equipSlot = 15, faction = FACTION_ALLIANCE },
-			[1221359] = { text = "SW", isItem = true, itemID = 63352, isHearthstone = true, icon = 461810, equipSlot = 15, faction = FACTION_ALLIANCE },
+			[89157] = { text = "SW", isItem = true, itemID = 65360, isHearthstone = true, icon = 461812, equipSlot = 15, faction = FACTION_ALLIANCE, modern = STORMWIND },
+			[1221360] = { text = "SW", isItem = true, itemID = 63206, isHearthstone = true, icon = 461811, equipSlot = 15, faction = FACTION_ALLIANCE, modern = STORMWIND },
+			[1221359] = { text = "SW", isItem = true, itemID = 63352, isHearthstone = true, icon = 461810, equipSlot = 15, faction = FACTION_ALLIANCE, modern = STORMWIND },
 
 			[89158] = { text = "OG", isItem = true, itemID = 65274, isHearthstone = true, icon = 461815, equipSlot = 15, faction = FACTION_HORDE },
 			[1221356] = { text = "OG", isItem = true, itemID = 63353, isHearthstone = true, icon = 461813, equipSlot = 15, faction = FACTION_HORDE },
 			[1221357] = { text = "OG", isItem = true, itemID = 63207, isHearthstone = true, icon = 461814, equipSlot = 15, faction = FACTION_HORDE },
 
-			[49844] = { text = "HS", isItem = true, itemID = 37863, isHearthstone = true, icon = 133015 }, -- Grim Guzzler
+			[49844] = { text = "HS", isItem = true, itemID = 37863, isHearthstone = true, icon = 133015, zoneID = 242 }, -- Grim Guzzler
 			[71436] = { text = "HS", isItem = true, itemID = 50287, isHearthstone = true, icon = 132578, equipSlot = 8 }, -- Boots of the Bay
 
 			[139437] = { text = "BP", isItem = true, itemID = 95051, isHearthstone = true, icon = 133345, faction = FACTION_ALLIANCE, equipSlot = 11 },
@@ -709,10 +714,6 @@ addon.MythicPlus.variables.portalCompendium = {
 			[265225] = { text = "RACE", isRaceTP = "DarkIronDwarf" },
 			[312372] = { text = "RACE", isRaceTP = "Vulpera" },
 		},
-	},
-	[11] = {
-		headline = HOME,
-		spells = {},
 	},
 }
 
@@ -801,16 +802,21 @@ function addon.MythicPlus.functions.setRandomHearthstone()
 	local randomIndex = math.random(1, #availableHearthstones)
 
 	local hs = availableHearthstones[randomIndex]
-	addon.MythicPlus.variables.portalCompendium[11].spells = {
-		[RANDOM_HS_ID] = {
-			text = "HS",
-			isItem = hs.isItem or false,
-			itemID = hs.id,
-			isToy = hs.isToy or false,
-			toyID = hs.id,
-			isHearthstone = true,
-			icon = hs.icon,
-		},
+	-- Ensure we do not overwrite other HOME entries (e.g., class/race teleports)
+	local homeSection = addon.MythicPlus.variables.portalCompendium[9999]
+	if not homeSection then
+		addon.MythicPlus.variables.portalCompendium[9999] = { headline = HOME, spells = {} }
+		homeSection = addon.MythicPlus.variables.portalCompendium[9999]
+	end
+	homeSection.spells = homeSection.spells or {}
+	homeSection.spells[RANDOM_HS_ID] = {
+		text = "HS",
+		isItem = hs.isItem or false,
+		itemID = hs.id,
+		isToy = hs.isToy or false,
+		toyID = hs.id,
+		isHearthstone = true,
+		icon = hs.icon,
 	}
 end
 

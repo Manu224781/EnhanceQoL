@@ -26,6 +26,26 @@ addon.functions.InitDBValue("teleportFavorites", {})
 local GetItemCooldown = C_Item.GetItemCooldown
 local GetItemCount = C_Item.GetItemCount
 
+-- Open World Map to a mapID and create a user waypoint pin at x,y (0..1)
+local function OpenMapAndCreatePin(mapID, x, y)
+    if not mapID or not x or not y then return end
+    if WorldMapFrame and WorldMapFrame.SetMapID then
+        if not WorldMapFrame:IsShown() then
+            if ToggleMap then ToggleMap() else ShowUIPanel(WorldMapFrame) end
+        end
+        WorldMapFrame:SetMapID(mapID)
+    end
+    if C_Map and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates then
+        local point = UiMapPoint.CreateFromCoordinates(mapID, x, y)
+        if point then
+            C_Map.SetUserWaypoint(point)
+            if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+                C_SuperTrack.SetSuperTrackedUserWaypoint(true)
+            end
+        end
+    end
+end
+
 -- Returns an itemID to use when the data provides multiple possible IDs.
 local function FirstOwnedItemID(itemID)
 	if type(itemID) == "table" then
@@ -91,10 +111,14 @@ local function getCurrentSeasonPortal()
 					local mapInfoText = data.textID and data.textID[cId] or data.text
 					if cModeIDLookup[cId] then
 						local mapName, _, _, texture, backgroundTexture = C_ChallengeMode.GetMapUIInfo(cId)
-						filteredPortalSpells[spellID] = {
-							text = data.text,
-							iconID = data.iconID,
-						}
+                    filteredPortalSpells[spellID] = {
+                        text = data.text,
+                        iconID = data.iconID,
+                        -- pass through optional map pin metadata if present (use only locID)
+                        locID = data.locID,
+                        x = data.x,
+                        y = data.y,
+                    }
 						if data.faction then
 							filteredPortalSpells[spellID].faction = data.faction
 							if data.faction == faction then
@@ -224,86 +248,14 @@ title:SetFormattedText(string.gsub(mSeasonTitle, "%s*%b()", ""))
 minFrameSize = max(title:GetStringWidth() + 20, 205)
 SafeSetSize(frameAnchor, minFrameSize, 205)
 
--- Compendium
-local frameAnchorCompendium = CreateFrame("Frame", "DungeonTeleportFrameCompendium", parentFrame, "BackdropTemplate")
-frameAnchorCompendium:SetBackdrop({
-	bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background", -- Hintergrund
-	edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", -- Rahmen
-	edgeSize = 16,
-	insets = { left = 4, right = 4, top = 4, bottom = 4 },
-})
-frameAnchorCompendium:SetBackdropColor(0, 0, 0, 0.8) -- Dunkler Hintergrund mit 80% Transparenz
-
--- Überschrift hinzufügen
-local titleCompendium = frameAnchorCompendium:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-titleCompendium:SetPoint("TOP", 0, -10)
-local mSeasonTitleCompendium = L["DungeonCompendium"]
-titleCompendium:SetFormattedText(mSeasonTitleCompendium)
-SafeSetSize(frameAnchorCompendium, titleCompendium:GetStringWidth() + 20, 170)
-frameAnchorCompendium:SetPoint("TOPLEFT", DungeonTeleportFrame, "TOPRIGHT", 0, 0)
-
-frameAnchorCompendium:SetMovable(true)
-frameAnchorCompendium:EnableMouse(true)
-frameAnchorCompendium:RegisterForDrag("LeftButton")
-frameAnchorCompendium:SetClampedToScreen(true)
-frameAnchorCompendium:SetScript("OnDragStart", function(self)
-	if addon.db.teleportCompendiumLocked then return end
-	if InCombatLockdown() then return end
-	if not IsShiftKeyDown() then return end
-	self:StartMoving()
-end)
-frameAnchorCompendium:SetScript("OnDragStop", function(self)
-	if InCombatLockdown() then return end
-	self:StopMovingOrSizing()
-	local point, _, parentPoint, xOfs, yOfs = self:GetPoint()
-	addon.db.teleportCompendiumFrameData.point = point
-	addon.db.teleportCompendiumFrameData.parentPoint = parentPoint
-	addon.db.teleportCompendiumFrameData.x = xOfs
-	addon.db.teleportCompendiumFrameData.y = yOfs
-end)
-
-local btnDockCompendium = CreateFrame("Button", nil, frameAnchorCompendium)
-btnDockCompendium:SetPoint("TOPRIGHT", frameAnchorCompendium, "TOPRIGHT", -5, -5)
-btnDockCompendium:SetSize(16, 16)
-btnDockCompendium.isDocked = addon.db.teleportCompendiumLocked
-local iconCompendium = btnDockCompendium:CreateTexture(nil, "ARTWORK")
-iconCompendium:SetAllPoints(btnDockCompendium)
-btnDockCompendium.icon = iconCompendium
-if btnDockCompendium.isDocked then
-	iconCompendium:SetTexture("Interface\\Addons\\EnhanceQoL\\Icons\\ClosedLock.tga")
-else
-	iconCompendium:SetTexture("Interface\\Addons\\EnhanceQoL\\Icons\\OpenLock.tga")
-end
-btnDockCompendium:SetScript("OnClick", function(self)
-	self.isDocked = not self.isDocked
-	addon.db.teleportCompendiumLocked = self.isDocked
-	if self.isDocked then
-		self.icon:SetTexture("Interface\\Addons\\EnhanceQoL\\Icons\\ClosedLock.tga")
-	else
-		self.icon:SetTexture("Interface\\Addons\\EnhanceQoL\\Icons\\OpenLock.tga")
-	end
-	addon.MythicPlus.functions.toggleFrame()
-end)
-btnDockCompendium:SetScript("OnEnter", function(self)
-	GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-	if self.isDocked then
-		GameTooltip:SetText(L["frameUnlock"])
-	else
-		GameTooltip:SetText(L["frameLock"])
-	end
-	GameTooltip:Show()
-end)
-btnDockCompendium:SetScript("OnLeave", function() GameTooltip:Hide() end)
+-- Legacy in-frame compendium has been removed in favor of the modern World Map panel
 
 local activeBars = {}
 addon.MythicPlus.portalFrame = frameAnchor
 
 local buttonSize = 30
 local spacing = 15
-local spacingCompendium = 11
 local hSpacing = 30
-local hSpacingCompendium = 15
-local maxButtonsPerRow = 8
 
 local function CreatePortalButtonsWithCooldown(frame, spells)
 	-- Entferne alle bestehenden Buttons
@@ -323,7 +275,7 @@ local function CreatePortalButtonsWithCooldown(frame, spells)
 		local passes = (not data.faction or data.faction == faction)
 		if addon.db["portalHideMissing"] then passes = passes and known end
 
-		if passes or (addon.db.teleportFavoritesIgnoreFilters and isFavorite and (not addon.db["portalHideMissing"] or known)) then
+    if passes or (isFavorite and (not addon.db["portalHideMissing"] or known)) then
 			local entry = {
 				spellID = spellID,
 				text = data.text,
@@ -437,18 +389,28 @@ local function CreatePortalButtonsWithCooldown(frame, spells)
 			button:SetAttribute("type2", nil)
 			button:SetAttribute("spell2", nil)
 
-			button:RegisterForClicks("AnyUp", "AnyDown")
-			button:SetScript("OnMouseUp", function(self, btn)
-				if btn == "RightButton" then
-					local favs = addon.db.teleportFavorites
-					if favs[self.spellID] then
-						favs[self.spellID] = nil
-					else
-						favs[self.spellID] = true
-					end
-					checkCooldown()
-				end
-			end)
+			-- store data reference for map pins (may include mapID/locID/x/y)
+			button._eqolData = spells[spellID]
+
+            button:RegisterForClicks("AnyUp", "AnyDown")
+            button:SetScript("OnMouseUp", function(self, btn)
+                if btn == "RightButton" then
+                    if IsShiftKeyDown() then
+                        local favs = addon.db.teleportFavorites
+                        if favs[self.spellID] then
+                            favs[self.spellID] = nil
+                        else
+                            favs[self.spellID] = true
+                        end
+                        checkCooldown()
+                    else
+                        local d = self._eqolData or {}
+                        local x, y = d.x, d.y
+                        local locID = d.locID
+                        if locID and x and y then OpenMapAndCreatePin(locID, x, y) end
+                    end
+                end
+            end)
 			-- Text und Tooltip
 			local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 			label:SetPoint("TOP", button, "BOTTOM", 0, -2)
@@ -521,126 +483,184 @@ function addon.MythicPlus.functions.BuildTeleportCompendiumSections()
 		if getCurrentSeasonPortal then getCurrentSeasonPortal() end
 	end
 
+	-- Resolve the display text for an entry, preferring "modern" or zone name
+    local function resolveDisplayText(spellID, data)
+        -- Default short label
+        local label = data and data.text or ""
+
+        -- 1) Explicit modern label on dataset
+        if data and type(data.modern) == "string" and data.modern ~= "" then return data.modern end
+
+		-- Helper to fetch and DB‑cache a map/zone name
+		local function cachedMapName(keyPrefix, id)
+			if not id then return nil end
+			local cacheKey = tostring(keyPrefix) .. ":" .. tostring(id)
+			addon.db.teleportNameCache = addon.db.teleportNameCache or {}
+			local cached = addon.db.teleportNameCache[cacheKey]
+			if cached and cached ~= "" then return cached end
+			local mi = C_Map and C_Map.GetMapInfo and C_Map.GetMapInfo(id)
+			local name = mi and mi.name or nil
+			if name and name ~= "" then addon.db.teleportNameCache[cacheKey] = name end
+			return name
+		end
+
+		-- 2) If an explicit zoneID is present, use its map name
+		if data and type(data.zoneID) == "number" then
+			local n = cachedMapName("zone", data.zoneID)
+			if n and n ~= "" then return n end
+		end
+
+		-- 3) Some entries encode per‑variant zoneIDs inside mapID tables
+		if data and type(data.mapID) == "table" then
+			local keys = {}
+			for cid in pairs(data.mapID) do table.insert(keys, cid) end
+			table.sort(keys, function(a, b) return tostring(a) < tostring(b) end)
+			for _, cid in ipairs(keys) do
+				local v = data.mapID[cid]
+				if type(v) == "table" and type(v.zoneID) == "number" then
+					local n = cachedMapName("zone", v.zoneID)
+					if n and n ~= "" then return n end
+				end
+			end
+		end
+
+        -- 4) Fallback (keep original short code)
+        return label
+    end
+
 	local hasEngineering, hasGnomish, hasGoblin = checkProfession(), false, false
 	if hasEngineering then hasGnomish, hasGoblin = GetEngineeringBranch() end
 	local aMapID = C_Map.GetBestMapForUnit("player")
 	addon.MythicPlus.functions.setRandomHearthstone()
 
-	local favorites = addon.db.teleportFavorites or {}
-	local baseComp = addon.MythicPlus.variables.portalCompendium or {}
+    local favorites = addon.db.teleportFavorites or {}
+    local baseComp = addon.MythicPlus.variables.portalCompendium or {}
+    local FAVORITES_SECTION_KEY = 10000 -- keep separate from HOME (9999)
 
-	-- First, split out favourites while honoring expansion hide toggle
-	local working = {}
-	local favSpells = {}
-	for k, section in pairs(baseComp) do
-		local hidden = addon.db["teleportsCompendiumHide" .. section.headline]
-		local newSpells = {}
-		for spellID, data in pairs(section.spells) do
-			if favorites[spellID] then
-				if addon.db.teleportFavoritesIgnoreExpansionHide or not hidden then favSpells[spellID] = data end
-			else
-				newSpells[spellID] = data
-			end
-		end
-		working[k] = { headline = section.headline, spells = newSpells }
-	end
-	if next(favSpells) then working[9999] = { headline = FAVORITES, spells = favSpells } end
+    -- Split out favourites into a separate section, no expansion-level hide anymore
+    local working = {}
+    local favSpells = {}
+    for k, section in pairs(baseComp) do
+        local newSpells = {}
+        for spellID, data in pairs(section.spells) do
+            if favorites[spellID] then
+                favSpells[spellID] = data
+            else
+                newSpells[spellID] = data
+            end
+        end
+        working[k] = { headline = section.headline, spells = newSpells }
+    end
+    if next(favSpells) then working[FAVORITES_SECTION_KEY] = { headline = FAVORITES, spells = favSpells } end
+
+    -- Merge class/race teleports (section [10]) into HOME (section [9999])
+    do
+        local home = working[9999]
+        if not home then
+            home = { headline = HOME, spells = {} }
+            working[9999] = home
+        end
+        home.spells = home.spells or {}
+        local classSec = working[10]
+        if classSec and classSec.spells then
+            for spellID, data in pairs(classSec.spells) do
+                if not home.spells[spellID] then home.spells[spellID] = data end
+            end
+            -- hide CLASS section from display, teleports live only in HOME
+            working[10] = nil
+        end
+    end
 
 	-- Sort sections high->low to mimic UI order
 	local sectionOrder = {}
-	for k in pairs(working) do table.insert(sectionOrder, k) end
-	table.sort(sectionOrder, function(a, b) return a > b end)
+    for k in pairs(working) do table.insert(sectionOrder, k) end
+    table.sort(sectionOrder, function(a, b) return a > b end)
 
 	local out = {}
 	for _, k in ipairs(sectionOrder) do
 		local section = working[k]
-		if not addon.db["teleportsCompendiumHide" .. section.headline] then
-			local list = {}
-			for spellID, data in pairs(section.spells) do
-				-- Engineering specialization gate
-				local specOk = true
-				if data.isGnomish then specOk = specOk and hasGnomish end
-				if data.isGoblin then specOk = specOk and hasGoblin end
+        do
+            local list = {}
+            for spellID, data in pairs(section.spells) do
+                -- Engineering specialization gate
+                local specOk = true
+                if data.isGnomish then specOk = specOk and hasGnomish end
+                if data.isGoblin then specOk = specOk and hasGoblin end
 
 				-- Handle multiple itemIDs by splitting into separate entries
 				-- If a class-specific mapping exists, only include the item for the player's class
-				if data.isItem and type(data.itemID) == "table" then
-					local allowedIDs = data.itemID
-					if data.classItemID and addon.variables and addon.variables.unitClass then
-						local classToken = addon.variables.unitClass
-						local classSpecific = data.classItemID[classToken]
-						if classSpecific then
-							allowedIDs = { classSpecific }
-						else
-							allowedIDs = {} -- this class cannot use any of these variants
-						end
-					end
-					local baseShow = specOk
-						and (not data.faction or data.faction == faction)
-						and (not data.map or ((type(data.map) == "number" and data.map == aMapID) or (type(data.map) == "table" and data.map[aMapID])))
-						and (not addon.db["hideActualSeason"] or not portalSpells[spellID])
-						and (addon.db["portalShowRaidTeleports"] or not data.isRaid)
-						and (addon.db["portalShowToyHearthstones"] or not data.isHearthstone)
-						and (addon.db["portalShowEngineering"] or not data.isEngineering)
-						and (addon.db["portalUseReavesModule"] or not data.isReaves)
-						and ((addon.db["portalShowClassTeleport"] and (addon.variables.unitClass == data.isClassTP)) or not data.isClassTP)
-						and ((addon.db["portalShowClassTeleport"] and addon.variables.unitRace == data.isRaceTP) or not data.isRaceTP)
-						and ((addon.db["portalShowMagePortal"] and addon.variables.unitClass == "MAGE") or not data.isMagePortal)
-						and (addon.db["portalShowDungeonTeleports"] or not data.cId)
+            if data.isItem and type(data.itemID) == "table" then
+                local allowedIDs = data.itemID
+                if data.classItemID and addon.variables and addon.variables.unitClass then
+                    local classToken = addon.variables.unitClass
+                    local classSpecific = data.classItemID[classToken]
+                    if classSpecific then
+                        allowedIDs = { classSpecific }
+                    else
+                        allowedIDs = {} -- this class cannot use any of these variants
+                    end
+                end
+                local baseShow = specOk
+                    and (not data.faction or data.faction == faction)
+                    and (not data.map or ((type(data.map) == "number" and data.map == aMapID) or (type(data.map) == "table" and data.map[aMapID])))
+                    and (not data.isEngineering or hasEngineering)
+                    and (not data.isClassTP or (addon.variables and addon.variables.unitClass == data.isClassTP))
+                    and (not data.isRaceTP or (addon.variables and addon.variables.unitRace == data.isRaceTP))
+                    and (not data.isMagePortal or (addon.variables and addon.variables.unitClass == "MAGE"))
 
 					for _, iid in ipairs(allowedIDs) do
-						local knownX = C_Item.GetItemCount(iid) > 0
-						local showX = baseShow and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and knownX))
-						if not showX and addon.db.teleportFavoritesIgnoreFilters and favorites[spellID] then
-							showX = (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and knownX))
-						end
+                    local knownX = C_Item.GetItemCount(iid) > 0
+                    local showX = baseShow and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and knownX))
+                    -- Favourites always bypass non-availability filters (except Hide Missing)
+                    if not showX and favorites[spellID] then
+                        showX = (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and knownX))
+                    end
 						if showX then
 							local iconID = data.icon
 							if not iconID then
 								local _, _, itemIcon = C_Item.GetItemInfoInstant(iid)
 								iconID = itemIcon
 							end
-							table.insert(list, {
-								spellID = spellID,
-								text = data.text,
-								iconID = iconID,
-								isKnown = knownX,
-								isToy = false,
-								toyID = false,
-								isItem = true,
-								itemID = iid,
-								isClassTP = data.isClassTP or false,
-								isMagePortal = data.isMagePortal or false,
-								equipSlot = data.equipSlot,
-								isFavorite = favorites[spellID] and true or false,
-							})
+                        table.insert(list, {
+                            spellID = spellID,
+                            text = resolveDisplayText(spellID, data),
+                            iconID = iconID,
+                            isKnown = knownX,
+                            isToy = false,
+                            toyID = false,
+                            isItem = true,
+                            itemID = iid,
+                            isClassTP = data.isClassTP or false,
+                            isMagePortal = data.isMagePortal or false,
+                            equipSlot = data.equipSlot,
+                            isFavorite = favorites[spellID] and true or false,
+                            locID = data.locID,
+                            x = data.x,
+                            y = data.y,
+                        })
 						end
 					end
-				else
-					local known = (C_SpellBook.IsSpellInSpellBook(spellID) and not data.isToy)
-						or (hasEngineering and specOk and data.toyID and not data.isHearthstone and isToyUsable(data.toyID))
-						or (data.isItem and C_Item.GetItemCount(FirstOwnedItemID(data.itemID)) > 0)
-						or (data.isHearthstone and isToyUsable(data.toyID))
+            else
+                local known = (C_SpellBook.IsSpellInSpellBook(spellID) and not data.isToy)
+                    or (hasEngineering and specOk and data.toyID and not data.isHearthstone and isToyUsable(data.toyID))
+                    or (data.isItem and C_Item.GetItemCount(FirstOwnedItemID(data.itemID)) > 0)
+                    or (data.isHearthstone and isToyUsable(data.toyID))
 
-					local showSpell = specOk
-						and (not data.faction or data.faction == faction)
-						and (not data.map or ((type(data.map) == "number" and data.map == aMapID) or (type(data.map) == "table" and data.map[aMapID])))
-						and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
-						and (not addon.db["hideActualSeason"] or not portalSpells[spellID])
-						and (addon.db["portalShowRaidTeleports"] or not data.isRaid)
-						and (addon.db["portalShowToyHearthstones"] or not data.isHearthstone)
-						and (addon.db["portalShowEngineering"] or not data.isEngineering)
-						and (addon.db["portalUseReavesModule"] or not data.isReaves)
-						and ((addon.db["portalShowClassTeleport"] and (addon.variables.unitClass == data.isClassTP)) or not data.isClassTP)
-						and ((addon.db["portalShowClassTeleport"] and addon.variables.unitRace == data.isRaceTP) or not data.isRaceTP)
-						and ((addon.db["portalShowMagePortal"] and addon.variables.unitClass == "MAGE") or not data.isMagePortal)
-						and (addon.db["portalShowDungeonTeleports"] or not data.cId)
+                local showSpell = specOk
+                    and (not data.faction or data.faction == faction)
+                    and (not data.map or ((type(data.map) == "number" and data.map == aMapID) or (type(data.map) == "table" and data.map[aMapID])))
+                    and (not data.isEngineering or hasEngineering)
+                    and (not data.isClassTP or (addon.variables and addon.variables.unitClass == data.isClassTP))
+                    and (not data.isRaceTP or (addon.variables and addon.variables.unitRace == data.isRaceTP))
+                    and (not data.isMagePortal or (addon.variables and addon.variables.unitClass == "MAGE"))
+                    and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
 
-					if not showSpell and addon.db.teleportFavoritesIgnoreFilters and favorites[spellID] then
-						showSpell = (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
-					end
+                -- Favourites always bypass non-availability filters (except Hide Missing)
+                if not showSpell and favorites[spellID] then
+                    showSpell = (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
+                end
 
-					if showSpell then
+                if showSpell then
 						local iconID
 						local chosenItemID
 						if data.isItem then
@@ -659,34 +679,42 @@ function addon.MythicPlus.functions.BuildTeleportCompendiumSections()
 							iconID = si and si.iconID or nil
 						end
 
-						table.insert(list, {
-							spellID = spellID,
-							text = data.text,
-							iconID = iconID,
-							isKnown = known,
-							isToy = data.isToy or false,
-							toyID = data.toyID or false,
-							isItem = data.isItem or false,
-							itemID = chosenItemID or data.itemID or false,
-							isClassTP = data.isClassTP or false,
-							isMagePortal = data.isMagePortal or false,
-							equipSlot = data.equipSlot,
-							isFavorite = favorites[spellID] and true or false,
-						})
+                    table.insert(list, {
+                        spellID = spellID,
+                        text = resolveDisplayText(spellID, data),
+                        iconID = iconID,
+                        isKnown = known,
+                        isToy = data.isToy or false,
+                        toyID = data.toyID or false,
+                        isItem = data.isItem or false,
+                        itemID = chosenItemID or data.itemID or false,
+                        isClassTP = data.isClassTP or false,
+                        isMagePortal = data.isMagePortal or false,
+                        equipSlot = data.equipSlot,
+                        isFavorite = favorites[spellID] and true or false,
+                        locID = data.locID,
+                        x = data.x,
+                        y = data.y,
+                    })
 					end
 				end
 			end
 
-			-- Stable sort to match in-frame ordering rules
-			table.sort(list, function(a, b)
-				if a.text ~= b.text then return a.text < b.text end
-				-- prefer class teleports over mage portals if same text
-				local aTP, bTP = a.isClassTP or false, b.isClassTP or false
-				local aPort, bPort = a.isMagePortal or false, b.isMagePortal or false
-				if aTP ~= bTP then return aTP end
-				if aPort ~= bPort then return not aPort end
-				return (a.spellID or 0) < (b.spellID or 0)
-			end)
+            -- Stable-ish sort to match in-frame ordering rules with nil-safety
+            table.sort(list, function(a, b)
+                if a == nil and b == nil then return false end
+                if a == nil then return false end
+                if b == nil then return true end
+                local at, bt = a.text or "", b.text or ""
+                if at ~= bt then return at < bt end
+                -- prefer class teleports over mage portals if same text
+                local aTP = (a.isClassTP and true or false)
+                local bTP = (b.isClassTP and true or false)
+                local aPort, bPort = a.isMagePortal or false, b.isMagePortal or false
+                if aTP ~= bTP then return aTP end
+                if aPort ~= bPort then return not aPort end
+                return (a.spellID or 0) < (b.spellID or 0)
+            end)
 
 			if #list > 0 then table.insert(out, { title = section.headline, items = list }) end
 		end
@@ -695,405 +723,22 @@ function addon.MythicPlus.functions.BuildTeleportCompendiumSections()
 	return out
 end
 
-local function CreatePortalCompendium(frame, compendium)
-	local hasEngineering, hasGnomish, hasGoblin = checkProfession(), false, false
-	if hasEngineering then
-		hasGnomish, hasGoblin = GetEngineeringBranch()
-	end
-	local aMapID = C_Map.GetBestMapForUnit("player")
-	addon.MythicPlus.functions.setRandomHearthstone()
-	-- Entferne alle bestehenden Elemente
-	for _, button in pairs(frame.buttons or {}) do
-		button:Hide()
-		button:ClearAllPoints()
-	end
-	for _, headline in pairs(frame.headline or {}) do
-		headline:Hide()
-		headline:ClearAllPoints()
-	end
-	frame.buttons = {}
-	frame.headline = {}
-
-	-- Initiale Position
-	local currentYOffset = 0 - titleCompendium:GetStringHeight() - 20 -- Startabstand vom oberen Rand
-	local maxWidth = titleCompendium:GetStringWidth() + 20
-
-	local favorites = addon.db.teleportFavorites
-	local newCompendium = {}
-	local favSpells = {}
-	for k, section in pairs(compendium) do
-		local hidden = addon.db["teleportsCompendiumHide" .. section.headline]
-		local newSpells = {}
-		for spellID, data in pairs(section.spells) do
-			if favorites[spellID] then
-				if addon.db.teleportFavoritesIgnoreExpansionHide or not hidden then favSpells[spellID] = data end
-			else
-				newSpells[spellID] = data
-			end
-		end
-		newCompendium[k] = { headline = section.headline, spells = newSpells }
-	end
-	if next(favSpells) then newCompendium[9999] = { headline = FAVORITES, spells = favSpells } end
-
-	local sortedIndexes = {}
-	for key, _ in pairs(newCompendium) do
-		table.insert(sortedIndexes, key)
-	end
-
-	table.sort(sortedIndexes, function(a, b) return a > b end)
-
-	for _, key in ipairs(sortedIndexes) do
-		local section = newCompendium[key]
-
-		local sortedSpells = {}
-		if not addon.db["teleportsCompendiumHide" .. section.headline] then
-			for spellID, data in pairs(section.spells) do
-				-- Engineering specialization gate (Gnomish/Goblin) where applicable
-				local specOk = true
-				if data.isGnomish then specOk = specOk and hasGnomish end
-				if data.isGoblin then specOk = specOk and hasGoblin end
-
-				-- Special handling: if an entry has multiple itemIDs, create one button per item
-				-- If a class-specific mapping exists, only include the item for the player's class
-				if data.isItem and type(data.itemID) == "table" then
-					local allowedIDs = data.itemID
-					if data.classItemID and addon.variables and addon.variables.unitClass then
-						local classToken = addon.variables.unitClass
-						local classSpecific = data.classItemID[classToken]
-						if classSpecific then
-							allowedIDs = { classSpecific }
-						else
-							allowedIDs = {} -- this class cannot use any of these variants
-						end
-					end
-					local baseShow = specOk
-						and (not data.faction or data.faction == faction)
-						and (not data.map or ((type(data.map) == "number" and data.map == aMapID) or (type(data.map) == "table" and data.map[aMapID])))
-						and (not addon.db["hideActualSeason"] or not portalSpells[spellID])
-						and (addon.db["portalShowRaidTeleports"] or not data.isRaid)
-						and (addon.db["portalShowToyHearthstones"] or not data.isHearthstone)
-						and (addon.db["portalShowEngineering"] or not data.isEngineering)
-						and (addon.db["portalUseReavesModule"] or not data.isReaves)
-						and ((addon.db["portalShowClassTeleport"] and (addon.variables.unitClass == data.isClassTP)) or not data.isClassTP)
-						and ((addon.db["portalShowClassTeleport"] and addon.variables.unitRace == data.isRaceTP) or not data.isRaceTP)
-						and ((addon.db["portalShowMagePortal"] and addon.variables.unitClass == "MAGE") or not data.isMagePortal)
-						and (addon.db["portalShowDungeonTeleports"] or not data.cId)
-
-					for _, iid in ipairs(allowedIDs) do
-						local knownX = GetItemCount(iid) > 0
-						local showX = baseShow and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and knownX))
-						if not showX and addon.db.teleportFavoritesIgnoreFilters and favorites[spellID] then
-							showX = (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and knownX))
-						end
-						if showX then
-							table.insert(sortedSpells, {
-								spellID = spellID,
-								text = data.text,
-								iconID = data.iconID,
-								isKnown = knownX,
-								isToy = false,
-								toyID = false,
-								isItem = true,
-								itemID = iid,
-								icon = data.icon or false,
-								isClassTP = data.isClassTP or false,
-								isMagePortal = data.isMagePortal or false,
-								equipSlot = data.equipSlot,
-								isFavorite = favorites[spellID],
-							})
-						end
-					end
-				else
-					local known = (C_SpellBook.IsSpellInSpellBook(spellID) and not data.isToy)
-						or (hasEngineering and specOk and data.toyID and not data.isHearthstone and isToyUsable(data.toyID))
-						or (data.isItem and GetItemCount(FirstOwnedItemID(data.itemID)) > 0)
-						or (data.isHearthstone and isToyUsable(data.toyID))
-
-					local showSpell = specOk
-						and (not data.faction or data.faction == faction)
-						and (not data.map or ((type(data.map) == "number" and data.map == aMapID) or (type(data.map) == "table" and data.map[aMapID])))
-						and (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
-						and (not addon.db["hideActualSeason"] or not portalSpells[spellID])
-						and (addon.db["portalShowRaidTeleports"] or not data.isRaid)
-						and (addon.db["portalShowToyHearthstones"] or not data.isHearthstone)
-						and (addon.db["portalShowEngineering"] or not data.isEngineering)
-						and (addon.db["portalUseReavesModule"] or not data.isReaves)
-						and ((addon.db["portalShowClassTeleport"] and (addon.variables.unitClass == data.isClassTP)) or not data.isClassTP)
-						and ((addon.db["portalShowClassTeleport"] and addon.variables.unitRace == data.isRaceTP) or not data.isRaceTP)
-						and ((addon.db["portalShowMagePortal"] and addon.variables.unitClass == "MAGE") or not data.isMagePortal)
-						and (addon.db["portalShowDungeonTeleports"] or not data.cId)
-
-					if not showSpell and addon.db.teleportFavoritesIgnoreFilters and favorites[spellID] then
-						showSpell = (not addon.db["portalHideMissing"] or (addon.db["portalHideMissing"] and known))
-					end
-
-					if showSpell then
-						local chosenItemID
-						if data.isItem then chosenItemID = FirstOwnedItemID(data.itemID) end
-
-						table.insert(sortedSpells, {
-							spellID = spellID,
-							text = data.text,
-							iconID = data.iconID,
-							isKnown = known,
-							isToy = data.isToy or false,
-							toyID = data.toyID or false,
-							isItem = data.isItem or false,
-							itemID = chosenItemID or data.itemID or false,
-							icon = data.icon or false,
-							isClassTP = data.isClassTP or false,
-							isMagePortal = data.isMagePortal or false,
-							equipSlot = data.equipSlot,
-							isFavorite = favorites[spellID],
-						})
-					end
-				end
-			end
-			table.sort(sortedSpells, function(a, b)
-				-- Erst vergleichen wir den Text
-				if a.text < b.text then
-					return true
-				elseif a.text > b.text then
-					return false
-				else
-					-- Wenn der Text identisch ist: isMageTP vor isMagePortal
-					local aIsTP = a.isClassTP or false
-					local bIsTP = b.isClassTP or false
-					local aIsPortal = a.isMagePortal or false
-					local bIsPortal = b.isMagePortal or false
-					local aToyID = a.toyID or false
-					local bToyID = b.toyID or false
-					-- MageTP vor MagePortal
-					if aIsTP and not bIsTP then
-						return true
-					elseif bIsTP and not aIsTP then
-						return false
-					elseif aIsPortal and not bIsPortal then
-						-- Falls man Porter lieber später will, kann man hier return false machen
-						return false
-					elseif bIsPortal and not aIsPortal then
-						return true
-					elseif aToyID and bToyID then
-						return aToyID < bToyID
-					end
-
-					-- Falls beide gleich sind (beide TP, beide Portal oder keins davon),
-					-- dann ist die Reihenfolge egal:
-					return false
-				end
-			end)
-		end
-		if #sortedSpells > 0 then
-			-- Überschrift (Headline)
-			local headline = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-			headline:SetPoint("TOP", frame, "TOP", 0, currentYOffset)
-			headline:SetText(section.headline)
-			currentYOffset = currentYOffset - headline:GetStringHeight() - 10 -- Abstand für Buttons
-			table.insert(frame.headline, headline)
-		end
-
-		-- Buttons generieren
-		local buttonsPerRow = math.max(1, #sortedSpells)
-		if section.headline == FAVORITES then buttonsPerRow = math.min(maxButtonsPerRow, buttonsPerRow) end
-		local totalButtonWidth = (buttonSize * buttonsPerRow) + (spacingCompendium * (buttonsPerRow - 1))
-		maxWidth = math.max(maxWidth, totalButtonWidth + 20)
-
-		local index = 0
-		for _, spellData in ipairs(sortedSpells) do
-			local spellID = spellData.spellID
-			local spellInfo = C_Spell.GetSpellInfo(spellID)
-			if not spellInfo and spellID == 999999 then spellInfo = {} end
-
-			if spellInfo then
-				if spellData.isToy then
-					if spellData.icon then
-						spellInfo.iconID = spellData.icon
-					else
-						local _, _, iconId = C_ToyBox.GetToyInfo(spellData.toyID)
-						spellInfo.iconID = iconId
-					end
-				elseif spellData.isItem then
-					if spellData.icon then spellInfo.iconID = spellData.icon end
-				end
-				local row = math.floor(index / buttonsPerRow)
-				local col = index % buttonsPerRow
-
-				-- Button erstellen
-				local button = CreateFrame("Button", "CompendiumButton" .. index, frame, "SecureActionButtonTemplate")
-				button:SetSize(buttonSize, buttonSize)
-				button:SetPoint("TOPLEFT", frame, "TOPLEFT", 10 + col * (buttonSize + spacingCompendium), currentYOffset - row * (buttonSize + hSpacingCompendium))
-				button.spellID = spellID
-				if spellData.isToy then
-					button.isToy = spellData.isToy
-					button.toyID = spellData.toyID
-				elseif spellData.isItem then
-					button.isItem = spellData.isItem
-					button.itemID = spellData.itemID
-				end
-
-				-- Hintergrund
-				local bg = button:CreateTexture(nil, "BACKGROUND")
-				bg:SetAllPoints(button)
-				bg:SetColorTexture(0, 0, 0, 0.8)
-
-				-- Rahmen
-				local border = button:CreateTexture(nil, "BORDER")
-				border:SetPoint("TOPLEFT", button, "TOPLEFT", -1, 1)
-				border:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", 1, -1)
-				border:SetColorTexture(1, 1, 1, 1)
-
-				-- Highlight/Glow-Effekt
-				local highlight = button:CreateTexture(nil, "HIGHLIGHT")
-				highlight:SetAllPoints(button)
-				highlight:SetColorTexture(1, 1, 0, 0.4)
-				button:SetHighlightTexture(highlight)
-
-				-- Icon
-				local icon = button:CreateTexture(nil, "ARTWORK")
-				icon:SetAllPoints(button)
-				icon:SetTexture(spellInfo.iconID or "Interface\\ICONS\\INV_Misc_QuestionMark")
-				button.icon = icon
-
-				-- Favoritenanzeige
-				local star = button:CreateTexture(nil, "OVERLAY")
-				star:SetSize(12, 12)
-				star:SetPoint("TOPRIGHT", -2, -2)
-				star:SetTexture("Interface\\COMMON\\ReputationStar")
-				if not spellData.isFavorite then star:Hide() end
-				button.favoriteStar = star
-
-				-- Überprüfen, ob der Zauber bekannt ist
-				if not spellData.isKnown then
-					icon:SetDesaturated(true) -- Macht das Icon grau/schwarzweiß
-					icon:SetAlpha(0.5) -- Optional: Reduziert die Sichtbarkeit
-					button:EnableMouse(false) -- Deaktiviert Klicks auf den Button
-				else
-					isKnown[spellID] = true
-					icon:SetDesaturated(false)
-					icon:SetAlpha(1) -- Normale Sichtbarkeit
-					button:EnableMouse(true) -- Aktiviert Klicks
-				end
-
-				-- Cooldown-Spirale
-				button.cooldownFrame = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-				button.cooldownFrame:SetAllPoints(button)
-
-				-- Sichere Aktion (CastSpell)
-				if spellData.isToy then
-					if spellData.isKnown then
-						button:SetAttribute("type1", "macro")
-						button:SetAttribute("macrotext1", "/use item:" .. spellData.toyID)
-						button:SetAttribute("type2", nil)
-						button:SetAttribute("macrotext2", nil)
-					end
-				elseif spellData.isItem then
-					if spellData.isKnown then
-						local useID = FirstOwnedItemID(spellData.itemID)
-						button.itemID = useID
-						button.equipSlot = spellData.equipSlot
-						button:SetAttribute("type1", "macro")
-						-- default macro: directly use the item
-						button:SetAttribute("macrotext1", "/use item:" .. useID)
-						-- if an equipSlot is defined, dynamically choose action on click (two-click flow)
-						if spellData.equipSlot then
-							button:SetScript("PreClick", function(self)
-								local slot = self.equipSlot
-								if not slot or not self.itemID then return end
-								local equippedID = GetInventoryItemID("player", slot)
-								if equippedID ~= self.itemID then
-									self:SetAttribute("type1", "macro")
-									-- first click equips only; user clicks again to use
-									self:SetAttribute("macrotext1", "/equip item:" .. self.itemID)
-								else
-									self:SetAttribute("type1", "macro")
-									self:SetAttribute("macrotext1", "/use item:" .. self.itemID)
-								end
-							end)
-						end
-						button:SetAttribute("type2", nil)
-						button:SetAttribute("macrotext2", nil)
-					end
-				else
-					button:SetAttribute("type1", "spell")
-					button:SetAttribute("spell1", spellID)
-					button:SetAttribute("type2", nil)
-					button:SetAttribute("spell2", nil)
-				end
-				button:RegisterForClicks("AnyUp", "AnyDown")
-				button:SetScript("OnMouseUp", function(self, btn)
-					if btn == "RightButton" then
-						local favs = addon.db.teleportFavorites
-						if favs[self.spellID] then
-							favs[self.spellID] = nil
-						else
-							favs[self.spellID] = true
-						end
-						checkCooldown()
-					end
-				end)
-
-				-- Text und Tooltip
-				local label = button:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-				label:SetPoint("TOP", button, "BOTTOM", 0, -2)
-				label:SetText(spellData.text)
-
-				-- Tooltip
-				button:SetScript("OnEnter", function(self)
-					if addon.db["portalShowTooltip"] then
-						GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-						if spellData.isToy then
-							GameTooltip:SetToyByItemID(spellData.toyID)
-						elseif spellData.isItem then
-							local tid = FirstOwnedItemID(spellData.itemID)
-							GameTooltip:SetItemByID(tid)
-						else
-							GameTooltip:SetSpellByID(spellID)
-						end
-						GameTooltip:Show()
-					end
-				end)
-				button:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-				table.insert(frame.buttons, button)
-				index = index + 1
-			end
-		end
-		-- Höhe für die nächste Sektion berechnen
-		local rows = math.ceil(#sortedSpells / buttonsPerRow)
-		currentYOffset = currentYOffset - rows * (buttonSize + hSpacingCompendium + 10)
-	end
-
-	-- Frame-Größe dynamisch anpassen
-	SafeSetSize(frame, maxWidth, max(math.abs(currentYOffset) + 20, titleCompendium:GetStringHeight() + 20))
-end
 
 function checkCooldown()
-    if addon.db["teleportFrame"] then CreatePortalButtonsWithCooldown(frameAnchor, portalSpells) end
-
-    if addon.db["teleportsEnableCompendium"] and not addon.db["teleportsWorldMapUseModern"] then
-        CreatePortalCompendium(frameAnchorCompendium, addon.MythicPlus.variables.portalCompendium)
+    if addon.db["teleportFrame"] then
+        CreatePortalButtonsWithCooldown(frameAnchor, portalSpells)
     end
-	for _, button in pairs(frameAnchor.buttons or {}) do
-		if isKnown[button.spellID] then
-			local cooldownData = GetCooldownData(button)
-			if cooldownData and cooldownData.isEnabled then
-				button.cooldownFrame:SetCooldown(cooldownData.startTime, cooldownData.duration, cooldownData.modRate)
-			else
-				button.cooldownFrame:SetCooldown(0, 0)
-			end
-		end
-	end
 
-	for _, button in pairs(frameAnchorCompendium.buttons or {}) do
-		if isKnown[button.spellID] then
-			local cooldownData = GetCooldownData(button)
-			if cooldownData and cooldownData.isEnabled then
-				button.cooldownFrame:SetCooldown(cooldownData.startTime, cooldownData.duration, cooldownData.modRate)
-			else
-				button.cooldownFrame:SetCooldown(0, 0)
-			end
-		end
-	end
+    for _, button in pairs(frameAnchor.buttons or {}) do
+        if isKnown[button.spellID] then
+            local cooldownData = GetCooldownData(button)
+            if cooldownData and cooldownData.isEnabled then
+                button.cooldownFrame:SetCooldown(cooldownData.startTime, cooldownData.duration, cooldownData.modRate)
+            else
+                button.cooldownFrame:SetCooldown(0, 0)
+            end
+        end
+    end
 end
 
 local function waitCooldown(arg3)
@@ -1524,26 +1169,25 @@ function addon.MythicPlus.triggerRequest()
 end
 
 function addon.MythicPlus.functions.toggleFrame()
-	if InCombatLockdown() then
-		doAfterCombat = true
-	else
-		doAfterCombat = false
-		frameAnchor:SetAlpha(1)
-		frameAnchorCompendium:SetAlpha(1)
-		if nil ~= RaiderIO_ProfileTooltip then
-			C_Timer.After(0.1, function()
-				if InCombatLockdown() then
-					doAfterCombat = true
-				else
-					CreateRioScore()
-				end
-			end)
-		else
-			CreateRioScore()
-		end
-		if addon.db["teleportFrame"] or addon.db["teleportsEnableCompendium"] then
-			if #portalSpells == 0 then getCurrentSeasonPortal() end
-			checkCooldown()
+    if InCombatLockdown() then
+        doAfterCombat = true
+    else
+        doAfterCombat = false
+        frameAnchor:SetAlpha(1)
+        if nil ~= RaiderIO_ProfileTooltip then
+            C_Timer.After(0.1, function()
+                if InCombatLockdown() then
+                    doAfterCombat = true
+                else
+                    CreateRioScore()
+                end
+            end)
+        else
+            CreateRioScore()
+        end
+        if addon.db["teleportFrame"] then
+            if #portalSpells == 0 then getCurrentSeasonPortal() end
+            checkCooldown()
 
 			-- Based on RaiderIO Client place the Frame
 			if nil ~= RaiderIO_ProfileTooltip then
@@ -1560,84 +1204,32 @@ function addon.MythicPlus.functions.toggleFrame()
 							frameAnchor:ClearAllPoints()
 							frameAnchor:SetPoint(addon.db.teleportFrameData.point, UIParent, addon.db.teleportFrameData.parentPoint, addon.db.teleportFrameData.x, addon.db.teleportFrameData.y)
 						end
-						if addon.db.teleportCompendiumLocked then
-							frameAnchorCompendium:ClearAllPoints()
-							if not addon.db["teleportFrame"] then
-								if gFrameAnchorScore then
-									local offsetX2 = gFrameAnchorScore:GetSize()
-									frameAnchorCompendium:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", (offsetX + offsetX2), 0)
-								else
-									frameAnchorCompendium:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", offsetX, 0)
-								end
-							else
-								frameAnchorCompendium:SetPoint("TOPLEFT", frameAnchor, "TOPRIGHT", 0, 0)
-							end
-						elseif addon.db.teleportCompendiumFrameData.point then
-							frameAnchorCompendium:ClearAllPoints()
-							frameAnchorCompendium:SetPoint(
-								addon.db.teleportCompendiumFrameData.point,
-								UIParent,
-								addon.db.teleportCompendiumFrameData.parentPoint,
-								addon.db.teleportCompendiumFrameData.x,
-								addon.db.teleportCompendiumFrameData.y
-							)
-						end
-					end
-				end)
-			else
-				if addon.db.teleportFrameLocked then
-					frameAnchor:ClearAllPoints()
-					frameAnchor:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", 0, 0)
-				elseif addon.db.teleportFrameData.point then
-					frameAnchor:ClearAllPoints()
-					frameAnchor:SetPoint(addon.db.teleportFrameData.point, UIParent, addon.db.teleportFrameData.parentPoint, addon.db.teleportFrameData.x, addon.db.teleportFrameData.y)
-				end
-				if addon.db.teleportCompendiumLocked then
-					frameAnchorCompendium:ClearAllPoints()
-					if not addon.db["teleportFrame"] then
-						if gFrameAnchorScore then
-							local offsetX2 = gFrameAnchorScore:GetSize()
-							frameAnchorCompendium:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", offsetX2, 0)
-						else
-							frameAnchorCompendium:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", 0, 0)
-						end
-					else
-						frameAnchorCompendium:SetPoint("TOPLEFT", frameAnchor, "TOPRIGHT", 0, 0)
-					end
-				elseif addon.db.teleportCompendiumFrameData.point then
-					frameAnchorCompendium:ClearAllPoints()
-					frameAnchorCompendium:SetPoint(
-						addon.db.teleportCompendiumFrameData.point,
-						UIParent,
-						addon.db.teleportCompendiumFrameData.parentPoint,
-						addon.db.teleportCompendiumFrameData.x,
-						addon.db.teleportCompendiumFrameData.y
-					)
-				end
-			end
+                end
+            end)
+        else
+            if addon.db.teleportFrameLocked then
+                frameAnchor:ClearAllPoints()
+                frameAnchor:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", 0, 0)
+            elseif addon.db.teleportFrameData.point then
+                frameAnchor:ClearAllPoints()
+                frameAnchor:SetPoint(addon.db.teleportFrameData.point, UIParent, addon.db.teleportFrameData.parentPoint, addon.db.teleportFrameData.x, addon.db.teleportFrameData.y)
+            end
+        end
 
-			-- Set Visibility
-			if addon.db["teleportFrame"] == true then
-				if not frameAnchor:IsShown() then frameAnchor:Show() end
-			else
-				frameAnchor:Hide()
-			end
-			-- While the modern World Map compendium is active, suppress the old compendium frame
-			local allowOldCompendium = addon.db["teleportsEnableCompendium"] and not addon.db["teleportsWorldMapUseModern"]
-			if allowOldCompendium then
-				if not frameAnchorCompendium:IsShown() then frameAnchorCompendium:Show() end
-			else
-				frameAnchorCompendium:Hide()
-			end
-		else
-			frameAnchor:Hide()
-			frameAnchorCompendium:Hide()
-		end
-		if addon.db["groupfinderShowPartyKeystone"] then
-			addon.MythicPlus.triggerRequest()
-			updateKeystoneInfo() -- precall to check if we have all information already
-		end
-	end
+        -- Set Visibility
+        if addon.db["teleportFrame"] == true then
+            if not frameAnchor:IsShown() then frameAnchor:Show() end
+        else
+            frameAnchor:Hide()
+        end
+    else
+        frameAnchor:Hide()
+    end
+        if addon.db["groupfinderShowPartyKeystone"] then
+            addon.MythicPlus.triggerRequest()
+            updateKeystoneInfo() -- precall to check if we have all information already
+        end
+    end
 end
 
 -- Buttons erstellen
@@ -1650,45 +1242,37 @@ frameAnchor:RegisterEvent("PLAYER_REGEN_ENABLED")
 frameAnchor:RegisterEvent("GROUP_ROSTER_UPDATE")
 frameAnchor:RegisterEvent("GROUP_JOINED")
 local function eventHandler(self, event, arg1, arg2, arg3, arg4)
-	if addon.db["teleportFrame"] then
-		if InCombatLockdown() then
-			doAfterCombat = true
-		else
-			if event == "ADDON_LOADED" and arg1 == addonName then
-				CreatePortalButtonsWithCooldown(frameAnchor, portalSpells)
-				if not addon.db["teleportsWorldMapUseModern"] then
-					CreatePortalCompendium(frameAnchorCompendium, addon.MythicPlus.variables.portalCompendium)
-				end
-				CreateRioScore()
-				frameAnchor:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", 230, 0)
-				frameAnchor:Show()
-				if addon.db["teleportsEnableCompendium"] then
-					frameAnchorCompendium:Show()
-				else
-					frameAnchorCompendium:Hide()
-				end
-			elseif event == "GROUP_JOINED" then
-				if PVEFrame:IsShown() then
-					addon.MythicPlus.triggerRequest() -- because I won't get the information from the people already in party otherwise
-				end
-			elseif event == "GROUP_ROSTER_UPDATE" then
-				if (IsInRaid() and isRegistered) or (not IsInRaid() and not isRegistered) then addon.MythicPlus.functions.togglePartyKeystone() end
-			elseif parentFrame:IsShown() then -- Only do stuff, when PVEFrame Open
-				if event == "UNIT_SPELLCAST_SUCCEEDED" and arg1 == "player" then
-					if allSpells[arg3] then waitCooldown(arg3) end
-				elseif event == "ENCOUNTER_END" and arg3 == 8 then
-					C_Timer.After(0.1, function() checkCooldown() end)
-				elseif event == "SPELL_DATA_LOAD_RESULT" and portalSpells[arg1] then
-					print("Loaded", portalSpells[arg1].text)
-				elseif event == "PLAYER_REGEN_ENABLED" then
-					if doAfterCombat then
-						if (IsInRaid() and isRegistered) or (not IsInRaid() and not isRegistered) then addon.MythicPlus.functions.togglePartyKeystone() end
-						addon.MythicPlus.functions.toggleFrame()
-					end
-				end
-			end
-		end
-	end
+    if addon.db["teleportFrame"] then
+        if InCombatLockdown() then
+            doAfterCombat = true
+        else
+            if event == "ADDON_LOADED" and arg1 == addonName then
+                CreatePortalButtonsWithCooldown(frameAnchor, portalSpells)
+                CreateRioScore()
+                frameAnchor:SetPoint("TOPLEFT", parentFrame, "TOPRIGHT", 230, 0)
+                frameAnchor:Show()
+            elseif event == "GROUP_JOINED" then
+                if PVEFrame:IsShown() then
+                    addon.MythicPlus.triggerRequest() -- because I won't get the information from the people already in party otherwise
+                end
+            elseif event == "GROUP_ROSTER_UPDATE" then
+                if (IsInRaid() and isRegistered) or (not IsInRaid() and not isRegistered) then addon.MythicPlus.functions.togglePartyKeystone() end
+            elseif parentFrame:IsShown() then -- Only do stuff, when PVEFrame Open
+                if event == "UNIT_SPELLCAST_SUCCEEDED" and arg1 == "player" then
+                    if allSpells[arg3] then waitCooldown(arg3) end
+                elseif event == "ENCOUNTER_END" and arg3 == 8 then
+                    C_Timer.After(0.1, function() checkCooldown() end)
+                elseif event == "SPELL_DATA_LOAD_RESULT" and portalSpells[arg1] then
+                    print("Loaded", portalSpells[arg1].text)
+                elseif event == "PLAYER_REGEN_ENABLED" then
+                    if doAfterCombat then
+                        if (IsInRaid() and isRegistered) or (not IsInRaid() and not isRegistered) then addon.MythicPlus.functions.togglePartyKeystone() end
+                        addon.MythicPlus.functions.toggleFrame()
+                    end
+                end
+            end
+        end
+    end
 end
 
 GameTooltip:HookScript("OnShow", function(self)
@@ -1719,19 +1303,17 @@ GameTooltip:HookScript("OnShow", function(self)
 			if nil ~= RaiderIO_ProfileTooltip then offsetX = RaiderIO_ProfileTooltip:GetSize() end
 			if gFrameAnchorScore and addon.db["dungeonScoreFrameLocked"] then gFrameAnchorScore:SetPoint("TOPLEFT", GameTooltip, "TOPRIGHT", offsetX, 0) end
 
-			if addon.db["teleportFrame"] then frameAnchor:SetAlpha(0) end
-			if addon.db["teleportsEnableCompendium"] then frameAnchorCompendium:SetAlpha(0) end
-		end
-	end
+            if addon.db["teleportFrame"] then frameAnchor:SetAlpha(0) end
+        end
+    end
 end)
 GameTooltip:HookScript("OnHide", function(self)
-	if PVEFrame:IsVisible() then
-		selectedMapId = nil
-		local owner = self:GetOwner()
-		CreateRioScore()
-		if addon.db["teleportFrame"] then frameAnchor:SetAlpha(1) end
-		if addon.db["teleportsEnableCompendium"] then frameAnchorCompendium:SetAlpha(1) end
-	end
+    if PVEFrame:IsVisible() then
+        selectedMapId = nil
+        local owner = self:GetOwner()
+        CreateRioScore()
+        if addon.db["teleportFrame"] then frameAnchor:SetAlpha(1) end
+    end
 end)
 
 -- Setze den Event-Handler
