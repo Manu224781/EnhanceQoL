@@ -623,7 +623,7 @@ addon.MythicPlus.variables.portalCompendium = {
 			[88344] = { text = "TolB", isClassTP = "MAGE", faction = FACTION_ALLIANCE },
 			[88345] = { text = "TolB", isMagePortal = true, faction = FACTION_ALLIANCE },
 			[88346] = { text = "TolB", isClassTP = "MAGE", faction = FACTION_HORDE },
-			[88347] = { text = "TolB", isMagePortal = true, faction = FACTION_HORDE },
+			[88342] = { text = "TolB", isMagePortal = true, faction = FACTION_HORDE },
 
 			[80256] = { text = "DH", isItem = true, itemID = 58487, isHearthstone = true, icon = 463898 },
 			[59317] = { text = "VC", isToy = true, toyID = 43824, isHearthstone = true, icon = 133743, map = 125 },
