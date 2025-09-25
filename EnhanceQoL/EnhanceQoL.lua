@@ -2054,6 +2054,67 @@ local function addMerchantFrame(container)
 	addon.functions.createWrapperData(data, container, L)
 end
 
+-- Mailbox address book options
+local function addMailboxFrame(container)
+    local data = {
+        {
+            parent = MINIMAP_TRACKING_MAILBOX,
+            var = "enableMailboxAddressBook",
+            type = "CheckBox",
+            text = L["enableMailboxAddressBook"],
+            desc = L["enableMailboxAddressBookDesc"],
+            callback = function(self, _, value)
+                addon.db["enableMailboxAddressBook"] = value
+                if addon.Mailbox then
+                    if addon.Mailbox.SetEnabled then addon.Mailbox:SetEnabled(value) end
+                    if value and addon.Mailbox.AddSelfToContacts then addon.Mailbox:AddSelfToContacts() end
+                    if value and addon.Mailbox.RefreshList then addon.Mailbox:RefreshList() end
+                end
+                container:ReleaseChildren()
+                addMailboxFrame(container)
+            end,
+        },
+    }
+
+    local wrapper = addon.functions.createWrapperData(data, container, L)
+
+    if addon.db["enableMailboxAddressBook"] then
+        -- Build a small management group to delete entries
+        local group = addon.functions.createContainer("InlineGroup", "List")
+        group:SetTitle(L["mailboxRemoveHeader"])
+        wrapper:AddChild(group)
+
+        local tList = {}
+        for key, rec in pairs(addon.db["mailboxContacts"]) do
+            local class = rec and rec.class
+            local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class or ""] or { r = 1, g = 1, b = 1 }
+            tList[key] = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, key)
+        end
+        local list, order = addon.functions.prepareListForDropdown(tList)
+        local drop = addon.functions.createDropdownAce(L["mailboxRemoveSelect"], list, order, nil)
+        group:AddChild(drop)
+
+        local btn = addon.functions.createButtonAce(REMOVE, 120, function()
+            local selected = drop:GetValue()
+            if selected and addon.db["mailboxContacts"][selected] then
+                addon.db["mailboxContacts"][selected] = nil
+                -- refresh list
+                local refresh = {}
+                for key, rec in pairs(addon.db["mailboxContacts"]) do
+                    local class = rec and rec.class
+                    local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class or ""] or { r = 1, g = 1, b = 1 }
+                    refresh[key] = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, key)
+                end
+                local nl, no = addon.functions.prepareListForDropdown(refresh)
+                drop:SetList(nl, no)
+                drop:SetValue(nil)
+                if addon.Mailbox and addon.Mailbox.RefreshList then addon.Mailbox:RefreshList() end
+            end
+        end)
+        group:AddChild(btn)
+    end
+end
+
 local function addActionBarFrame(container, d)
 	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
 	scroll:SetFullWidth(true)
@@ -4983,6 +5044,10 @@ local function initUI()
 	addon.functions.InitDBValue("gameMenuScaleEnabled", false)
 	addon.functions.InitDBValue("gameMenuScale", 1.0)
 
+	-- Mailbox address book
+	addon.functions.InitDBValue("enableMailboxAddressBook", false)
+	addon.functions.InitDBValue("mailboxContacts", {})
+
 	local gmHooked = false
 	function addon.functions.applyGameMenuScale()
 		if not GameMenuFrame then return end
@@ -6052,6 +6117,7 @@ local function CreateUI()
 					{ value = "actionbar", text = ACTIONBARS_LABEL },
 					{ value = "chatframe", text = HUD_EDIT_MODE_CHAT_FRAME_LABEL },
 					{ value = "merchant", text = MERCHANT },
+					{ value = "mailbox", text = MINIMAP_TRACKING_MAILBOX },
 					{ value = "minimap", text = MINIMAP_LABEL },
 					{ value = "unitframe", text = UNITFRAME_LABEL },
 					{ value = "dynamicflight", text = DYNAMIC_FLIGHT },
@@ -6094,6 +6160,8 @@ local function CreateUI()
 			addActionBarFrame(container)
 		elseif group == "general\001ui\001merchant" then
 			addMerchantFrame(container)
+		elseif group == "general\001ui\001mailbox" then
+			addMailboxFrame(container)
 		elseif group == "general\001ui\001unitframe" then
 			addUnitFrame(container)
 		elseif group == "general\001ui\001dynamicflight" then

@@ -161,6 +161,12 @@ L["Item id or drag item"] = "Item id or drag item"
 L["lootToastItemAdded"] = "Added %s (%d) to the include list"
 L["Item id does not exist"] = "Item id does not exist"
 
+-- Mailbox Address Book
+L["enableMailboxAddressBook"] = "Enable mailbox address book"
+L["enableMailboxAddressBookDesc"] = "Adds a searchable list of your characters next to the Send Mail panel. Click a name to fill the recipient."
+L["mailboxRemoveHeader"] = "Remove character"
+L["mailboxRemoveSelect"] = "Select character"
+
 L["headerClassInfo"] = "These settings only apply to %s"
 
 -- Deathknight

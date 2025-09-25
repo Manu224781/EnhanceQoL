@@ -1,0 +1,80 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+
+    <!-- Hoverable row template for mailbox list -->
+    <Button name="EQOLMailboxRowTemplate" virtual="true">
+        <Size x="250" y="20"/>
+        <Scripts>
+            <OnLoad>
+                self:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight");
+                self:RegisterForClicks("LeftButtonUp", "RightButtonUp");
+            </OnLoad>
+            <OnClick>
+                self:OnClick(button)
+            </OnClick>
+        </Scripts>
+    </Button>
+
+    <!-- Panel anchored to the right of the MailFrame -->
+    <Frame name="EQOLMailboxFrame" inherits="InsetFrameTemplate3" parent="MailFrame" hidden="true" clampedToScreen="true">
+        <Size x="260" y="430"/>
+        <Anchors>
+            <Anchor point="TOPLEFT" relativePoint="TOPRIGHT" x="6" y="0"/>
+        </Anchors>
+        <Scripts>
+            <OnLoad>EQOLMailboxFrame_OnLoad(self);</OnLoad>
+        </Scripts>
+        <Frames>
+            <EditBox name="$parentSearchBox" inherits="InputBoxTemplate">
+                <Size x="220" y="20"/>
+                <Anchors>
+                    <Anchor point="TOPLEFT" x="10" y="-10"/>
+                </Anchors>
+                <Scripts>
+                    <OnLoad>self:SetAutoFocus(false);</OnLoad>
+                    <OnEscapePressed>self:ClearFocus();</OnEscapePressed>
+                </Scripts>
+            </EditBox>
+            <Frame name="$parentHeader" inherits="BackdropTemplate">
+                <Anchors>
+                    <Anchor point="TOPLEFT" x="10" y="-38"/>
+                    <Anchor point="TOPRIGHT" x="-28" y="-38"/>
+                </Anchors>
+                <Frames>
+                    <Button name="$parentCol1" inherits="WhoFrameColumnHeaderTemplate">
+                        <Anchors>
+                            <Anchor point="TOPLEFT"/>
+                        </Anchors>
+                    </Button>
+                    <Button name="$parentCol2" inherits="WhoFrameColumnHeaderTemplate">
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeTo="$parentCol1" relativePoint="TOPRIGHT"/>
+                        </Anchors>
+                    </Button>
+                    <!-- 2 columns only: name + server -->
+                </Frames>
+                <Size x="250" y="20"/>
+            </Frame>
+            <ScrollFrame name="$parentScrollFrame" inherits="HybridScrollFrameTemplate">
+                <Anchors>
+                    <Anchor point="TOPLEFT" relativeTo="$parentHeader" relativePoint="BOTTOMLEFT" x="0" y="-2"/>
+                    <Anchor point="BOTTOMRIGHT" x="-28" y="10"/>
+                </Anchors>
+                <Frames>
+                    <Slider name="$parentScrollBar" inherits="HybridScrollBarTemplate">
+                        <Anchors>
+                            <Anchor point="TOPLEFT" relativeTo="$parent" relativePoint="TOPRIGHT" x="0" y="-16"/>
+                            <Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="BOTTOMRIGHT" x="0" y="16"/>
+                        </Anchors>
+                    </Slider>
+                    <Frame name="$parentScrollChild">
+                        <Anchors>
+                            <Anchor point="TOPLEFT"/>
+                        </Anchors>
+                    </Frame>
+                </Frames>
+            </ScrollFrame>
+        </Frames>
+    </Frame>
+</Ui>
