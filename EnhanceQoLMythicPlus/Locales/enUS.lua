@@ -75,6 +75,7 @@ L["teleportEnabledDesc"] = "Shows current Mythic+ season teleports in the PVE fr
 L["DungeonCompendium"] = "Teleport Compendium"
 L["teleportsWorldMapEnabled"] = "Enable World Map Teleport panel"
 L["teleportsWorldMapEnabledDesc"] = "Adds a new tab to the World Map listing all available teleport options"
+L["teleportsWorldMapHelp"] = "Right-click to display the teleport destination\nShift+Right-click to toggle favorite"
 
 L["teleportsHeadline"] = "This adds a frame with Dungeon Teleports to your PVEFrame"
 L["teleportCompendiumHeadline"] = "Hide teleports from specific expansions"

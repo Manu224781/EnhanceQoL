@@ -763,8 +763,24 @@ local function addTeleportFrame(container)
 	local cbWorldMapEnabled = addon.functions.createCheckboxAce(L["teleportsWorldMapEnabled"], addon.db["teleportsWorldMapEnabled"], function(self, _, value)
 		addon.db["teleportsWorldMapEnabled"] = value
 		if addon.MythicPlus.functions.RefreshWorldMapTeleportPanel then addon.MythicPlus.functions.RefreshWorldMapTeleportPanel() end
+		-- Rebuild this section so the hint label appears/disappears immediately
+		container:ReleaseChildren()
+		addTeleportFrame(container)
 	end, L["teleportsWorldMapEnabledDesc"])
 	groupCore:AddChild(cbWorldMapEnabled)
+
+	-- Show a short usage hint when the World Map panel is enabled
+	if addon.db["teleportsWorldMapEnabled"] then
+		local hint = addon.functions.createLabelAce(
+			"|cffffd700" .. (L["teleportsWorldMapHelp"] or "Right-click to display the teleport destination\nShift+Right-click to toggle favorite") .. "|r",
+			nil,
+			nil,
+			12
+		)
+		hint:SetFullWidth(true)
+		groupCore:AddChild(hint)
+		groupCore:AddChild(addon.functions.createSpacerAce())
+	end
 
 	-- if addon.db["teleportFrame"] then
 	local data = {
