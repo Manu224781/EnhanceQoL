@@ -3023,18 +3023,8 @@ local function addCharacterFrame(container)
 	addon.functions.createWrapperData(data, container, L)
 end
 
-local function addMiscFrame(container, d)
-	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
-	scroll:SetFullWidth(true)
-	scroll:SetFullHeight(true)
-	container:AddChild(scroll)
-
-	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
-	scroll:AddChild(wrapper)
-
-	local groupCore = addon.functions.createContainer("InlineGroup", "List")
-	wrapper:AddChild(groupCore)
-
+-- Returns the raw Misc options table so we can reuse subsets in other views
+local function getMiscOptions()
 	local data = {
 		--@debug@
 		{
@@ -3123,6 +3113,79 @@ local function addMiscFrame(container, d)
 			end,
 		},
 	}
+	return data
+end
+
+-- Helper to render only a subset of the misc options by var name
+local function addMiscSubsetFrame(container, include)
+	local list = {}
+	local allowed = {}
+	for _, k in ipairs(include or {}) do allowed[k] = true end
+	for _, entry in ipairs(getMiscOptions()) do
+		if allowed[entry.var] then table.insert(list, entry) end
+	end
+
+	-- Keep original simple checkbox look used in Misc
+	table.sort(list, function(a, b)
+		local ta = a.text or L[a.var]
+		local tb = b.text or L[b.var]
+		return ta < tb
+	end)
+
+	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
+	scroll:SetFullWidth(true)
+	scroll:SetFullHeight(true)
+	container:AddChild(scroll)
+
+	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
+	scroll:AddChild(wrapper)
+
+	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	wrapper:AddChild(groupCore)
+
+	for _, checkboxData in ipairs(list) do
+		local desc = checkboxData.desc
+		local text = checkboxData.text or L[checkboxData.var]
+		local uFunc = checkboxData.callback or function(self, _, value) addon.db[checkboxData.var] = value end
+		local cb = addon.functions.createCheckboxAce(text, addon.db[checkboxData.var], uFunc, desc)
+		groupCore:AddChild(cb)
+	end
+
+	scroll:DoLayout()
+end
+
+-- Check if a misc option exists (avoids empty debug-only pages)
+local function hasMiscOption(var)
+    for _, entry in ipairs(getMiscOptions()) do
+        if entry.var == var then return true end
+    end
+    return false
+end
+
+-- Show a simple informational text on empty category roots
+local function addCategoryIntro(container, titleKey, bodyKey)
+    local group = addon.functions.createContainer("InlineGroup", "List")
+    group:SetTitle(L[titleKey] or "")
+    container:AddChild(group)
+
+    local lbl = addon.functions.createLabelAce(L[bodyKey] or "", nil, nil, 12)
+    lbl:SetFullWidth(true)
+    group:AddChild(lbl)
+end
+
+local function addMiscFrame(container, d)
+	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
+	scroll:SetFullWidth(true)
+	scroll:SetFullHeight(true)
+	container:AddChild(scroll)
+
+	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
+	scroll:AddChild(wrapper)
+
+	local groupCore = addon.functions.createContainer("InlineGroup", "List")
+	wrapper:AddChild(groupCore)
+
+	local data = getMiscOptions()
 	table.sort(data, function(a, b)
 		local textA = a.var
 		local textB = b.var
@@ -6100,33 +6163,88 @@ local function CreateUI()
 		value = "general",
 		text = L["General"],
 		children = {
-			{ value = "character", text = L["Character"] },
-			{ value = "bags", text = HUD_EDIT_MODE_BAGS_LABEL },
-			{ value = "cvar", text = "CVar" },
-			{ value = "party", text = PARTY },
-			{ value = "dungeon", text = L["Dungeon"] },
-			{ value = "misc", text = L["Misc"] },
-			{ value = "quest", text = L["Quest"] },
-			{ value = "map", text = WORLD_MAP },
-			{ value = "datapanel", text = "Datapanel" },
+			-- Items & Inventory
+			{
+				value = "items",
+				text = L["ItemsInventory"],
+				children = {
+					{ value = "bags", text = HUD_EDIT_MODE_BAGS_LABEL },
+					{ value = "loot", text = L["Loot"] },
+					-- "container" will be conditionally added below if available
+					{ value = "confirmations", text = L["Confirmations"] },
+				},
+			},
+			-- Gear & Upgrades
+			{
+				value = "gear",
+				text = L["GearUpgrades"],
+				children = {
+					{ value = "character", text = L["Character"] },
+					{ value = "upgrades", text = L["CatalystUpgrades"] },
+				},
+			},
+			-- Vendors & Economy
+			{
+				value = "economy",
+				text = L["VendorsEconomy"],
+				children = {
+					{ value = "merchant", text = MERCHANT },
+					{ value = "auctionhouse", text = BUTTON_LAG_AUCTIONHOUSE },
+					{ value = "mailbox", text = MINIMAP_TRACKING_MAILBOX },
+					{ value = "convenience", text = L["Convenience"] },
+				},
+			},
+			-- Combat & Dungeons
+			{
+				value = "combat",
+				text = L["CombatDungeons"],
+				children = {
+					{ value = "party", text = PARTY },
+					{ value = "dungeon", text = L["Dungeon"] },
+				},
+			},
+			-- Map & Navigation
+			{
+				value = "nav",
+				text = L["MapNavigation"],
+				children = {
+					{ value = "map", text = WORLD_MAP },
+					{ value = "minimap", text = MINIMAP_LABEL },
+					{ value = "dynamicflight", text = DYNAMIC_FLIGHT },
+				},
+			},
+			-- UI & Input
 			{
 				value = "ui",
-				text = BUG_CATEGORY5,
+				text = L["UIInput"],
 				children = {
-					{ value = "auctionhouse", text = BUTTON_LAG_AUCTIONHOUSE },
+					{ value = "core", text = BUG_CATEGORY5 },
 					{ value = "actionbar", text = ACTIONBARS_LABEL },
 					{ value = "chatframe", text = HUD_EDIT_MODE_CHAT_FRAME_LABEL },
-					{ value = "merchant", text = MERCHANT },
-					{ value = "mailbox", text = MINIMAP_TRACKING_MAILBOX },
-					{ value = "minimap", text = MINIMAP_LABEL },
 					{ value = "unitframe", text = UNITFRAME_LABEL },
-					{ value = "dynamicflight", text = DYNAMIC_FLIGHT },
+					{ value = "datapanel", text = "Datapanel" },
+				},
+			},
+			-- Quests & Social
+			{ value = "quest", text = L["Quest"], children = { { value = "cinematics", text = CINEMATICS } } },
+			{ value = "social", text = L["Social"] },
+			-- System
+			{
+				value = "system",
+				text = L["System"],
+				children = {
+					{ value = "cvar", text = L["CVar"] },
 				},
 			},
 		},
 	})
-	addon.functions.addToTree("general", { value = "social", text = L["Social"] })
-	addon.functions.addToTree("general", { value = "loot", text = L["Loot"] })
+
+    -- Conditionally add "Container Actions" under Items if it exists
+    if hasMiscOption("automaticallyOpenContainer") then
+        addon.functions.addToTree("general\001items", { value = "container", text = L["ContainerActions"] }, true)
+        -- true = noSort; we keep earlier order (loot before container)
+        addon.treeGroup:SetTree(addon.treeGroupData)
+    end
 	table.insert(addon.treeGroupData, {
 		value = "profiles",
 		text = L["Profiles"],
@@ -6136,46 +6254,80 @@ local function CreateUI()
 	addon.treeGroup:SetCallback("OnGroupSelected", function(container, _, group)
 		container:ReleaseChildren() -- Entfernt vorherige Inhalte
 		-- Prüfen, welche Gruppe ausgewählt wurde
-		if group == "general\001misc" then
-			addMiscFrame(container, true) -- Ruft die Funktion zum Hinzufügen der Misc-Optionen auf
-		elseif group == "general\001quest" then
-			addQuestFrame(container, true) -- Ruft die Funktion zum Hinzufügen der Quest-Optionen auf
-		elseif group == "general\001loot" then
+		-- Items & Inventory
+		if group == "general\001items" then
+			addCategoryIntro(container, "ItemsInventory", "ItemsInventoryIntro")
+		elseif group == "general\001items\001bags" then
+				addBagFrame(container)
+		elseif group == "general\001items\001loot" then
 			addLootFrame(container, true)
-		elseif group == "general\001cvar" then
-			addCVarFrame(container, true) -- Ruft die Funktion zum Hinzufügen der CVar-Optionen auf
-		elseif group == "general\001dungeon" then
-			addDungeonFrame(container, true) -- Ruft die Funktion zum Hinzufügen der Dungeon-Optionen auf
-		elseif group == "general\001character" then
-			addCharacterFrame(container) -- Ruft die Funktion zum Hinzufügen der Character-Optionen auf
-		elseif group == "general\001bags" then
-			addBagFrame(container) -- Ruft die Funktion zum Hinzufügen der Character-Optionen auf
-		elseif group == "general\001party" then
-			addPartyFrame(container) -- Ruft die Funktion zum Hinzufügen der Party-Optionen auf
-		elseif group == "general\001ui" then
-			addUIFrame(container)
-		elseif group == "general\001ui\001auctionhouse" then
+		elseif group == "general\001items\001container" then
+			addMiscSubsetFrame(container, { "automaticallyOpenContainer" })
+		elseif group == "general\001items\001confirmations" then
+			addMiscSubsetFrame(container, {
+				"deleteItemFillDialog",
+				"confirmReplaceEnchant",
+				"confirmSocketReplace",
+				"confirmPatronOrderDialog",
+				"confirmTimerRemovalTrade",
+			})
+		-- Gear & Upgrades
+			elseif group == "general\001gear" then
+				addCategoryIntro(container, "GearUpgrades", "GearUpgradesIntro")
+		elseif group == "general\001gear\001character" then
+			addCharacterFrame(container)
+		elseif group == "general\001gear\001upgrades" then
+			addMiscSubsetFrame(container, { "instantCatalystEnabled", "openCharframeOnUpgrade" })
+		-- Vendors & Economy
+			elseif group == "general\001economy" then
+				addCategoryIntro(container, "VendorsEconomy", "VendorsEconomyIntro")
+		elseif group == "general\001economy\001merchant" then
+			addMerchantFrame(container)
+		elseif group == "general\001economy\001auctionhouse" then
 			addAuctionHouseFrame(container)
+		elseif group == "general\001economy\001mailbox" then
+			addMailboxFrame(container)
+		elseif group == "general\001economy\001convenience" then
+			addMiscSubsetFrame(container, { "autoRepair", "sellAllJunk" })
+		-- Combat & Dungeons
+			elseif group == "general\001combat" then
+				addCategoryIntro(container, "CombatDungeons", "CombatDungeonsIntro")
+		elseif group == "general\001combat\001party" then
+			addPartyFrame(container)
+		elseif group == "general\001combat\001dungeon" then
+			addDungeonFrame(container, true)
+		-- Map & Navigation
+			elseif group == "general\001nav" then
+				addCategoryIntro(container, "MapNavigation", "MapNavigationIntro")
+		elseif group == "general\001nav\001map" then
+			addMapFrame(container)
+		elseif group == "general\001nav\001minimap" then
+			addMinimapFrame(container)
+		elseif group == "general\001nav\001dynamicflight" then
+			addDynamicFlightFrame(container)
+		-- UI & Input
+			elseif group == "general\001ui" then
+				addCategoryIntro(container, "UIInput", "UIInputIntro")
+		elseif group == "general\001ui\001core" then
+			addUIFrame(container)
 		elseif group == "general\001ui\001actionbar" then
 			addActionBarFrame(container)
-		elseif group == "general\001ui\001merchant" then
-			addMerchantFrame(container)
-		elseif group == "general\001ui\001mailbox" then
-			addMailboxFrame(container)
-		elseif group == "general\001ui\001unitframe" then
-			addUnitFrame(container)
-		elseif group == "general\001ui\001dynamicflight" then
-			addDynamicFlightFrame(container)
 		elseif group == "general\001ui\001chatframe" then
 			addChatFrame(container)
-		elseif group == "general\001ui\001minimap" then
-			addMinimapFrame(container)
-		elseif group == "general\001datapanel" then
+		elseif group == "general\001ui\001unitframe" then
+			addUnitFrame(container)
+		elseif group == "general\001ui\001datapanel" then
 			buildDatapanelFrame(container)
+		-- Quests & Social
+		elseif group == "general\001quest" then
+			addQuestFrame(container, true) -- Ruft die Funktion zum Hinzufügen der Quest-Optionen auf
+		elseif group == "general\001quest\001cinematics" then
+			addMiscSubsetFrame(container, { "autoCancelCinematic" })
 		elseif group == "general\001social" then
 			addSocialFrame(container)
-		elseif group == "general\001map" then
-			addMapFrame(container)
+		-- System
+		elseif group == "general\001system\001cvar" then
+			addCVarFrame(container, true)
 		elseif group == "profiles" then
 			local sub = AceGUI:Create("SimpleGroup")
 			sub:SetFullWidth(true)
@@ -6208,8 +6360,8 @@ local function CreateUI()
 	addon.variables.statusTable.groups["general\001ui"] = true
 	frame:AddChild(addon.treeGroup)
 
-	-- Select the first group by default
-	addon.treeGroup:SelectByPath("general")
+	-- Select a meaningful default page
+	addon.treeGroup:SelectByPath("general\001items")
 
 	-- Datenobjekt fr den Minimap-Button
 	local EnhanceQoLLDB = LDB:NewDataObject("EnhanceQoL", {

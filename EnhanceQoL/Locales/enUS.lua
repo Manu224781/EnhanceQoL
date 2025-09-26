@@ -12,6 +12,27 @@ L["Hide Minimap Button"] = "Hide Minimap Button"
 L["Left-Click to show options"] = "Left-Click to show options"
 L["Right-Click for options"] = "Right-click for options"
 
+-- Category titles
+L["ItemsInventory"] = "Items & Inventory"
+L["ContainerActions"] = "Container Actions"
+L["Confirmations"] = "Confirmations"
+L["GearUpgrades"] = "Gear & Upgrades"
+L["CatalystUpgrades"] = "Catalyst & Upgrades"
+L["VendorsEconomy"] = "Vendors & Economy"
+L["Convenience"] = "Convenience"
+L["CombatDungeons"] = "Combat & Dungeons"
+L["MapNavigation"] = "Map & Navigation"
+L["UIInput"] = "UI & Input"
+L["System"] = "System"
+
+-- Category intro texts
+L["ItemsInventoryIntro"] = "Configure bag overlays, loot handling, and item safety confirmations."
+L["GearUpgradesIntro"] = "Character UI extras and quick upgrade helpers like the Catalyst button."
+L["VendorsEconomyIntro"] = "Quality-of-life at merchants, auction house and mailbox, plus quick conveniences."
+L["CombatDungeonsIntro"] = "Group frames, role helpers and dungeon-related options."
+L["MapNavigationIntro"] = "World map, minimap and movement/flight tweaks."
+L["UIInputIntro"] = "Core interface toggles, action bars, chat and unit frames."
+
 -- Latency stream
 L["Latency"] = "Latency"
 L["FPS update interval (s)"] = "FPS update interval (s)"
