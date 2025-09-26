@@ -38,6 +38,7 @@
 - **Health Macro:** _Invigorating Healing Potion_ used the wrong healing amount — corrected.
 - **Localization:** Fixed several dialogs with missing localized strings.
 - **Bag filter:** Sometimes the bag filter was empty
+- **Instance difficulty:** Disabling this setting while not in Dungeon showed the default icon
 
 ---
 

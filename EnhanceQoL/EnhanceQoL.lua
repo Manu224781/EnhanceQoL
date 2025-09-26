@@ -2849,7 +2849,7 @@ local function addCharacterFrame(container)
 			end,
 		},
 		{
-			parent = INFO,
+			parent = LFG_LIST_ITEM_LEVEL_INSTR_SHORT,
 			var = "charIlvlPosition",
 			type = "Dropdown",
 			order = posOrder,
@@ -3677,14 +3677,18 @@ local function addSocialFrame(container)
 		lbl:SetFullWidth(true)
 		groupInv:AddChild(lbl)
 
-		local cbGuild = addon.functions.createCheckboxAce(L["autoAcceptGroupInviteGuildOnly"], addon.db["autoAcceptGroupInviteGuildOnly"], function(self, _, value)
-			addon.db["autoAcceptGroupInviteGuildOnly"] = value
-		end)
+		local cbGuild = addon.functions.createCheckboxAce(
+			L["autoAcceptGroupInviteGuildOnly"],
+			addon.db["autoAcceptGroupInviteGuildOnly"],
+			function(self, _, value) addon.db["autoAcceptGroupInviteGuildOnly"] = value end
+		)
 		groupInv:AddChild(cbGuild)
 
-		local cbFriends = addon.functions.createCheckboxAce(L["autoAcceptGroupInviteFriendOnly"], addon.db["autoAcceptGroupInviteFriendOnly"], function(self, _, value)
-			addon.db["autoAcceptGroupInviteFriendOnly"] = value
-		end)
+		local cbFriends = addon.functions.createCheckboxAce(
+			L["autoAcceptGroupInviteFriendOnly"],
+			addon.db["autoAcceptGroupInviteFriendOnly"],
+			function(self, _, value) addon.db["autoAcceptGroupInviteFriendOnly"] = value end
+		)
 		groupInv:AddChild(cbFriends)
 	end
 	if addon.db["ignoreTooltipNote"] then
