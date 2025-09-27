@@ -6449,18 +6449,15 @@ local function CreateUI()
 
 	-- Top: Media & Sound (only if at least one media addon is available)
 	local addMediaRoot = false
-	if addon.SharedMedia and addon.SharedMedia.functions and addon.SharedMedia.functions.treeCallback then
-		addMediaRoot = true
-	else
-		local ok1, reason1 = true, nil
-		local ok2, reason2 = true, nil
-		if C_AddOns and C_AddOns.IsAddOnLoadable then
-			ok1, reason1 = C_AddOns.IsAddOnLoadable("EnhanceQoLSharedMedia")
-			ok2, reason2 = C_AddOns.IsAddOnLoadable("EnhanceQoLSound")
-		end
-		if ok1 or reason1 == "DEMAND_LOADED" or ok2 or reason2 == "DEMAND_LOADED" then addMediaRoot = true end
+
+	local ok1 = false
+	local ok2 = false
+	if C_AddOns and C_AddOns.GetAddOnEnableState then
+		ok1 = C_AddOns.GetAddOnEnableState("EnhanceQoLSharedMedia", UnitName("player")) == 2
+		ok2 = C_AddOns.GetAddOnEnableState("EnhanceQoLSound", UnitName("player")) == 2
 	end
-	if addon.Sounds and addon.Sounds.functions and addon.Sounds.functions.treeCallback then addMediaRoot = true end
+	if ok1 or ok2 then addMediaRoot = true end
+
 	if addMediaRoot then addon.functions.addToTree(nil, { value = "media", text = "Media & Sound" }) end
 
 	-- Conditionally add "Container Actions" under Items if it exists
@@ -6515,7 +6512,12 @@ local function CreateUI()
 			-- Normalize and dispatch for known combat modules
 			if string.find(group, "mythicplus", 1, true) then
 				addon.MythicPlus.functions.treeCallback(container, group)
-			elseif group:find("combat\001resourcebar", 1, true) or group:find("combat\001bufftracker", 1, true) or group:find("combat\001casttracker", 1, true) or group:find("combat\001cooldownnotify", 1, true) then
+			elseif
+				group:find("combat\001resourcebar", 1, true)
+				or group:find("combat\001bufftracker", 1, true)
+				or group:find("combat\001casttracker", 1, true)
+				or group:find("combat\001cooldownnotify", 1, true)
+			then
 				addon.Aura.functions.treeCallback(container, group)
 			elseif string.find(group, "\001drink", 1, true) or string.sub(group, 1, 5) == "drink" or group:find("combat\001drink", 1, true) then
 				local pos = group:find("drink", 1, true)
@@ -6565,9 +6567,7 @@ local function CreateUI()
 		-- Media & Sound wrappers
 		elseif group == "media" then
 			-- Show Shared Media content directly when available
-			if addon.SharedMedia and addon.SharedMedia.functions and addon.SharedMedia.functions.treeCallback then
-				addon.SharedMedia.functions.treeCallback(container, "media")
-			end
+			if addon.SharedMedia and addon.SharedMedia.functions and addon.SharedMedia.functions.treeCallback then addon.SharedMedia.functions.treeCallback(container, "media") end
 		elseif string.sub(group, 1, string.len("media\001")) == "media\001" then
 			-- Route any Media children to Sound module (flattened categories)
 			if addon.Sounds and addon.Sounds.functions and addon.Sounds.functions.treeCallback then addon.Sounds.functions.treeCallback(container, group) end
