@@ -920,6 +920,7 @@ function CN.functions.addCooldownNotifyOptions(container)
 	wrapper:AddChild(treeGroup)
 	treeGroup:SetFullHeight(true)
 	treeGroup:SetFullWidth(true)
+	treeGroup:SetLayout("Fill")
 	treeGroup:SetTreeWidth(200, true)
 	local ok = treeGroup:SelectByValue(tostring(addon.db.cooldownNotifySelectedCategory or 1))
 	if not ok and tree[1] and tree[1].value then treeGroup:SelectByValue(tree[1].value) end
