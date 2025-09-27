@@ -164,13 +164,6 @@ frameLoad:SetScript("OnEvent", eventHandler)
 -- Place Drink Macro under Combat & Dungeons
 addon.functions.addToTree("combat", { value = "drink", text = L["Drinks & Food"] or "Drinks & Food" })
 
--- Add child entry for Health Macro under Drink Macro
-addon.functions.addToTree("combat\001drink", {
-	value = "health",
-	text = L["Health Macro"],
-})
-addon.variables.statusTable.groups["drink"] = true
-
 local function addDrinkFrame(container)
 	local scroll = addon.functions.createContainer("ScrollFrame", "Flow")
 	scroll:SetFullWidth(true)
@@ -619,9 +612,5 @@ end
 function addon.Drinks.functions.treeCallback(container, group)
 	container:ReleaseChildren() -- Entfernt vorherige Inhalte
 	-- Prüfen, welche Gruppe ausgewählt wurde
-	if group == "drink" then
-		addDrinkFrame(container)
-	elseif group == "drink\001health" then
-		addDrinkFrame(container) -- legacy path now shows combined view
-	end
+	if group == "drink" then addDrinkFrame(container) end
 end
