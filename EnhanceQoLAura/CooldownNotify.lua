@@ -722,7 +722,7 @@ local function buildCategoryOptions(container, catId)
 			DCP:SetScript("OnUpdate", OnUpdate)
 			DCP:Show()
 		end
-		end)
+	end)
 	testBtn:SetRelativeWidth(0.5)
 	actionsRow:AddChild(testBtn)
 
