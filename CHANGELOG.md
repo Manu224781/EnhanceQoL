@@ -5,6 +5,7 @@
 ### ✨ Added
 
 - Unit Frames: Checkbox to hide the resting animation and glow on the Player frame.
+- Dungeon Finder: Right‑click context menu on applicant members now includes “Copy Raider.IO URL” (toggle under Dungeons → disabled by default).
 
 ### 🧹 Cleanup
 

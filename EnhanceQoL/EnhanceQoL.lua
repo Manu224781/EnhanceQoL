@@ -2365,6 +2365,13 @@ local function addDungeonFrame(container, d)
 			type = "CheckBox",
 			func = function(self, _, value) addon.db["lfgSortByRio"] = value end,
 		},
+		{
+			parent = DUNGEONS,
+			var = "enableChatIMRaiderIO",
+			text = L["enableChatIMRaiderIO"],
+			type = "CheckBox",
+			func = function(self, _, value) addon.db["enableChatIMRaiderIO"] = value end,
+		},
 	}
 
 	table.sort(data, function(a, b) return a.text < b.text end)
@@ -4389,11 +4396,44 @@ local function initDungeon()
 	addon.functions.InitDBValue("autoChooseDelvePower", false)
 	addon.functions.InitDBValue("lfgSortByRio", false)
 	addon.functions.InitDBValue("groupfinderSkipRoleSelect", false)
+	addon.functions.InitDBValue("enableChatIMRaiderIO", false)
 
 	if LFGListFrame and LFGListFrame.SearchPanel and LFGListFrame.SearchPanel.FilterButton and LFGListFrame.SearchPanel.FilterButton.ResetButton then
 		lfgPoint, lfgRelativeTo, lfgRelativePoint, lfgXOfs, lfgYOfs = LFGListFrame.SearchPanel.FilterButton.ResetButton:GetPoint()
 	end
 	if addon.db["groupfinderMoveResetButton"] then toggleLFGFilterPosition() end
+
+	-- Add Raider.IO URL to LFG applicant member context menu
+	if Menu and Menu.ModifyMenu then
+		local regionTable = { "US", "KR", "EU", "TW", "CN" }
+		local function AddLFGApplicantRIO(owner, root, ctx)
+			if not addon.db["enableChatIMRaiderIO"] then return end
+
+			local appID = owner and owner._eqolApplicantID or (ctx and (ctx.applicantID or ctx.appID))
+			local memberIdx = owner and owner._eqolMemberIdx or (ctx and (ctx.memberIdx or ctx.memberIndex))
+			if not appID or not memberIdx then return end
+
+			local name = C_LFGList and C_LFGList.GetApplicantMemberInfo and C_LFGList.GetApplicantMemberInfo(appID, memberIdx)
+			if type(name) ~= "string" or name == "" then return end
+
+			local targetName = name
+			if not targetName:find("-", 1, true) then targetName = targetName .. "-" .. (GetRealmName() or ""):gsub("%s", "") end
+
+			local char, realm = targetName:match("^([^%-]+)%-(.+)$")
+			if not char or not realm then return end
+
+			local regionKey = regionTable[GetCurrentRegion()] or "EU"
+			local realmSlug = string.lower((realm or ""):gsub("%s+", "-"))
+			local riolink = "https://raider.io/characters/" .. string.lower(regionKey) .. "/" .. realmSlug .. "/" .. char
+
+			root:CreateDivider()
+			root:CreateButton(L["RaiderIOUrl"], function(link)
+				if StaticPopup_Show then StaticPopup_Show("EQOL_URL_COPY", nil, nil, link) end
+			end, riolink)
+		end
+
+		Menu.ModifyMenu("MENU_LFG_FRAME_MEMBER_APPLY", AddLFGApplicantRIO)
+	end
 end
 
 local function initActionBars()
@@ -6528,6 +6568,11 @@ local function setAllHooks()
 	end
 
 	hooksecurefunc("LFGListApplicationViewer_UpdateApplicantMember", function(memberFrame, appID, memberIdx)
+		-- Store identifiers for context-menu usage (e.g., Raider.IO link)
+		if memberFrame then
+			memberFrame._eqolApplicantID = appID
+			memberFrame._eqolMemberIdx = memberIdx
+		end
 		if addon.db.enableIgnore then ApplyIgnoreHighlight(memberFrame, appID) end
 	end)
 

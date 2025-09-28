@@ -9,8 +9,7 @@ else
 end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
-local LSM = LibStub("LibSharedMedia-3.0")
-local AceGUI = addon.AceGUI
+-- (no direct LSM/AceGUI usage here; UI rendering handled in submodules)
 
 -- Group Aura subfeatures under Combat Assist within Combat & Dungeons
 addon.functions.addToTree("combat", {

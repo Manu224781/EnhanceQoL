@@ -794,13 +794,13 @@ local function buildCategoryOptions(scroll, catId)
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-    StaticPopupDialogs["EQOL_EXPORT_CATEGORY"].OnShow = function(self)
-        local editBox = self.editBox or self.GetEditBox and self:GetEditBox()
-        self:SetFrameStrata("TOOLTIP")
-        editBox:SetText(data)
-        editBox:HighlightText()
-        editBox:SetFocus()
-    end
+		StaticPopupDialogs["EQOL_EXPORT_CATEGORY"].OnShow = function(self)
+			local editBox = self.editBox or self.GetEditBox and self:GetEditBox()
+			self:SetFrameStrata("TOOLTIP")
+			editBox:SetText(data)
+			editBox:HighlightText()
+			editBox:SetFocus()
+		end
 		StaticPopup_Show("EQOL_EXPORT_CATEGORY")
 	end)
 	exportBtn:SetRelativeWidth(0.5)
@@ -823,13 +823,13 @@ local function buildCategoryOptions(scroll, catId)
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-    StaticPopupDialogs["EQOL_IMPORT_CATEGORY_BTN"].OnShow = function(self)
-        local editBox = self.editBox or self.GetEditBox and self:GetEditBox()
-        self:SetFrameStrata("TOOLTIP")
-        editBox:SetText("")
-        editBox:SetFocus()
-        self.text:SetText(L["ImportCategory"])
-    end
+		StaticPopupDialogs["EQOL_IMPORT_CATEGORY_BTN"].OnShow = function(self)
+			local editBox = self.editBox or self.GetEditBox and self:GetEditBox()
+			self:SetFrameStrata("TOOLTIP")
+			editBox:SetText("")
+			editBox:SetFocus()
+			self.text:SetText(L["ImportCategory"])
+		end
 		StaticPopupDialogs["EQOL_IMPORT_CATEGORY_BTN"].EditBoxOnTextChanged = function(editBox)
 			local frame = editBox:GetParent()
 			local name, count = previewImportCategory(editBox:GetText())
@@ -867,7 +867,7 @@ local function buildCategoryOptions(scroll, catId)
 				hideOnEscape = true,
 				preferredIndex = 3,
 			}
-    StaticPopupDialogs["EQOL_DELETE_CAST_CATEGORY"].OnShow = function(self) self:SetFrameStrata("TOOLTIP") end
+		StaticPopupDialogs["EQOL_DELETE_CAST_CATEGORY"].OnShow = function(self) self:SetFrameStrata("TOOLTIP") end
 		StaticPopupDialogs["EQOL_DELETE_CAST_CATEGORY"].OnAccept = function()
 			if activeBars[catId] then
 				local toRelease = {}
@@ -1046,17 +1046,17 @@ local function buildSpellOptions(container, catId, spellId)
 		local info = C_Spell.GetSpellInfo(spellId)
 		local spellName = info and info.name or tostring(spellId)
 		local nameForPopup = (spell.treeName and spell.treeName ~= "") and spell.treeName or spellName
-    StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"] = StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"]
-        or {
-            text = L["DeleteSpellConfirm"],
-            button1 = YES,
-            button2 = CANCEL,
-            timeout = 0,
-            whileDead = true,
-            hideOnEscape = true,
-            preferredIndex = 3,
-        }
-    StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"].OnShow = function(self) self:SetFrameStrata("TOOLTIP") end
+		StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"] = StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"]
+			or {
+				text = L["DeleteSpellConfirm"],
+				button1 = YES,
+				button2 = CANCEL,
+				timeout = 0,
+				whileDead = true,
+				hideOnEscape = true,
+				preferredIndex = 3,
+			}
+		StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"].OnShow = function(self) self:SetFrameStrata("TOOLTIP") end
 		StaticPopupDialogs["EQOL_DELETE_CAST_SPELL"].OnAccept = function()
 			cat.spells[spellId] = nil
 
@@ -1484,13 +1484,13 @@ function CastTracker.functions.addCastTrackerOptions(container)
 					hideOnEscape = true,
 					preferredIndex = 3,
 				}
-            StaticPopupDialogs["EQOL_IMPORT_CATEGORY"].OnShow = function(self)
-                local editBox = self.editBox or self.GetEditBox and self:GetEditBox()
-                self:SetFrameStrata("TOOLTIP")
-                editBox:SetText("")
-                editBox:SetFocus()
-                self.Text:SetText(L["ImportCategory"])
-            end
+			StaticPopupDialogs["EQOL_IMPORT_CATEGORY"].OnShow = function(self)
+				local editBox = self.editBox or self.GetEditBox and self:GetEditBox()
+				self:SetFrameStrata("TOOLTIP")
+				editBox:SetText("")
+				editBox:SetFocus()
+				self.Text:SetText(L["ImportCategory"])
+			end
 			StaticPopupDialogs["EQOL_IMPORT_CATEGORY"].EditBoxOnTextChanged = function(editBox)
 				local frame = editBox:GetParent()
 				local name, count = previewImportCategory(editBox:GetText())
@@ -1644,16 +1644,16 @@ local function HandleEQOLLink(link, text, button, frame)
 			end,
 		}
 
-    StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"].OnShow = function(self, data)
-        self:SetFrameStrata("TOOLTIP")
-        local encoded = incoming[data]
-        local name, count = previewImportCategory(encoded or "")
-        if name then
-            self.text:SetFormattedText("%s\n%s", L["ImportCategory"], (L["ImportCategoryPreview"] or "Category: %s (%d auras)"):format(name, count))
-        else
-            self.text:SetText(L["ImportCategory"])
-        end
-    end
+	StaticPopupDialogs["EQOL_IMPORT_FROM_SHARE"].OnShow = function(self, data)
+		self:SetFrameStrata("TOOLTIP")
+		local encoded = incoming[data]
+		local name, count = previewImportCategory(encoded or "")
+		if name then
+			self.text:SetFormattedText("%s\n%s", L["ImportCategory"], (L["ImportCategoryPreview"] or "Category: %s (%d auras)"):format(name, count))
+		else
+			self.text:SetText(L["ImportCategory"])
+		end
+	end
 
 	StaticPopup_Show("EQOL_IMPORT_FROM_SHARE", nil, nil, pktID)
 end

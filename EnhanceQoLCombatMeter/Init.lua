@@ -9,7 +9,6 @@ end
 
 addon.CombatMeter = {}
 addon.CombatMeter.functions = {}
-addon.LCombatMeter = {}
 
 local AceGUI = addon.AceGUI
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_CombatMeter")
@@ -19,8 +18,8 @@ local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
 addon.variables.statusTable.groups["combatmeter"] = true
 -- Place Combat Meter under Combat & Dungeons
 addon.functions.addToTree("combat", {
-    value = "combatmeter",
-    text = L["Combat Meter"],
+	value = "combatmeter",
+	text = L["Combat Meter"],
 })
 
 local function addGeneralFrame(container)

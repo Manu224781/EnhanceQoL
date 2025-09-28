@@ -10,7 +10,6 @@ addon.Aura = {}
 addon.Aura.functions = {}
 addon.Aura.variables = {}
 addon.Aura.sounds = {}
-addon.LAura = {} -- Locales for aura
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
 
 -- resource bar defaults
