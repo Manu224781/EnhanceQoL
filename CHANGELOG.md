@@ -1,10 +1,6 @@
 # Changelog
 
-## [5.2.0] – 2025-10-01
-
-### ✨ Added
-
-- Option to hide the guild message of the day
+## [5.1.1] – 2025-10-01
 
 ### 🐛 Fixed
 

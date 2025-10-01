@@ -1156,18 +1156,6 @@ local function addChatFrame(container)
 				addChatFrame(container)
 			end,
 		},
-		{
-			var = "chatHideGuildMOTD",
-			text = L["chatHideGuildMOTD"],
-			type = "CheckBox",
-			desc = L["chatHideGuildMOTDDesc"],
-			func = function(self, _, value)
-				addon.db["chatHideGuildMOTD"] = value
-				if addon.functions.ApplyChatGuildMOTDFilter then addon.functions.ApplyChatGuildMOTDFilter(value) end
-				container:ReleaseChildren()
-				addChatFrame(container)
-			end,
-		},
 	}
 
 	table.sort(data, function(a, b) return a.text < b.text end)
@@ -5061,32 +5049,12 @@ local function initChatFrame()
 			return false
 		end
 
-	-- Build Guild MOTD pattern and filter
-	if not addon.variables.guildMOTDPattern and GUILD_MOTD_TEMPLATE then addon.variables.guildMOTDPattern = fmtToPattern(GUILD_MOTD_TEMPLATE) end
-
-	addon.functions.ChatGuildMOTDFilter = addon.functions.ChatGuildMOTDFilter
-		or function(_, _, msg)
-			if not msg then return false end
-			local pat = addon.variables.guildMOTDPattern
-			if pat and msg:match(pat) then return true end
-			return false
-		end
-
 	addon.functions.ApplyChatLearnFilter = addon.functions.ApplyChatLearnFilter
 		or function(enabled)
 			if enabled then
 				ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", addon.functions.ChatLearnFilter)
 			else
 				ChatFrame_RemoveMessageEventFilter("CHAT_MSG_SYSTEM", addon.functions.ChatLearnFilter)
-			end
-		end
-
-	addon.functions.ApplyChatGuildMOTDFilter = addon.functions.ApplyChatGuildMOTDFilter
-		or function(enabled)
-			if enabled then
-				ChatFrame_AddMessageEventFilter("CHAT_MSG_SYSTEM", addon.functions.ChatGuildMOTDFilter)
-			else
-				ChatFrame_RemoveMessageEventFilter("CHAT_MSG_SYSTEM", addon.functions.ChatGuildMOTDFilter)
 			end
 		end
 
@@ -5113,12 +5081,9 @@ local function initChatFrame()
 	addon.functions.InitDBValue("chatIMHideInCombat", false)
 	addon.functions.InitDBValue("chatIMUseAnimation", true)
 	addon.functions.InitDBValue("chatHideLearnUnlearn", false)
-	addon.functions.InitDBValue("chatHideGuildMOTD", false)
-
 	-- Apply learn/unlearn message filter based on saved setting
 	addon.functions.ApplyChatLearnFilter(addon.db["chatHideLearnUnlearn"])
-	-- Apply Guild MOTD filter based on saved setting
-	addon.functions.ApplyChatGuildMOTDFilter(addon.db["chatHideGuildMOTD"])
+
 	if addon.ChatIM and addon.ChatIM.SetEnabled then addon.ChatIM:SetEnabled(addon.db["enableChatIM"]) end
 end
 
@@ -6981,6 +6946,7 @@ local eventHandlers = {
 	["GUILDBANK_UPDATE_MONEY"] = function()
 		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
 	end,
+
 	["LFG_ROLE_CHECK_SHOW"] = function()
 		if addon.db["groupfinderSkipRoleSelect"] and UnitInParty("player") then skipRolecheck() end
 	end,
