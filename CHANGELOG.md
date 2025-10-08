@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.3.0] – 2025-10-07
+
+### 🔄 Changed
+
+- BR Tracker is also visible in Raid encounter now
+
+---
+
 ## [5.2.0] – 2025-10-06
 
 ### ✨ Added

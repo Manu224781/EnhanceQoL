@@ -33,10 +33,21 @@ local function removeBRFrame()
 	end
 end
 
+local function isRaidDifficulty(d) return d == 14 or d == 15 or d == 16 or d == 17 end
+
+local function shouldShowBRTracker()
+	if not addon.db["mythicPlusBRTrackerEnabled"] then return false end
+	if not IsInInstance() then return false end
+	local _, _, diff = GetInstanceInfo()
+	if diff == 8 then return true end
+	if isRaidDifficulty(diff) then return IsEncounterInProgress() end
+	return false
+end
+
 local function createBRFrame()
 	removeBRFrame()
 	if not addon.db["mythicPlusBRTrackerEnabled"] then return end
-	if UnitInParty("player") and IsInInstance() and select(3, GetInstanceInfo()) == 8 then
+	if IsInGroup() and shouldShowBRTracker() then
 		brButton = CreateFrame("Button", nil, UIParent)
 		brButton:SetSize(addon.db["mythicPlusBRButtonSize"], addon.db["mythicPlusBRButtonSize"])
 		brButton:SetPoint(addon.db["mythicPlusBRTrackerPoint"], UIParent, addon.db["mythicPlusBRTrackerPoint"], addon.db["mythicPlusBRTrackerX"], addon.db["mythicPlusBRTrackerY"])
@@ -232,6 +243,7 @@ frameLoad:RegisterEvent("READY_CHECK")
 frameLoad:RegisterEvent("GROUP_ROSTER_UPDATE")
 frameLoad:RegisterEvent("SPELL_UPDATE_CHARGES")
 frameLoad:RegisterEvent("ENCOUNTER_END")
+frameLoad:RegisterEvent("ENCOUNTER_START")
 
 local function setActTank()
 	if UnitGroupRolesAssigned("player") == "TANK" then
@@ -328,15 +340,23 @@ local function eventHandler(self, event, arg1, arg2, arg3, arg4)
 		setActHealer()
 		checkRaidMarker()
 	elseif event == "SPELL_UPDATE_CHARGES" then
-		if IsInInstance() and select(3, GetInstanceInfo()) == 8 then
+		if shouldShowBRTracker() then
 			if not brButton or not brButton.cooldownFrame then createBRFrame() end
 			local info = C_Spell.GetSpellCharges(20484)
 			setBRInfo(info)
 		else
 			removeBRFrame()
 		end
+	elseif event == "ENCOUNTER_START" then
+		local _, _, diff = GetInstanceInfo()
+		if isRaidDifficulty(diff) and shouldShowBRTracker() then
+			if not brButton or not brButton.cooldownFrame then createBRFrame() end
+			local info = C_Spell.GetSpellCharges(20484)
+			setBRInfo(info)
+		end
 	elseif event == "ENCOUNTER_END" then
-		removeBRFrame()
+		-- In raids we hide after encounter; in M+ we keep showing
+		if not shouldShowBRTracker() then removeBRFrame() end
 	end
 end
 
@@ -1251,7 +1271,7 @@ end
 -- addon.variables.statusTable.groups["general\001combat\001dungeon"] = true
 
 -- Create a single Mythic+ category under Combat & Dungeons
-addon.functions.addToTree("combat", { value = "mythicplus", text = PLAYER_DIFFICULTY_MYTHIC_PLUS }, true)
+addon.functions.addToTree("combat", { value = "mythicplus", text = PLAYER_DIFFICULTY_MYTHIC_PLUS .. " & " .. RAID }, true)
 
 -- Keep remaining Mythic+ related entries top-level if not in the grouped category
 local mpChildren = {

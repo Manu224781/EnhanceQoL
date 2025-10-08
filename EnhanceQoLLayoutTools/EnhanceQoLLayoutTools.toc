@@ -1,30 +1,26 @@
 ## Interface: 110000, 110002, 110005, 110007, 110100, 110105, 110107, 110200, 110205
-## Title: Layout
+## Title: Layout Tools
 ## Author: R41Z0R
 ## Version: @project-version@
-## Notes: Tooltip modifies the visibility in different situations
-## Notes-deDE: Tooltip passt die Sichtbarkeit in verschiedenen Situationen an
-## Notes-esES: El tooltip modifica la visibilidad en diferentes situaciones
-## Notes-esMX: El tooltip modifica la visibilidad en distintas situaciones
-## Notes-frFR: Le tooltip modifie la visibilité dans différentes situations
-## Notes-itIT: Il tooltip modifica la visibilità in diverse situazioni
-## Notes-ptBR: O tooltip modifica a visibilidade em diferentes situações
-## Notes-ruRU: Подсказка изменяет видимость в различных ситуациях
-## Notes-koKR: 툴팁은 다양한 상황에서 표시 여부를 수정합니다
-## Notes-zhCN: 提示信息在不同情况下更改可见性
-## Notes-zhTW: 提示在不同情況下修改可見性
+## Notes: Move and scale Blizzard frames
+## Notes-deDE: Verschiebt und skaliert Blizzard-Fenster
+## Notes-esES: Mueve y escala marcos de Blizzard
+## Notes-esMX: Mueve y escala marcos de Blizzard
+## Notes-frFR: Déplace et redimensionne les fenêtres Blizzard
+## Notes-itIT: Sposta e ridimensiona i frame di Blizzard
+## Notes-ptBR: Move e redimensiona quadros da Blizzard
+## Notes-ruRU: Перемещает и масштабирует окна Blizzard
+## Notes-koKR: 블리자드 프레임을 이동하고 크기 조절
+## Notes-zhCN: 移动并缩放暴雪框体
+## Notes-zhTW: 移動並縮放暴雪框體
 ## IconTexture: Interface\AddOns\EnhanceQoLLayoutTools\Icons\Icon.tga
 ## Dependencies: EnhanceQoL
 ## Retail: true
 ## X-Compatible-With: retail
-## X-WoWI-ID: 26888
 ## LoadOnDemand: 1
 ## Globe-Main: EnhanceQoL
 
 Init.lua
 locales\[TextLocale].lua
-
-UI\TalentsSpells.lua
-UI\CharacterPanel.lua
 
 EnhanceQoLLayoutTools.lua
