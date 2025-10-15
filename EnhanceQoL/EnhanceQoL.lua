@@ -266,9 +266,7 @@ local function GetUnitFrameSettingKey(varName)
 	return GetUnitFrameDropdownKey(addon.db[varName])
 end
 
-local function IsUnitFrameSetting(varName, key)
-	return GetUnitFrameSettingKey(varName) == key
-end
+local function IsUnitFrameSetting(varName, key) return GetUnitFrameSettingKey(varName) == key end
 
 local function ShouldUseMouseoverSetting(cbData)
 	if not cbData or not cbData.var then return false end
@@ -401,7 +399,9 @@ UpdateUnitFrameMouseover = function(barName, cbData)
 	end
 
 	if currentKey ~= "NONE" and cbData.disableSetting then
-		for _, v in pairs(cbData.disableSetting) do addon.db[v] = false end
+		for _, v in pairs(cbData.disableSetting) do
+			addon.db[v] = false
+		end
 	end
 	local isMouseover = currentKey == "MOUSEOVER"
 	local driverExpression
@@ -460,9 +460,7 @@ UpdateUnitFrameMouseover = function(barName, cbData)
 							if sibling and sibling.SetAlpha then sibling:SetAlpha(1) end
 						end
 					end)
-					child:HookScript("OnLeave", function()
-						genericHoverOutCheck(frame, cbData)
-					end)
+					child:HookScript("OnLeave", function() genericHoverOutCheck(frame, cbData) end)
 				end
 				if child then child.EQOL_MouseoverHooked = true end
 			end
@@ -7370,7 +7368,9 @@ function addon.functions.checkForContainer()
 	end
 
 	local safeItems, secureItems = {}, {}
-	if addon.ContainerActions and addon.ContainerActions.ScanBags then safeItems, secureItems = addon.ContainerActions:ScanBags() end
+	if addon.ContainerActions and addon.ContainerActions.ScanBags then
+		safeItems, secureItems = addon.ContainerActions:ScanBags()
+	end
 
 	if addon.ContainerActions and addon.ContainerActions.UpdateItems then addon.ContainerActions:UpdateItems(secureItems) end
 
