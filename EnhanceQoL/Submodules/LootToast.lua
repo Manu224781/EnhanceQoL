@@ -111,15 +111,12 @@ local function isUpgradeForPlayer(item, itemEquipLoc, classID, subclassID)
 	if not slotsForLoc or #slotsForLoc == 0 then return false end
 	if not isItemAllowedForPlayer(classID, subclassID) then return false end
 
-	local newItemLevel = getItemLevelSafe(item)
-	if not newItemLevel then return false end
-
 	local hasComparableItem = false
 	local lowestEquippedLevel
 
 	for _, slotID in ipairs(slotsForLoc) do
 		local link = GetInventoryItemLink("player", slotID)
-		if not link then return true end
+		if not link or link == "" then return true end
 		hasComparableItem = true
 		local equippedLevel = getItemLevelFromLink(link)
 		if equippedLevel then
@@ -128,6 +125,8 @@ local function isUpgradeForPlayer(item, itemEquipLoc, classID, subclassID)
 	end
 
 	if not hasComparableItem then return true end
+	local newItemLevel = getItemLevelSafe(item)
+	if not newItemLevel then return false end
 	if not lowestEquippedLevel then return false end
 
 	return newItemLevel > lowestEquippedLevel
