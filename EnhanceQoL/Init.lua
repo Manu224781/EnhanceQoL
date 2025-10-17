@@ -812,7 +812,43 @@ addon.variables.cvarOptions = {
 	["ShowTargetCastbar"] = { trueValue = "1", falseValue = "0", description = addon.L["ShowTargetCastbar"] },
 	["showTutorials"] = { trueValue = "0", falseValue = "1", description = addon.L["showTutorials"] },
 	["UberTooltips"] = { trueValue = "1", falseValue = "0", description = addon.L["UberTooltips"] },
+	["nameplateShowSelf"] = {
+		trueValue = "1",
+		falseValue = "0",
+		description = addon.L["nameplateShowSelf"],
+		persistent = true,
+	},
+	["raidFramesDisplayClassColor"] = {
+		trueValue = "1",
+		falseValue = "0",
+		description = addon.L["raidFramesDisplayClassColor"],
+		persistent = true,
+	},
+	["pvpFramesDisplayClassColor"] = {
+		trueValue = "1",
+		falseValue = "0",
+		description = addon.L["pvpFramesDisplayClassColor"],
+		persistent = true,
+	},
+	["cooldownViewerEnabled"] = {
+		trueValue = "1",
+		falseValue = "0",
+		description = addon.L["cooldownViewerEnabled"],
+		persistent = true,
+	},
+	["enableMouseoverCast"] = {
+		trueValue = "1",
+		falseValue = "0",
+		description = addon.L["enableMouseoverCast"],
+		persistent = true,
+	},
 	["UnitNamePlayerGuild"] = { trueValue = "1", falseValue = "0", description = addon.L["UnitNamePlayerGuild"] },
 	["UnitNamePlayerPVPTitle"] = { trueValue = "1", falseValue = "0", description = addon.L["UnitNamePlayerPVPTitle"] },
 	["WholeChatWindowClickable"] = { trueValue = "1", falseValue = "0", description = addon.L["WholeChatWindowClickable"] },
+	["AutoPushSpellToActionBar"] = {
+		trueValue = "1",
+		falseValue = "0",
+		description = addon.L["AutoPushSpellToActionBar"],
+		persistent = true,
+	},
 }

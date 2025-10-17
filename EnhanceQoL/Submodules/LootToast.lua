@@ -162,20 +162,63 @@ end
 
 local ITEM_LINK_PATTERN = "|Hitem:.-|h%[.-%]|h|r"
 local myGUID = UnitGUID("player")
+local recentQuestLoot = {}
+local QUEST_LOOT_SUPPRESS_WINDOW = 5
+
+local function buildQuestLootKey(itemLink, quantity)
+	return (itemLink or "") .. "::" .. tostring(quantity or 1)
+end
+
+local function pruneRecentQuestLoot(now)
+	for key, timestamp in pairs(recentQuestLoot) do
+		if now - timestamp > QUEST_LOOT_SUPPRESS_WINDOW then recentQuestLoot[key] = nil end
+	end
+end
+
+local function rememberQuestLootSuppression(itemLink, quantity)
+	if not itemLink then return end
+	local now = GetTime()
+	pruneRecentQuestLoot(now)
+	recentQuestLoot[buildQuestLootKey(itemLink, quantity)] = now
+end
+
+local function consumeQuestLootSuppression(itemLink, quantity)
+	if not itemLink then return false end
+	local now = GetTime()
+	pruneRecentQuestLoot(now)
+	local key = buildQuestLootKey(itemLink, quantity)
+	if not recentQuestLoot[key] then return false end
+	recentQuestLoot[key] = nil
+	return true
+end
+
+local function triggerLootToast(itemLink, quantity, specID, lessAwesome, isUpgraded, isCorrupted, suppressOnSuccess)
+	if not itemLink or not itemLink:find("|Hitem:") then return end
+
+	local item = Item:CreateFromItemLink(itemLink)
+	if not item or item:IsItemEmpty() then return end
+
+	item:ContinueOnItemLoad(function()
+		if not shouldShowToast(item) then return end
+
+		LootAlertSystem:AddAlert(itemLink, quantity or 1, nil, nil, specID or 0, nil, nil, nil, lessAwesome or false, isUpgraded or false, isCorrupted or false)
+		if suppressOnSuccess then rememberQuestLootSuppression(itemLink, quantity) end
+
+		local file = addon.ChatIM and addon.ChatIM.availableSounds and addon.ChatIM.availableSounds[addon.db.lootToastCustomSoundFile]
+		if addon.db.lootToastUseCustomSound and file then PlaySoundFile(file, "Master") end
+	end)
+end
 
 function LootToast:OnEvent(_, event, ...)
 	if event == "SHOW_LOOT_TOAST" then
 		local typeIdentifier, itemLink, quantity, specID, _, _, _, lessAwesome, isUpgraded, isCorrupted = ...
 		if typeIdentifier ~= "item" then return end
-		local item = Item:CreateFromItemLink(itemLink)
-		if not item or item:IsItemEmpty() then return end
-		item:ContinueOnItemLoad(function()
-			if shouldShowToast(item) then
-				LootAlertSystem:AddAlert(itemLink, quantity, nil, nil, specID, nil, nil, nil, lessAwesome, isUpgraded, isCorrupted)
-				local file = addon.ChatIM and addon.ChatIM.availableSounds and addon.ChatIM.availableSounds[addon.db.lootToastCustomSoundFile]
-				if addon.db.lootToastUseCustomSound and file then PlaySoundFile(file, "Master") end
-			end
-		end)
+		triggerLootToast(itemLink, quantity, specID, lessAwesome, isUpgraded, isCorrupted)
+	elseif event == "QUEST_LOOT_RECEIVED" then
+		local _, itemLink, quantity = ...
+		local count = tonumber(quantity) or 1
+		if not itemLink or not itemLink:find("|Hitem:") then return end
+		triggerLootToast(itemLink, count, nil, nil, nil, nil, true)
 	elseif event == "CHAT_MSG_LOOT" then
 		if ItemUpgradeFrame and ItemUpgradeFrame:IsShown() then return end
 		local msg, _, _, _, _, _, _, _, _, _, _, guid = ...
@@ -183,6 +226,7 @@ function LootToast:OnEvent(_, event, ...)
 		local itemLink = msg:match(ITEM_LINK_PATTERN)
 		if not itemLink then return end
 		local quantity = tonumber(msg:match("x(%d+)")) or 1
+		if consumeQuestLootSuppression(itemLink, quantity) then return end
 		local itemID = tonumber(itemLink:match("item:(%d+)"))
 
 		if addon.db.lootToastIncludeIDs and addon.db.lootToastIncludeIDs[itemID] then
@@ -208,6 +252,7 @@ function LootToast:Enable()
 	if self.enabled then return end
 	self.enabled = true
 	self.frame:RegisterEvent("SHOW_LOOT_TOAST")
+	self.frame:RegisterEvent("QUEST_LOOT_RECEIVED")
 	self.frame:RegisterEvent("CHAT_MSG_LOOT")
 	self.frame:SetScript("OnEvent", function(...) self:OnEvent(...) end)
 	-- disable default toast
@@ -225,6 +270,7 @@ function LootToast:Disable()
 	if not self.enabled then return end
 	self.enabled = false
 	self.frame:UnregisterEvent("SHOW_LOOT_TOAST")
+	self.frame:UnregisterEvent("QUEST_LOOT_RECEIVED")
 	self.frame:UnregisterEvent("CHAT_MSG_LOOT")
 	self.frame:SetScript("OnEvent", nil)
 	AlertFrame:RegisterEvent("SHOW_LOOT_TOAST")

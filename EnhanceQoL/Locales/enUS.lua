@@ -264,6 +264,10 @@ L["questAddNPCToExclude"] = "Add targetted NPC/opened Gossipwindow to exclude"
 
 -- CVar
 L["CVar"] = "CVar"
+L["cvarPersistenceHeader"] = "Persistence"
+L["cvarPersistence"] = "Persist CVar values"
+L["cvarPersistenceDesc"] =
+	"When enabled, EnhanceQoL remembers the selected CVars and restores them automatically after logging in or whenever they change."
 L["tReloadInterface"] = "Interface Reload Required"
 L["bReloadInterface"] = "You need to reload your interface to apply changes"
 
@@ -277,6 +281,12 @@ L["ShowClassColorInNameplate"] = "Show class colors on nameplates"
 L["ShowTargetCastbar"] = "Show the Castbar of your Target"
 L["showTutorials"] = "Disable tutorials"
 L["UberTooltips"] = "Enable enhanced tooltips"
+L["nameplateShowSelf"] = "Show your personal nameplate during combat"
+L["AutoPushSpellToActionBar"] = "Automatically place new spells on your action bars"
+L["raidFramesDisplayClassColor"] = "Show class colors on raid-style frames"
+L["pvpFramesDisplayClassColor"] = "Show class colors on PvP frames"
+L["cooldownViewerEnabled"] = "Enable the Cooldown Viewer"
+L["enableMouseoverCast"] = "Enable Mouseover Cast"
 L["UnitNamePlayerGuild"] = "Show the Guild on Players"
 L["UnitNamePlayerPVPTitle"] = "Show the Title on Players"
 L["WholeChatWindowClickable"] = "Make the entire chat window clickable"

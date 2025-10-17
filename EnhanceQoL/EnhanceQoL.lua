@@ -14,7 +14,7 @@ local AceDB = LibStub("AceDB-3.0")
 local AceConfig = LibStub("AceConfig-3.0")
 local AceConfigDlg = LibStub("AceConfigDialog-3.0")
 local AceDBOptions = LibStub("AceDBOptions-3.0")
-local defaults = { profile = { dataPanels = {} } }
+local defaults = { profile = { dataPanels = {}, cvarOverrides = {}, cvarPersistenceEnabled = false } }
 
 addon.AceGUI = AceGUI
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL")
@@ -2707,6 +2707,25 @@ local function addTotemHideToggle(dbValue, data)
 	})
 end
 
+local function setCVarValue(cvarKey, newValue)
+	if newValue == nil then return end
+
+	newValue = tostring(newValue)
+	local currentValue = GetCVar(cvarKey)
+	if currentValue ~= nil then currentValue = tostring(currentValue) end
+
+	if currentValue == newValue then return end
+
+	local guard = addon.variables.cvarEnforceGuard
+	if not guard then
+		guard = {}
+		addon.variables.cvarEnforceGuard = guard
+	end
+
+	guard[cvarKey] = true
+	SetCVar(cvarKey, newValue)
+end
+
 local function addCVarFrame(container, d)
 	local scroll = addon.functions.createContainer("ScrollFrame", "List")
 	scroll:SetFullWidth(true)
@@ -2715,6 +2734,23 @@ local function addCVarFrame(container, d)
 
 	local wrapper = addon.functions.createContainer("SimpleGroup", "Flow")
 	scroll:AddChild(wrapper)
+
+	local persistenceGroup = addon.functions.createContainer("InlineGroup", "List")
+	persistenceGroup:SetFullWidth(true)
+	persistenceGroup:SetTitle(L["cvarPersistenceHeader"])
+	wrapper:AddChild(persistenceGroup)
+
+	local persistenceCheckbox = addon.functions.createCheckboxAce(
+		L["cvarPersistence"],
+		addon.db.cvarPersistenceEnabled,
+		function(self, _, value)
+			addon.db.cvarPersistenceEnabled = value and true or false
+			addon.variables.requireReload = true
+			if addon.functions.initializePersistentCVars then addon.functions.initializePersistentCVars() end
+		end,
+		L["cvarPersistenceDesc"]
+	)
+	persistenceGroup:AddChild(persistenceCheckbox)
 
 	local groupCore = addon.functions.createContainer("InlineGroup", "List")
 	groupCore:SetTitle(L["CVar"])
@@ -2730,6 +2766,7 @@ local function addCVarFrame(container, d)
 			trueValue = optionData.trueValue,
 			falseValue = optionData.falseValue,
 			register = optionData.register or nil,
+			persistent = optionData.persistent or nil,
 		})
 	end
 
@@ -2747,11 +2784,19 @@ local function addCVarFrame(container, d)
 
 		local cbElement = addon.functions.createCheckboxAce(cvarDesc, actValue, function(self, _, value)
 			addon.variables.requireReload = true
+			local newValue
 			if value then
-				SetCVar(cvarKey, cvarTrue)
+				newValue = cvarTrue
 			else
-				SetCVar(cvarKey, cvarFalse)
+				newValue = cvarFalse
 			end
+
+			if entry.persistent then
+				addon.db.cvarOverrides = addon.db.cvarOverrides or {}
+				addon.db.cvarOverrides[cvarKey] = newValue
+			end
+
+			setCVarValue(cvarKey, newValue)
 		end)
 		cbElement.trueValue = cvarTrue
 		cbElement.falseValue = cvarFalse
@@ -2760,6 +2805,57 @@ local function addCVarFrame(container, d)
 	end
 	scroll:DoLayout()
 end
+
+local function initializePersistentCVars()
+	if not addon.db then return end
+
+	local overrides = addon.db.cvarOverrides or {}
+	addon.db.cvarOverrides = overrides
+
+	local persistentKeys = addon.variables.cvarPersistentKeys
+	if persistentKeys then
+		wipe(persistentKeys)
+	else
+		persistentKeys = {}
+		addon.variables.cvarPersistentKeys = persistentKeys
+	end
+
+	if not addon.variables.cvarEnforceGuard then addon.variables.cvarEnforceGuard = {} end
+
+	local persistenceEnabled = addon.db.cvarPersistenceEnabled and true or false
+
+	for cvarKey, optionData in pairs(addon.variables.cvarOptions) do
+		if optionData.persistent then
+			persistentKeys[cvarKey] = true
+
+			if optionData.register and nil == GetCVar(cvarKey) then C_CVar.RegisterCVar(cvarKey, optionData.trueValue) end
+
+			local currentValue = GetCVar(cvarKey)
+			if currentValue ~= nil then
+				currentValue = tostring(currentValue)
+			elseif optionData.falseValue ~= nil then
+				currentValue = tostring(optionData.falseValue)
+			elseif optionData.trueValue ~= nil then
+				currentValue = tostring(optionData.trueValue)
+			else
+				currentValue = "0"
+			end
+
+			if overrides[cvarKey] == nil then
+				overrides[cvarKey] = currentValue
+			else
+				overrides[cvarKey] = tostring(overrides[cvarKey])
+			end
+
+			if persistenceEnabled then
+				local desiredValue = overrides[cvarKey]
+				if desiredValue and currentValue ~= desiredValue then setCVarValue(cvarKey, desiredValue) end
+			end
+		end
+	end
+end
+
+addon.functions.initializePersistentCVars = initializePersistentCVars
 
 -- removed: addPartyFrame (party settings relocated to Social/UI sections)
 
@@ -7620,6 +7716,8 @@ local eventHandlers = {
 			local profilesPage = AceDBOptions:GetOptionsTable(addon.dbObject)
 			AceConfig:RegisterOptionsTable("EQOL_Profiles", profilesPage)
 
+			if addon.functions.initializePersistentCVars then addon.functions.initializePersistentCVars() end
+
 			loadMain()
 			EQOL.PersistSignUpNote()
 
@@ -7659,6 +7757,36 @@ local eventHandlers = {
 			local cataclystInfo = C_CurrencyInfo.GetCurrencyInfo(addon.variables.catalystID)
 			addon.general.iconFrame.count:SetText(cataclystInfo.quantity)
 		end
+	end,
+	["CVAR_UPDATE"] = function(cvarName, value)
+		local persistentKeys = addon.variables.cvarPersistentKeys
+		if not persistentKeys or not persistentKeys[cvarName] then return end
+
+		if not addon.db then return end
+
+		local guard = addon.variables.cvarEnforceGuard
+		local persistenceEnabled = addon.db and addon.db.cvarPersistenceEnabled and true or false
+		if guard and guard[cvarName] then
+			guard[cvarName] = nil
+			if not persistenceEnabled then return end
+		end
+
+		local overrides = addon.db.cvarOverrides or {}
+		addon.db.cvarOverrides = overrides
+
+		local currentValue = value
+		if currentValue == nil then currentValue = GetCVar(cvarName) end
+		if currentValue ~= nil then currentValue = tostring(currentValue) end
+
+		if overrides[cvarName] == nil or not persistenceEnabled then
+			overrides[cvarName] = currentValue
+			if not persistenceEnabled then return end
+		else
+			overrides[cvarName] = tostring(overrides[cvarName])
+		end
+
+		local desiredValue = overrides[cvarName]
+		if desiredValue and currentValue ~= desiredValue then setCVarValue(cvarName, desiredValue) end
 	end,
 	["ENCHANT_SPELL_COMPLETED"] = function(arg1, arg2)
 		if PaperDollFrame:IsShown() and CharOpt("enchants") and arg1 == true and arg2 and arg2.equipmentSlotIndex then
