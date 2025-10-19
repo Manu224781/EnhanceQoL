@@ -208,6 +208,7 @@ local DEFAULTS = {
 	classOnly = false,
 	enhancedTracking = true,
 	overlayScale = 1,
+	itemNameCache = {},
 	categoryFilters = {},
 	zoneFilters = {},
 	phaseFilters = {},
@@ -343,6 +344,14 @@ local CATEGORY_DATA = {
 			{ type = "pet", cost = 100000, items = { 1803, 1937, 1719 } },
 		},
 	},
+
+
+
+
+
+
+
+	
 	{
 		key = "raidfinder",
 		label = T("Raid Finder", RAID_FINDER or "Raid Finder"),
@@ -501,6 +510,7 @@ local function getProfile()
 end
 
 LegionRemix.cache = LegionRemix.cache or {}
+LegionRemix.cache.names = LegionRemix.cache.names or {}
 LegionRemix.rows = LegionRemix.rows or {}
 
 local function clearTable(tbl)
@@ -516,7 +526,53 @@ function LegionRemix:InvalidateAllCaches()
 	self.cache.toys = {}
 	self.cache.pets = {}
 	self.cache.transmog = {}
+	self.cache.names = {}
 	self.cache.slotGrid = {}
+end
+
+function LegionRemix:GetPersistentNameCache()
+	local db = self:GetDB()
+	if not db then return nil end
+	db.itemNameCache = db.itemNameCache or {}
+	return db.itemNameCache
+end
+
+function LegionRemix:GetCachedItemName(kind, id)
+	if not kind or not id then return nil end
+	self.cache.names = self.cache.names or {}
+	local runtime = self.cache.names[kind]
+	if runtime and runtime[id] then return runtime[id] end
+	local persistent = self:GetPersistentNameCache()
+	if persistent and persistent[kind] and persistent[kind][id] then
+		runtime = runtime or {}
+		self.cache.names[kind] = runtime
+		runtime[id] = persistent[kind][id]
+		return runtime[id]
+	end
+	return nil
+end
+
+function LegionRemix:SetCachedItemName(kind, id, name)
+	if not kind or not id or not name or name == "" then return end
+	self.cache.names = self.cache.names or {}
+	local runtime = self.cache.names[kind]
+	if not runtime then
+		runtime = {}
+		self.cache.names[kind] = runtime
+	end
+	runtime[id] = name
+	local persistent = self:GetPersistentNameCache()
+	if persistent then
+		persistent[kind] = persistent[kind] or {}
+		persistent[kind][id] = name
+	end
+end
+
+function LegionRemix:ClearPersistentNameCache()
+	self.cache.names = {}
+	local db = self:GetDB()
+	if not db or not db.itemNameCache then return end
+	clearTable(db.itemNameCache)
 end
 
 local function ensureTable(tbl) return tbl or {} end
@@ -1246,25 +1302,64 @@ function LegionRemix:HideUnusedRows(fromIndex)
 end
 
 function LegionRemix:GetItemName(entry)
-	if entry.kind == "mount" then
-		local name = C_MountJournal.GetMountInfoByID(entry.id or 0)
-		return name or ("Mount #" .. tostring(entry.id or "?"))
-	elseif entry.kind == "toy" then
-		local name = C_ToyBox.GetToyInfo(entry.id or 0)
-		return name or ("Toy #" .. tostring(entry.id or "?"))
-	elseif entry.kind == "pet" then
-		local name = select(1, C_PetJournal.GetPetInfoBySpeciesID(entry.id or 0))
-		return name or ("Pet #" .. tostring(entry.id or "?"))
-	elseif entry.kind == "set" then
-		local info = C_TransmogSets.GetSetInfo(entry.id or 0)
-		return info and info.name or ("Set #" .. tostring(entry.id or "?"))
-	elseif entry.kind == "transmog" then
-		local name = GetItemInfo(entry.id or 0)
-		if name then return name end
-		local itemName = C_Item.GetItemNameByID(entry.id or 0)
-		if itemName then return itemName end
-		C_Item.RequestLoadItemDataByID(entry.id or 0)
-		return ("Item #" .. tostring(entry.id or "?"))
+	if not entry then return T("Unknown", "Unknown") end
+	local kind = entry.kind
+	local id = entry.id
+	local cached = self:GetCachedItemName(kind, id)
+	if cached then return cached end
+
+	if kind == "mount" then
+		local name = C_MountJournal.GetMountInfoByID(id or 0)
+		if name and name ~= "" then
+			self:SetCachedItemName(kind, id, name)
+			return name
+		end
+		return ("Mount #" .. tostring(id or "?"))
+	elseif kind == "toy" then
+		local name = select(2, C_ToyBox.GetToyInfo(id or 0))
+		if name and name ~= "" then
+			self:SetCachedItemName(kind, id, name)
+			return name
+		end
+		local itemName = GetItemInfo(id or 0)
+		if itemName and itemName ~= "" then
+			self:SetCachedItemName(kind, id, itemName)
+			return itemName
+		end
+		itemName = C_Item.GetItemNameByID(id or 0)
+		if itemName and itemName ~= "" then
+			self:SetCachedItemName(kind, id, itemName)
+			return itemName
+		end
+		C_Item.RequestLoadItemDataByID(id or 0)
+		return ("Toy #" .. tostring(id or "?"))
+	elseif kind == "pet" then
+		local name = select(1, C_PetJournal.GetPetInfoBySpeciesID(id or 0))
+		if name and name ~= "" then
+			self:SetCachedItemName(kind, id, name)
+			return name
+		end
+		return ("Pet #" .. tostring(id or "?"))
+	elseif kind == "set" then
+		local info = C_TransmogSets.GetSetInfo(id or 0)
+		if info and info.name and info.name ~= "" then
+			self:SetCachedItemName(kind, id, info.name)
+			return info.name
+		end
+		return ("Set #" .. tostring(id or "?"))
+	elseif kind == "transmog" then
+		local name = GetItemInfo(id or 0)
+		if name and name ~= "" then
+			self:SetCachedItemName(kind, id, name)
+			return name
+		end
+		local itemName = C_Item.GetItemNameByID(id or 0)
+		if itemName and itemName ~= "" then
+			self:SetCachedItemName(kind, id, itemName)
+			return itemName
+		end
+		C_Item.RequestLoadItemDataByID(id or 0)
+		return ("Item #" .. tostring(id or "?"))
 	end
 	return T("Unknown", "Unknown")
 end
