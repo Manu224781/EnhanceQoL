@@ -7272,9 +7272,6 @@ local function CreateUI()
 	addon.functions.addToTree(nil, {
 		value = "events",
 		text = EVENTS_LABEL or L["Events"] or "Events",
-		children = {
-			{ value = "legionremix", text = "Legion Remix" },
-		},
 	})
 
 	-- Top: Profiles

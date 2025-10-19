@@ -30,7 +30,9 @@ for achievementID, phase in pairs(PHASE_LOOKUP.achievement) do
 	end
 	table.insert(list, achievementID)
 end
-for _, list in pairs(LegionRemix.phaseAchievements) do table.sort(list) end
+for _, list in pairs(LegionRemix.phaseAchievements) do
+	table.sort(list)
+end
 LegionRemix.phaseTotals = LegionRemix.phaseTotals or {}
 
 local function T(key, fallback)
@@ -50,7 +52,9 @@ function LegionRemix:GetAllPhases()
 		end
 	end
 	local phases = {}
-	for phase in pairs(seen) do table.insert(phases, phase) end
+	for phase in pairs(seen) do
+		table.insert(phases, phase)
+	end
 	table.sort(phases)
 	self.cachedPhases = phases
 	return phases
@@ -68,7 +72,9 @@ function LegionRemix:GetActivePhaseFilterSet()
 		end
 	end
 	if selectedCount == 0 then
-		for _, phase in ipairs(self:GetAllPhases()) do set[phase] = true end
+		for _, phase in ipairs(self:GetAllPhases()) do
+			set[phase] = true
+		end
 		return set, true
 	end
 	return set, false
@@ -146,7 +152,6 @@ function LegionRemix:BuildFilterButtons()
 	bar:Show()
 	bar.hasButtons = true
 
-	local previous
 	local function createButton(key, label, onClick)
 		local btn = CreateFrame("Button", nil, bar, "BackdropTemplate")
 		btn:SetHeight(22)
@@ -161,11 +166,6 @@ function LegionRemix:BuildFilterButtons()
 		btn.label:SetText(label)
 		local width = math.max(56, btn.label:GetStringWidth() + 20)
 		btn:SetWidth(width)
-		if previous then
-			btn:SetPoint("LEFT", previous, "RIGHT", 6, 0)
-		else
-			btn:SetPoint("LEFT", bar, "LEFT", 0, 0)
-		end
 		btn:SetScript("OnClick", onClick)
 		btn:SetScript("OnEnter", function(self)
 			if not self.active then self:SetBackdropColor(0.09, 0.09, 0.14, 0.75) end
@@ -175,19 +175,17 @@ function LegionRemix:BuildFilterButtons()
 		end)
 		table.insert(bar.buttons, btn)
 		self.filterButtons[key] = btn
-		previous = btn
 		return btn
 	end
 
-	createButton("all", T("All Phases", "All Phases"), function()
-		LegionRemix:ResetPhaseFilters()
-	end)
+	createButton("all", T("All Phases", "All Phases"), function() LegionRemix:ResetPhaseFilters() end)
 
 	for _, phase in ipairs(phases) do
-		createButton("phase_" .. phase, string.format(T("Phase %d", "Phase %d"), phase), function()
-			LegionRemix:TogglePhaseFilter(phase)
-		end).phase = phase
+		createButton("phase_" .. phase, string.format(T("Phase %d", "Phase %d"), phase), function() LegionRemix:TogglePhaseFilter(phase) end).phase = phase
 	end
+
+	self:LayoutFilterButtons()
+	if C_Timer then C_Timer.After(0, function() LegionRemix:LayoutFilterButtons() end) end
 end
 
 function LegionRemix:UpdateFilterButtons()
@@ -196,9 +194,7 @@ function LegionRemix:UpdateFilterButtons()
 	local allButton = self.filterButtons.all
 	if allButton then self:SetFilterButtonActive(allButton, allActive) end
 	for key, btn in pairs(self.filterButtons) do
-		if key ~= "all" and btn.phase then
-			self:SetFilterButtonActive(btn, allActive or activeSet[btn.phase])
-		end
+		if key ~= "all" and btn.phase then self:SetFilterButtonActive(btn, allActive or activeSet[btn.phase]) end
 	end
 end
 
@@ -208,9 +204,11 @@ local DEFAULTS = {
 	overlayHidden = false,
 	locked = false,
 	collapsed = false,
-	onlyInRemixZones = true,
 	classOnly = false,
 	enhancedTracking = true,
+	overlayScale = 1,
+	categoryFilters = {},
+	zoneFilters = {},
 	phaseFilters = {},
 	anchor = { point = "CENTER", relativePoint = "CENTER", x = 0, y = -120 },
 }
@@ -231,44 +229,89 @@ local CLASS_MASKS = {
 	EVOKER = 4096,
 }
 
-local REMIX_ZONE_IDS = {
-	[619] = true,
-	[747] = true,
-	[748] = true,
-	[749] = true,
-	[750] = true,
-	[751] = true,
-	[752] = true,
-	[753] = true,
-	[754] = true,
-	[755] = true,
-	[756] = true,
-	[1456] = true,
-	[1458] = true,
-	[1466] = true,
-	[1477] = true,
-	[1492] = true,
-	[1493] = true,
-	[1501] = true,
-	[1516] = true,
-	[1520] = true,
-	[1530] = true,
-	[1544] = true,
-	[1571] = true,
-	[1648] = true,
-	[1651] = true,
-	[1676] = true,
-	[1677] = true,
-	[1712] = true,
-	[1753] = true,
+local REMIX_ZONE_IDS = {}
+LegionRemix.remixZoneList = LegionRemix.remixZoneList or {}
+wipe(LegionRemix.remixZoneList)
+local remixZoneSeed = {
+	619,
+	747,
+	748,
+	749,
+	750,
+	751,
+	752,
+	753,
+	754,
+	755,
+	756,
+	1456,
+	1458,
+	1466,
+	1477,
+	1492,
+	1493,
+	1501,
+	1516,
+	1520,
+	1530,
+	1544,
+	1571,
+	1648,
+	1651,
+	1676,
+	1677,
+	1712,
+	1753,
 }
+for _, mapID in ipairs(remixZoneSeed) do
+	REMIX_ZONE_IDS[mapID] = true
+	table.insert(LegionRemix.remixZoneList, mapID)
+end
 
 local CATEGORY_DATA = {
 	{
 		key = "mounts",
-		label = MOUNTS or "Mounts",
+		label = T("Mounts", MOUNTS or "Mounts"),
 		groups = {
-			{ type = "mount", cost = 10000, items = { 2653, 2671, 2672, 2673, 2674, 2665, 2675, 2676, 2677, 2678, 2705, 2706, 2593, 2660, 2661, 2662, 2542, 2544, 2546, 2663, 2664, 2666, 2574, 2670, 2679, 2681, 2682, 2683, 2686, 2688, 2689, 2690, 2691 } },
+			{
+				type = "mount",
+				cost = 10000,
+				items = {
+					2653,
+					2671,
+					2672,
+					2673,
+					2674,
+					2665,
+					2675,
+					2676,
+					2677,
+					2678,
+					2705,
+					2706,
+					2593,
+					2660,
+					2661,
+					2662,
+					2542,
+					2544,
+					2546,
+					2663,
+					2664,
+					2666,
+					2574,
+					2670,
+					2679,
+					2681,
+					2682,
+					2683,
+					2686,
+					2688,
+					2689,
+					2690,
+					2691,
+				},
+			},
 			{ type = "mount", cost = 20000, items = { 802, 943, 941, 905, 944, 942, 983, 984, 985, 838 } },
 			{ type = "mount", cost = 20000, items = { 2726, 2731, 2720, 2723, 2728, 2725, 2721, 2727, 2730, 2724, 2729 } },
 			{ type = "mount", cost = 40000, items = { 656, 779, 981, 980, 979, 955, 906, 973, 975, 976, 974, 970 } },
@@ -277,7 +320,7 @@ local CATEGORY_DATA = {
 	},
 	{
 		key = "toys",
-		label = TOY_BOX or TOYS or "Toys",
+		label = T("Toy Box", TOY_BOX or TOYS or "Toy Box"),
 		groups = {
 			{ type = "toy", cost = 10000, items = { 131724, 131717, 129165, 130169, 142530, 142529, 142528, 143662, 153204, 153193 } },
 			{ type = "toy", cost = 20000, items = { 140363 } },
@@ -291,24 +334,24 @@ local CATEGORY_DATA = {
 		key = "pets",
 		label = PET_JOURNAL or BATTLE_PETS or "Pets",
 		groups = {
-			{ type = "pet", cost = 5000, items = {} },
-			{ type = "pet", cost = 10000, items = { 1929, 1928, 1887, 2136, 2115, 1926 } },
-			{ type = "pet", cost = 20000, items = { 2119, 2118, 2120 } },
-			{ type = "pet", cost = 35000, items = { 1718, 2135, 2022, 2050 } },
-			{ type = "pet", cost = 80000, items = { 1723, 2042, 2072, 2071 } },
-			{ type = "pet", cost = 100000, items = { 1937, 1803 } },
+			{ type = "pet", cost = 5000, items = { 4802, 4801, 1751 } },
+			{ type = "pet", cost = 10000, items = { 1887, 2115, 2136, 1926, 1928, 1929 } },
+			{ type = "pet", cost = 20000, items = { 2120, 2118, 2119 } },
+			{ type = "pet", cost = 35000, items = { 2135, 2022, 2050, 1718 } },
+			{ type = "pet", cost = 80000, items = { 1732, 2071, 2072, 2042 } },
+			{ type = "pet", cost = 100000, items = { 1803, 1937, 1719 } },
 		},
 	},
 	{
 		key = "raidfinder",
-		label = RAID_FINDER or "Raid Finder",
+		label = T("Raid Finder", RAID_FINDER or "Raid Finder"),
 		groups = {
 			{ type = "set_mixed", cost = 20000, items = { 186, 182, 178, 174 } },
 		},
 	},
 	{
 		key = "mythic",
-		label = DIFFICULTY_MYTHIC or "Mythic",
+		label = T("Mythic", DIFFICULTY_MYTHIC or "Mythic"),
 		groups = {
 			{
 				type = "set_per_class",
@@ -334,7 +377,7 @@ local CATEGORY_DATA = {
 	},
 	{
 		key = "dungeon",
-		label = DUNGEONS or "Dungeon",
+		label = T("Dungeons", DUNGEONS or "Dungeons"),
 		groups = {
 			{ type = "set_mixed", cost = 15000, items = { 4403, 4414, 4415, 4416 } },
 			{ type = "set_mixed", cost = 15000, items = { 4406, 4417, 4418, 4419 } },
@@ -344,7 +387,7 @@ local CATEGORY_DATA = {
 	},
 	{
 		key = "world",
-		label = WORLD or "World",
+		label = T("World", WORLD or "World"),
 		groups = {
 			{ type = "set_mixed", cost = 15000, items = { 160, 4402, 4404, 4465, 4466, 4467, 4468, 4485, 4330, 4481 } },
 			{ type = "set_mixed", cost = 15000, items = { 159, 4405, 4407, 4469, 4470, 4471, 4472, 4486, 4399, 4482, 4458 } },
@@ -368,7 +411,7 @@ local CATEGORY_DATA = {
 	},
 	{
 		key = "cloaks",
-		label = BACKSLOT or CLOAKSLOT or "Cloaks",
+		label = T("Back", BACKSLOT or CLOAKSLOT or "Back"),
 		groups = {
 			{ type = "set_mixed", cost = 2000, items = { 4502, 4500 } },
 			{ type = "set_mixed", cost = 4000, items = { 4494, 4495, 4511, 4498 } },
@@ -404,6 +447,31 @@ function LegionRemix:GetPhaseLookup() return PHASE_LOOKUP end
 
 function LegionRemix:GetPhaseAchievements() return self.phaseAchievements end
 
+local ZONE_TYPE_LABELS = {
+	any = T("All Areas", "All Areas"),
+	world = T("World", "World"),
+	dungeon = T("Dungeon", "Dungeon"),
+	raid = T("Raid", "Raid"),
+	starter = T("Starter Zone", "Starter Zone"),
+	other = T("Other", "Other"),
+}
+
+local ZONE_TYPE_ORDER = { "any", "world", "dungeon", "raid", "starter", "other" }
+
+local REMIX_ZONE_TYPES = {}
+
+local function MapTypeToZoneKey(mapType)
+	if not mapType then return "other" end
+	local uiMapType = Enum and Enum.UIMapType or {}
+	if mapType == uiMapType.Dungeon or mapType == uiMapType.Micro then return "dungeon" end
+	if mapType == uiMapType.Raid then return "raid" end
+	if mapType == uiMapType.Scenario then return "starter" end
+	if mapType == uiMapType.Zone or mapType == uiMapType.Continent or mapType == uiMapType.World or mapType == uiMapType.Cosmic then return "world" end
+	return "other"
+end
+
+function LegionRemix:GetZoneTypeLabel(key) return ZONE_TYPE_LABELS[key] or key end
+
 local function deepMerge(target, source)
 	if type(target) ~= "table" then target = {} end
 	for key, value in pairs(source) do
@@ -434,7 +502,9 @@ LegionRemix.rows = LegionRemix.rows or {}
 
 local function clearTable(tbl)
 	if not tbl then return end
-	for k in pairs(tbl) do tbl[k] = nil end
+	for k in pairs(tbl) do
+		tbl[k] = nil
+	end
 end
 
 function LegionRemix:InvalidateAllCaches()
@@ -446,9 +516,7 @@ function LegionRemix:InvalidateAllCaches()
 	self.cache.slotGrid = {}
 end
 
-local function ensureTable(tbl)
-	return tbl or {}
-end
+local function ensureTable(tbl) return tbl or {} end
 
 function LegionRemix:GetPlayerClass()
 	if not self.playerClass then
@@ -458,7 +526,259 @@ function LegionRemix:GetPlayerClass()
 	return self.playerClass
 end
 
-function LegionRemix:GetDB() return getProfile() end
+function LegionRemix:GetDB()
+	local db = getProfile()
+	self:EnsureCategoryFilterDefaults(db)
+	self:EnsureZoneFilterDefaults(db)
+	return db
+end
+
+function LegionRemix:EnsureCategoryFilterDefaults(db)
+	db = db or self:GetDB()
+	if not db then return end
+	db.categoryFilters = db.categoryFilters or {}
+	for _, category in ipairs(CATEGORY_DATA) do
+		if db.categoryFilters[category.key] == true then db.categoryFilters[category.key] = nil end
+	end
+end
+
+function LegionRemix:EnsureZoneFilterDefaults(db)
+	db = db or self:GetDB()
+	if not db then return end
+	db.zoneFilters = db.zoneFilters or {}
+	local hasSelection = false
+	for key, value in pairs(db.zoneFilters) do
+		if value then
+			hasSelection = true
+			if key == "any" then
+				-- if "any" is already active we can clear other keys
+				db.zoneFilters = { any = true }
+				return
+			end
+		end
+	end
+	-- ensure discovered zone types are marked as enabled when no selection is stored
+	if not hasSelection then
+		for _, mapID in ipairs(LegionRemix.remixZoneList or {}) do
+			local zoneKey = LegionRemix:GetZoneCategory(mapID)
+			if zoneKey and zoneKey ~= "any" then db.zoneFilters[zoneKey] = true end
+		end
+	end
+end
+
+function LegionRemix:GetCategoryOptions()
+	local options = {}
+	for _, category in ipairs(CATEGORY_DATA) do
+		options[category.key] = category.label
+	end
+	return options
+end
+
+function LegionRemix:IsCategoryVisible(key)
+	local db = self:GetDB()
+	if not db then return true end
+	local filters = db.categoryFilters or {}
+	if filters[key] == nil then return true end
+	return filters[key]
+end
+
+function LegionRemix:SetCategoryVisibility(key, visible)
+	local db = self:GetDB()
+	if not db then return end
+	db.categoryFilters = db.categoryFilters or {}
+	if visible then
+		db.categoryFilters[key] = nil
+	else
+		db.categoryFilters[key] = false
+	end
+	self:RefreshData()
+end
+
+function LegionRemix:ResetCategoryFilters()
+	local db = self:GetDB()
+	if not db then return end
+	db.categoryFilters = {}
+	self:EnsureCategoryFilterDefaults(db)
+	self:RefreshData()
+end
+
+function LegionRemix:GetZoneCategory(mapID)
+	if not mapID then return "other" end
+	if REMIX_ZONE_TYPES[mapID] then return REMIX_ZONE_TYPES[mapID] end
+	local info = C_Map.GetMapInfo(mapID)
+	local key = MapTypeToZoneKey(info and info.mapType or nil)
+	REMIX_ZONE_TYPES[mapID] = key
+	LegionRemix.zoneTypeLabels = LegionRemix.zoneTypeLabels or {}
+	LegionRemix.zoneTypeLabels[key] = LegionRemix:GetZoneTypeLabel(key)
+	return key
+end
+
+function LegionRemix:InitializeZoneTypes()
+	for _, mapID in ipairs(self.remixZoneList or {}) do
+		self:GetZoneCategory(mapID)
+	end
+end
+
+function LegionRemix:GetZoneFilterOptions()
+	self:InitializeZoneTypes()
+	local options = { any = self:GetZoneTypeLabel("any") }
+	if self.zoneTypeLabels then
+		for key, label in pairs(self.zoneTypeLabels) do
+			if key ~= "any" then options[key] = label end
+		end
+	end
+	return options
+end
+
+function LegionRemix:GetZoneFilterOrder()
+	local options = self:GetZoneFilterOptions()
+	local order = {}
+	for _, key in ipairs(ZONE_TYPE_ORDER) do
+		if options[key] then table.insert(order, key) end
+	end
+	for key in pairs(options) do
+		local found = false
+		for _, existing in ipairs(order) do
+			if existing == key then
+				found = true
+				break
+			end
+		end
+		if not found then table.insert(order, key) end
+	end
+	return order
+end
+
+function LegionRemix:FormatPhaseLabel(phases)
+	if not phases or #phases == 0 then return nil end
+	if #phases == 1 then
+		return string.format(T("Phase %d", "Phase %d"), phases[1])
+	elseif #phases == 2 then
+		return string.format(T("Phases %s & %s", "Phases %s & %s"), phases[1], phases[2])
+	else
+		local display = {}
+		for i = 1, math.min(#phases, 3) do
+			display[#display + 1] = tostring(phases[i])
+		end
+		local label = table.concat(display, ", ")
+		if #phases > 3 then label = string.format(T("%s +%d more", "%s +%d more"), label, #phases - 3) end
+		return string.format(T("Phases %s", "Phases %s"), label)
+	end
+end
+
+function LegionRemix:GetActiveZoneFilters()
+	local db = self:GetDB()
+	local filters = {}
+	local hasSpecific = false
+	for key, enabled in pairs(db.zoneFilters or {}) do
+		if enabled then
+			filters[key] = true
+			if key ~= "any" then hasSpecific = true end
+		end
+	end
+	return filters, hasSpecific
+end
+
+function LegionRemix:IsZoneFilterEnabled(key)
+	local db = self:GetDB()
+	local filters = db.zoneFilters or {}
+	if key == "any" then return filters.any or false end
+	if filters.any then return false end
+	if not next(filters) then return true end
+	return filters[key] and true or false
+end
+
+function LegionRemix:SetZoneFilter(key, enabled)
+	local db = self:GetDB()
+	if not db then return end
+	db.zoneFilters = db.zoneFilters or {}
+	if key == "any" then
+		if enabled then
+			db.zoneFilters = { any = true }
+		else
+			db.zoneFilters.any = nil
+		end
+	else
+		if enabled then
+			db.zoneFilters[key] = true
+			db.zoneFilters.any = nil
+		else
+			db.zoneFilters[key] = nil
+		end
+	end
+	self:UpdateOverlay()
+end
+
+function LegionRemix:ResetZoneFilters()
+	local db = self:GetDB()
+	if not db then return end
+	db.zoneFilters = {}
+	self:EnsureZoneFilterDefaults(db)
+	self:UpdateOverlay()
+end
+
+function LegionRemix:LayoutFilterButtons()
+	if not self.overlay or not self.overlay.filterBar then return end
+	local bar = self.overlay.filterBar
+	local buttons = bar.buttons
+	if not buttons or #buttons == 0 then
+		bar:SetHeight(0)
+		bar.hasButtons = false
+		return
+	end
+
+	local width = bar:GetWidth()
+	if width <= 0 and self.overlay then width = self.overlay:GetWidth() - 32 end
+	if width <= 0 then width = 280 end
+
+	local spacing = 6
+	local x, y = 0, 0
+	local rowHeight = 0
+	local rows = 1
+
+	for _, btn in ipairs(buttons) do
+		btn:ClearAllPoints()
+		local btnWidth = btn:GetWidth()
+		local btnHeight = btn:GetHeight()
+		rowHeight = math.max(rowHeight, btnHeight)
+		if x > 0 and (x + btnWidth) > width then
+			x = 0
+			y = y - (rowHeight + spacing)
+			rows = rows + 1
+		end
+		btn:SetPoint("TOPLEFT", bar, "TOPLEFT", x, y)
+		x = x + btnWidth + spacing
+	end
+
+	local newHeight = rows * rowHeight + (rows - 1) * spacing
+	bar:SetHeight(newHeight)
+	bar.hasButtons = true
+
+	if self.overlay and self.overlay.content then
+		self.overlay.content:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 0, -10)
+		self.overlay.content:SetPoint("TOPRIGHT", bar, "BOTTOMRIGHT", 0, -10)
+	end
+end
+
+function LegionRemix:UpdateContentWidth()
+	if not self.overlay or not self.overlay.scrollFrame or not self.overlay.content then return end
+	local width = self.overlay.scrollFrame:GetWidth()
+	if width <= 0 then width = (self.overlay:GetWidth() or 0) - 32 end
+	if width < 100 then width = 100 end
+	self.overlay.content:SetWidth(width)
+end
+
+function LegionRemix:RefreshLockButton()
+	if not self.overlay or not self.overlay.lockButton then return end
+	local db = self:GetDB()
+	local locked = db and db.locked
+	local iconPath = locked and "Interface\\AddOns\\EnhanceQoL\\Icons\\ClosedLock.tga" or "Interface\\AddOns\\EnhanceQoL\\Icons\\OpenLock.tga"
+	self.overlay.lockButton.icon:SetTexture(iconPath)
+	self.overlay.lockButton.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+	self.overlay.lockButton:SetBackdropColor(locked and 0.12 or 0.05, 0.15, locked and 0.04 or 0.06, 0.88)
+	self.overlay.lockButton:SetBackdropBorderColor(locked and 0.32 or 0.18, locked and 0.52 or 0.48, 0.12, 0.75)
+	self.overlay.lockButton.tooltipText = locked and T("Unlock Position", "Unlock Position") or T("Lock Position", "Lock Position")
+end
 
 function LegionRemix:PlayerHasMount(mountId)
 	if not mountId then return false end
@@ -738,9 +1058,7 @@ end
 
 function LegionRemix:GetFilteredOverallTotals()
 	local filters, allActive = self:GetActivePhaseFilterSet()
-	if allActive or not self.phaseTotals then
-		return self.totalCollected or 0, self.totalCost or 0
-	end
+	if allActive or not self.phaseTotals then return self.totalCollected or 0, self.totalCost or 0 end
 	local collected, total = 0, 0
 	for phase, totals in pairs(self.phaseTotals) do
 		if filters[phase] then
@@ -759,10 +1077,12 @@ function LegionRemix:RefreshData()
 	local categories = {}
 	local totalCost, totalCollected = 0, 0
 	for _, category in ipairs(CATEGORY_DATA) do
-		local data = self:BuildCategoryData(category)
-		table.insert(categories, data)
-		totalCost = totalCost + data.totalCost
-		totalCollected = totalCollected + data.collectedCost
+		if self:IsCategoryVisible(category.key) then
+			local data = self:BuildCategoryData(category)
+			table.insert(categories, data)
+			totalCost = totalCost + data.totalCost
+			totalCollected = totalCollected + data.collectedCost
+		end
 	end
 	self.latestCategories = categories
 	self.totalCost = totalCost
@@ -776,11 +1096,15 @@ function LegionRemix:GetBronzeCurrency()
 end
 
 function LegionRemix:IsInLegionRemixZone()
-	local db = self:GetDB()
-	if not db or not db.onlyInRemixZones then return true end
 	local mapID = C_Map.GetBestMapForUnit("player")
 	if not mapID then return false end
-	return REMIX_ZONE_IDS[mapID] or false
+	local filters, hasSpecific = self:GetActiveZoneFilters()
+	if filters.any then return true end
+	if not next(filters) then return REMIX_ZONE_IDS[mapID] or false end
+	if not REMIX_ZONE_IDS[mapID] then return false end
+	if not hasSpecific then return true end
+	local zoneType = self:GetZoneCategory(mapID)
+	return filters[zoneType] or false
 end
 
 function LegionRemix:ShouldOverlayBeVisible()
@@ -810,13 +1134,13 @@ end
 
 local function setButtonTexture(button, collapsed)
 	if not button then return end
+	if not button.icon then return end
 	if collapsed then
-		button:SetNormalAtlas("ui-hud-minimap-button-plus")
-		button:SetPushedAtlas("ui-hud-minimap-button-plus-down")
+		button.icon:SetTexture("Interface\\Buttons\\UI-PlusButton-Up")
 	else
-		button:SetNormalAtlas("ui-hud-minimap-button-minus")
-		button:SetPushedAtlas("ui-hud-minimap-button-minus-down")
+		button.icon:SetTexture("Interface\\Buttons\\UI-MinusButton-Up")
 	end
+	button.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
 end
 
 function LegionRemix:CreateCategoryRow(parent)
@@ -839,7 +1163,9 @@ function LegionRemix:CreateCategoryRow(parent)
 
 	local count = row:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
 	count:SetPoint("TOPRIGHT", -6, -6)
+	count:SetWidth(90)
 	count:SetJustifyH("RIGHT")
+	count:SetWordWrap(false)
 
 	local status = CreateFrame("StatusBar", nil, row)
 	status:SetPoint("BOTTOMLEFT", 6, 6)
@@ -857,6 +1183,7 @@ function LegionRemix:CreateCategoryRow(parent)
 
 	local metric = status:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	metric:SetPoint("CENTER", 0, 0)
+	metric:SetWordWrap(false)
 
 	row.label = label
 	row.count = count
@@ -892,9 +1219,7 @@ function LegionRemix:GetRow(index, parent)
 	return row
 end
 
-local function round(value)
-	return math.floor((value or 0) + 0.5)
-end
+local function round(value) return math.floor((value or 0) + 0.5) end
 
 function LegionRemix:UpdateRow(row, data)
 	row.displayData = data
@@ -905,6 +1230,9 @@ function LegionRemix:UpdateRow(row, data)
 	row.status:SetMinMaxValues(0, total)
 	row.status:SetValue(data.collectedCost or 0)
 	row.metric:SetText(string.format("%s / %s", formatBronze(data.collectedCost), formatBronze(data.totalCost)))
+	local metricWidth = row.status:GetWidth() - 4
+	if metricWidth < 60 then metricWidth = 60 end
+	row.metric:SetWidth(metricWidth)
 end
 
 function LegionRemix:HideUnusedRows(fromIndex)
@@ -959,9 +1287,7 @@ function LegionRemix:ShowCategoryTooltip(row)
 			if entry.phase then label = string.format("%s (%s)", label, string.format(T("Phase %d", "Phase %d"), entry.phase)) end
 			GameTooltip:AddDoubleLine(label, formatBronze(entry.cost), 0.9, 0.9, 0.9, 0.7, 0.9, 0.7)
 		end
-		if #missing > maxEntries then
-			GameTooltip:AddLine(string.format(T("+ %d more...", "+ %d more..."), #missing - maxEntries), 0.5, 0.5, 0.5)
-		end
+		if #missing > maxEntries then GameTooltip:AddLine(string.format(T("+ %d more...", "+ %d more..."), #missing - maxEntries), 0.5, 0.5, 0.5) end
 	end
 	GameTooltip:Show()
 end
@@ -978,7 +1304,7 @@ function LegionRemix:CreateOverlay()
 		edgeSize = 12,
 		insets = { left = 4, right = 4, top = 4, bottom = 4 },
 	})
-	frame:SetBackdropColor(0.015, 0.015, 0.03, 0.92)
+	frame:SetBackdropColor(0.018, 0.02, 0.04, 0.92)
 	frame:SetBackdropBorderColor(0.12, 0.32, 0.62, 0.85)
 	frame:SetMovable(true)
 	frame:SetClampedToScreen(true)
@@ -993,15 +1319,16 @@ function LegionRemix:CreateOverlay()
 		f:StopMovingOrSizing()
 		LegionRemix:SaveAnchor(f)
 	end)
+	local scale = tonumber(self:GetOverlayScale()) or DEFAULTS.overlayScale or 1
+	if scale <= 0 then scale = DEFAULTS.overlayScale or 1 end
+	frame:SetScale(scale)
 
 	local header = CreateFrame("Frame", nil, frame, "BackdropTemplate")
 	header:SetPoint("TOPLEFT", 10, -10)
 	header:SetPoint("TOPRIGHT", -10, -10)
-	header:SetHeight(48)
-	header:SetBackdrop({
-		bgFile = "Interface\\Buttons\\WHITE8x8",
-	})
-	header:SetBackdropColor(0.05, 0.05, 0.08, 0.95)
+	header:SetHeight(52)
+	header:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
+	header:SetBackdropColor(0.06, 0.07, 0.12, 0.95)
 
 	local title = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
 	title:SetPoint("TOPLEFT", 12, -8)
@@ -1011,14 +1338,71 @@ function LegionRemix:CreateOverlay()
 	local bronzeText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	bronzeText:SetPoint("BOTTOMLEFT", 12, 10)
 	bronzeText:SetJustifyH("LEFT")
+	bronzeText:SetWordWrap(false)
 
 	local remainingText = header:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	remainingText:SetPoint("BOTTOMRIGHT", -12, 10)
 	remainingText:SetJustifyH("RIGHT")
+	remainingText:SetWordWrap(false)
 
-	local collapse = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
-	collapse:SetSize(26, 24)
-	collapse:SetPoint("TOPRIGHT", -6, -8)
+	local function createHeaderButton(width, height)
+		local btn = CreateFrame("Button", nil, header, "BackdropTemplate")
+		btn:SetSize(width, height)
+		btn:SetBackdrop({
+			bgFile = "Interface\\Buttons\\WHITE8x8",
+			edgeFile = "Interface\\Buttons\\WHITE8x8",
+			edgeSize = 1,
+			insets = { left = 1, right = 1, top = 1, bottom = 1 },
+		})
+		btn:SetBackdropColor(0.05, 0.06, 0.1, 0.88)
+		btn:SetBackdropBorderColor(0.18, 0.48, 0.82, 0.7)
+		btn:SetHighlightTexture("Interface\\Buttons\\UI-Common-MouseHilight", "ADD")
+		local icon = btn:CreateTexture(nil, "ARTWORK")
+		icon:SetPoint("CENTER")
+		icon:SetSize(width - 6, height - 6)
+		btn.icon = icon
+		return btn
+	end
+
+	local closeButton = createHeaderButton(26, 26)
+	closeButton:SetPoint("TOPRIGHT", -4, -4)
+	closeButton.icon:SetTexture("Interface\\Buttons\\UI-StopButton")
+	closeButton.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
+	closeButton.tooltipText = CLOSE
+	closeButton:SetScript("OnClick", function()
+		local db = LegionRemix:GetDB()
+		if db then db.overlayHidden = true end
+		LegionRemix:UpdateOverlay()
+	end)
+	closeButton:SetScript("OnEnter", function(btn)
+		GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
+		GameTooltip:SetText(btn.tooltipText or CLOSE)
+	end)
+	closeButton:SetScript("OnLeave", GameTooltip_Hide)
+
+	local lockButton = createHeaderButton(28, 26)
+	lockButton:SetPoint("RIGHT", closeButton, "LEFT", -6, 0)
+	lockButton.tooltipText = T("Lock Position", "Lock Position")
+	lockButton:SetScript("OnEnter", function(btn)
+		GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
+		GameTooltip:SetText(btn.tooltipText or T("Lock Position", "Lock Position"))
+	end)
+	lockButton:SetScript("OnLeave", GameTooltip_Hide)
+	lockButton:SetScript("OnClick", function()
+		local db = LegionRemix:GetDB()
+		if not db then return end
+		db.locked = not db.locked
+		LegionRemix:RefreshLockButton()
+	end)
+
+	local collapse = createHeaderButton(26, 26)
+	collapse:SetPoint("RIGHT", lockButton, "LEFT", -6, 0)
+	collapse.tooltipText = T("Collapse", "Collapse")
+	collapse:SetScript("OnEnter", function(btn)
+		GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
+		GameTooltip:SetText(btn.tooltipText or T("Collapse", "Collapse"))
+	end)
+	collapse:SetScript("OnLeave", GameTooltip_Hide)
 	collapse:SetScript("OnClick", function()
 		local db = LegionRemix:GetDB()
 		if not db then return end
@@ -1027,33 +1411,12 @@ function LegionRemix:CreateOverlay()
 		LegionRemix:UpdateOverlay()
 	end)
 
-	local closeButton = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
-	closeButton:SetSize(26, 24)
-	closeButton:SetPoint("RIGHT", collapse, "LEFT", -4, 0)
-	closeButton:SetText("X")
-	closeButton:SetScript("OnClick", function()
-		local db = LegionRemix:GetDB()
-		if db then db.overlayHidden = true end
-		LegionRemix:UpdateOverlay()
-	end)
-
-	local lockButton = CreateFrame("Button", nil, header, "UIPanelButtonTemplate")
-	lockButton:SetSize(58, 24)
-	lockButton:SetPoint("RIGHT", closeButton, "LEFT", -6, 0)
-	lockButton:SetText(T("Lock", "Lock"))
-	lockButton:SetScript("OnClick", function()
-		local db = LegionRemix:GetDB()
-		if not db then return end
-		db.locked = not db.locked
-		lockButton:SetText(db.locked and T("Unlock", "Unlock") or T("Lock", "Lock"))
-	end)
-
 	local filterBar = CreateFrame("Frame", nil, frame, "BackdropTemplate")
 	filterBar:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -6)
 	filterBar:SetPoint("TOPRIGHT", header, "BOTTOMRIGHT", 0, -6)
 	filterBar:SetHeight(24)
 	filterBar:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8" })
-	filterBar:SetBackdropColor(0.03, 0.03, 0.06, 0.8)
+	filterBar:SetBackdropColor(0.03, 0.03, 0.06, 0.78)
 
 	local content = CreateFrame("Frame", nil, frame, "BackdropTemplate")
 	content:SetPoint("TOPLEFT", filterBar, "BOTTOMLEFT", 0, -10)
@@ -1061,19 +1424,40 @@ function LegionRemix:CreateOverlay()
 	content:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 12, 16)
 	content:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -12, 16)
 
-	frame.collapsedHeight = header:GetHeight() + 28
-	frame.filterBar = filterBar
+	-- local scrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
+	-- scrollFrame:SetPoint("TOPLEFT", filterBar, "BOTTOMLEFT", 0, -10)
+	-- scrollFrame:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -28, 16)
+	-- scrollFrame:SetClipsChildren(true)
+	-- scrollFrame:HookScript("OnSizeChanged", function() LegionRemix:UpdateContentWidth() end)
+
+	-- local content = CreateFrame("Frame", nil, scrollFrame)
+	-- content:SetPoint("TOPLEFT")
+	-- content:SetSize(1, 1)
+	-- scrollFrame:SetScrollChild(content)
+
+	frame.collapsedHeight = header:GetHeight() + 40
 	frame.header = header
 	frame.title = title
 	frame.bronzeText = bronzeText
 	frame.remainingText = remainingText
 	frame.collapseButton = collapse
+	frame.closeButton = closeButton
 	frame.lockButton = lockButton
+	frame.filterBar = filterBar
+	frame.scrollFrame = scrollFrame
 	frame.content = content
+
 	self.overlay = frame
 	self:ApplyAnchor(frame)
 	self:BuildFilterButtons()
 	self:UpdateFilterButtons()
+	self:RefreshLockButton()
+	self:UpdateContentWidth()
+	frame:SetScript("OnSizeChanged", function()
+		LegionRemix:UpdateContentWidth()
+		LegionRemix:LayoutFilterButtons()
+	end)
+	self:LayoutFilterButtons()
 	return frame
 end
 
@@ -1088,10 +1472,10 @@ function LegionRemix:UpdateOverlay()
 
 	local db = self:GetDB()
 	frame:Show()
+	if frame.collapseButton then frame.collapseButton.tooltipText = db and db.collapsed and T("Expand", "Expand") or T("Collapse", "Collapse") end
 	setButtonTexture(frame.collapseButton, db and db.collapsed)
-	if frame.lockButton then
-		frame.lockButton:SetText(db and db.locked and T("Unlock", "Unlock") or T("Lock", "Lock"))
-	end
+	if frame.lockButton then frame.lockButton.tooltipText = db and db.locked and T("Unlock Position", "Unlock Position") or T("Lock Position", "Lock Position") end
+	self:RefreshLockButton()
 
 	local activeSet, allActive = self:GetActivePhaseFilterSet()
 	self:UpdateFilterButtons()
@@ -1099,22 +1483,27 @@ function LegionRemix:UpdateOverlay()
 	local bronze = self:GetBronzeCurrency()
 	local collected, total = self:GetFilteredOverallTotals()
 	local remaining = math.max(total - collected, 0)
+	local availableWidth = (frame:GetWidth() or 360) - 40
+	if availableWidth < 200 then availableWidth = 200 end
+	frame.bronzeText:SetWidth(availableWidth * 0.45)
+	frame.remainingText:SetWidth(availableWidth * 0.55)
 
 	frame.bronzeText:SetFormattedText("%s: %s", CURRENCY, formatBronze(bronze))
 	if not allActive then
 		local activeList = {}
-		for phase in pairs(activeSet) do table.insert(activeList, phase) end
+		for phase in pairs(activeSet) do
+			table.insert(activeList, phase)
+		end
 		table.sort(activeList)
-		local labels = {}
-		for _, phase in ipairs(activeList) do table.insert(labels, string.format(T("Phase %d", "Phase %d"), phase)) end
-		frame.remainingText:SetFormattedText("%s (%s): %s", T("Total Remaining", "Total Remaining"), table.concat(labels, ", "), formatBronze(remaining))
+		local phaseLabel = self:FormatPhaseLabel(activeList)
+		frame.remainingText:SetFormattedText("%s (%s): %s", T("Total Remaining", "Total Remaining"), phaseLabel or "-", formatBronze(remaining))
 	else
 		frame.remainingText:SetFormattedText("%s: %s", T("Total Remaining", "Total Remaining"), formatBronze(remaining))
 	end
 
 	if db and db.collapsed then
 		if frame.filterBar and frame.filterBar.hasButtons then frame.filterBar:Hide() end
-		frame.content:Hide()
+		if frame.scrollFrame then frame.scrollFrame:Hide() end
 		frame:SetHeight(frame.collapsedHeight or 80)
 		return
 	end
@@ -1127,7 +1516,9 @@ function LegionRemix:UpdateOverlay()
 			frame.filterBar:Hide()
 		end
 	end
-	frame.content:Show()
+	if frame.scrollFrame then frame.scrollFrame:Show() end
+	self:LayoutFilterButtons()
+	self:UpdateContentWidth()
 
 	local categories = self.latestCategories or {}
 	local visibleIndex = 0
@@ -1148,6 +1539,7 @@ function LegionRemix:SetOverlayEnabled(value)
 	db.overlayEnabled = value and true or false
 	if value then db.overlayHidden = false end
 	self:UpdateOverlay()
+	self:RefreshLockButton()
 end
 
 function LegionRemix:SetCollapsed(value)
@@ -1157,11 +1549,28 @@ function LegionRemix:SetCollapsed(value)
 	self:UpdateOverlay()
 end
 
-function LegionRemix:SetOnlyInRemix(value)
+function LegionRemix:GetOverlayScale()
+	local db = self:GetDB()
+	local scale = DEFAULTS.overlayScale
+	if db and db.overlayScale then scale = tonumber(db.overlayScale) or scale end
+	if not scale or scale <= 0 then scale = DEFAULTS.overlayScale end
+	return scale
+end
+
+function LegionRemix:SetOverlayScale(value)
 	local db = self:GetDB()
 	if not db then return end
-	db.onlyInRemixZones = value and true or false
-	self:UpdateOverlay()
+	local scale = tonumber(value)
+	if not scale then scale = DEFAULTS.overlayScale end
+	if scale < 0.6 then scale = 0.6 end
+	if scale > 1.6 then scale = 1.6 end
+	db.overlayScale = scale
+	if self.overlay then
+		local ok = pcall(self.overlay.SetScale, self.overlay, scale)
+		if not ok then self.overlay:SetScale(DEFAULTS.overlayScale or 1) end
+		self:UpdateContentWidth()
+		self:LayoutFilterButtons()
+	end
 end
 
 function LegionRemix:SetClassOnly(value)
@@ -1234,18 +1643,14 @@ function LegionRemix:OnEvent(event, arg1)
 		self:RequestRefresh()
 	end
 
-	if event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" then
-		self:UpdateOverlay()
-	end
+	if event == "ZONE_CHANGED_NEW_AREA" or event == "ZONE_CHANGED" or event == "ZONE_CHANGED_INDOORS" then self:UpdateOverlay() end
 end
 
 function LegionRemix:RegisterEvents()
 	if self.eventFrame then return end
 	local frame = CreateFrame("Frame")
 	self.eventFrame = frame
-	frame:SetScript("OnEvent", function(_, event, ...)
-		LegionRemix:OnEvent(event, ...)
-	end)
+	frame:SetScript("OnEvent", function(_, event, ...) LegionRemix:OnEvent(event, ...) end)
 	local events = {
 		"PLAYER_LOGIN",
 		"PLAYER_ENTERING_WORLD",
@@ -1272,6 +1677,7 @@ function LegionRemix:Init()
 	if self.initialized then return end
 	if not addon.db then return end
 	self:GetDB()
+	self:InitializeZoneTypes()
 	self:InvalidateAllCaches()
 	self:RegisterEvents()
 	self.initialized = true
@@ -1313,11 +1719,6 @@ function LegionRemix:BuildOptionsUI(container)
 		return db and db.overlayEnabled
 	end, function(value) LegionRemix:SetOverlayEnabled(value) end)
 
-	addCheckbox(scroll, T("Show only in Legion Remix zones", "Show only in Legion Remix zones"), function()
-		local db = LegionRemix:GetDB()
-		return db and db.onlyInRemixZones
-	end, function(value) LegionRemix:SetOnlyInRemix(value) end)
-
 	addCheckbox(scroll, T("Collapse progress list by default", "Collapse progress list by default"), function()
 		local db = LegionRemix:GetDB()
 		return db and db.collapsed
@@ -1330,11 +1731,68 @@ function LegionRemix:BuildOptionsUI(container)
 		local db = LegionRemix:GetDB()
 		if db then
 			db.locked = value
-			if LegionRemix.overlay and LegionRemix.overlay.lockButton then
-				LegionRemix.overlay.lockButton:SetText(value and T("Unlock", "Unlock") or T("Lock", "Lock"))
-			end
+			LegionRemix:RefreshLockButton()
 		end
 	end)
+
+	addSpacer(scroll)
+
+	local scaleSlider = AceGUI:Create("Slider")
+	scaleSlider:SetLabel(T("Overlay Scale", "Overlay Scale"))
+	scaleSlider:SetSliderValues(0.6, 1.6, 0.05)
+	local initialScale = LegionRemix:GetOverlayScale()
+	if type(initialScale) ~= "number" then initialScale = DEFAULTS.overlayScale or 1 end
+	scaleSlider:SetValue(initialScale)
+	scaleSlider:SetFullWidth(true)
+	scaleSlider:SetCallback("OnValueChanged", function(_, _, val)
+		if type(val) ~= "number" then return end
+		LegionRemix:SetOverlayScale(val)
+	end)
+	scroll:AddChild(scaleSlider)
+
+	addSpacer(scroll)
+
+	local zoneDropdown = AceGUI:Create("Dropdown")
+	zoneDropdown:SetLabel(T("Show overlay in", "Show overlay in"))
+	zoneDropdown:SetMultiselect(true)
+	zoneDropdown:SetFullWidth(true)
+	local zoneOptions = LegionRemix:GetZoneFilterOptions()
+	zoneDropdown:SetList(zoneOptions, LegionRemix:GetZoneFilterOrder())
+	local function refreshZoneDropdown()
+		local refreshed = LegionRemix:GetZoneFilterOptions()
+		zoneDropdown:SetList(refreshed, LegionRemix:GetZoneFilterOrder())
+		for _, key in ipairs(LegionRemix:GetZoneFilterOrder()) do
+			zoneDropdown:SetItemValue(key, LegionRemix:IsZoneFilterEnabled(key))
+		end
+	end
+	zoneDropdown:SetCallback("OnValueChanged", function(_, _, key, state)
+		LegionRemix:SetZoneFilter(key, state)
+		refreshZoneDropdown()
+	end)
+	scroll:AddChild(zoneDropdown)
+	refreshZoneDropdown()
+
+	local zoneButtons = AceGUI:Create("SimpleGroup")
+	zoneButtons:SetLayout("Flow")
+	zoneButtons:SetFullWidth(true)
+	local allZonesBtn = AceGUI:Create("Button")
+	allZonesBtn:SetText(T("Remix Zones", "Remix Zones"))
+	allZonesBtn:SetWidth(140)
+	allZonesBtn:SetCallback("OnClick", function()
+		LegionRemix:ResetZoneFilters()
+		refreshZoneDropdown()
+	end)
+	zoneButtons:AddChild(allZonesBtn)
+
+	local everywhereBtn = AceGUI:Create("Button")
+	everywhereBtn:SetText(T("Show Everywhere", "Show Everywhere"))
+	everywhereBtn:SetWidth(160)
+	everywhereBtn:SetCallback("OnClick", function()
+		LegionRemix:SetZoneFilter("any", true)
+		refreshZoneDropdown()
+	end)
+	zoneButtons:AddChild(everywhereBtn)
+	scroll:AddChild(zoneButtons)
 
 	addSpacer(scroll)
 
@@ -1348,44 +1806,43 @@ function LegionRemix:BuildOptionsUI(container)
 		return db and db.enhancedTracking
 	end, function(value) LegionRemix:SetEnhancedTracking(value) end)
 
-	local phases = LegionRemix:GetAllPhases()
-	if #phases > 0 then
-		addSpacer(scroll)
-		local phaseLabel = AceGUI:Create("Label")
-		phaseLabel:SetFullWidth(true)
-		phaseLabel:SetText(T("Filter by release phase to focus on current drops.", "Filter by release phase to focus on current drops."))
-		scroll:AddChild(phaseLabel)
+	addSpacer(scroll)
 
-		local phaseCheckboxes = {}
-		local function refreshPhaseCheckboxes()
-			for _, phase in ipairs(phases) do
-				local checkbox = phaseCheckboxes[phase]
-				if checkbox then checkbox:SetValue(LegionRemix:IsPhaseActive(phase)) end
-			end
-		end
-
-		for _, phase in ipairs(phases) do
-			local checkbox = AceGUI:Create("CheckBox")
-			checkbox:SetLabel(string.format(T("Phase %d", "Phase %d"), phase))
-			checkbox:SetFullWidth(true)
-			checkbox:SetValue(LegionRemix:IsPhaseActive(phase))
-			checkbox:SetCallback("OnValueChanged", function(_, _, val)
-				LegionRemix:SetPhaseFilter(phase, val)
-				refreshPhaseCheckboxes()
-			end)
-			scroll:AddChild(checkbox)
-			phaseCheckboxes[phase] = checkbox
-		end
-
-		local clearBtn = AceGUI:Create("Button")
-		clearBtn:SetText(T("Show all phases", "Show all phases"))
-		clearBtn:SetWidth(160)
-		clearBtn:SetCallback("OnClick", function()
-			LegionRemix:ResetPhaseFilters()
-			refreshPhaseCheckboxes()
-		end)
-		scroll:AddChild(clearBtn)
+	local categoryDropdown = AceGUI:Create("Dropdown")
+	categoryDropdown:SetLabel(T("Visible categories", "Visible categories"))
+	categoryDropdown:SetMultiselect(true)
+	categoryDropdown:SetFullWidth(true)
+	local categoryOptions = LegionRemix:GetCategoryOptions()
+	local categoryOrder = {}
+	for _, category in ipairs(CATEGORY_DATA) do
+		categoryOrder[#categoryOrder + 1] = category.key
 	end
+	categoryDropdown:SetList(categoryOptions, categoryOrder)
+	local function refreshCategoryDropdown()
+		categoryDropdown:SetList(LegionRemix:GetCategoryOptions(), categoryOrder)
+		for _, category in ipairs(CATEGORY_DATA) do
+			categoryDropdown:SetItemValue(category.key, LegionRemix:IsCategoryVisible(category.key))
+		end
+	end
+	categoryDropdown:SetCallback("OnValueChanged", function(_, _, key, state)
+		LegionRemix:SetCategoryVisibility(key, state)
+		refreshCategoryDropdown()
+	end)
+	scroll:AddChild(categoryDropdown)
+	refreshCategoryDropdown()
+
+	local categoryButtons = AceGUI:Create("SimpleGroup")
+	categoryButtons:SetLayout("Flow")
+	categoryButtons:SetFullWidth(true)
+	local showAllCategories = AceGUI:Create("Button")
+	showAllCategories:SetText(T("Show all categories", "Show all categories"))
+	showAllCategories:SetWidth(180)
+	showAllCategories:SetCallback("OnClick", function()
+		LegionRemix:ResetCategoryFilters()
+		refreshCategoryDropdown()
+	end)
+	categoryButtons:AddChild(showAllCategories)
+	scroll:AddChild(categoryButtons)
 
 	addSpacer(scroll)
 
@@ -1406,9 +1863,7 @@ function LegionRemix:BuildOptionsUI(container)
 	local hideBtn = AceGUI:Create("Button")
 	hideBtn:SetText(T("Hide overlay", "Hide overlay"))
 	hideBtn:SetWidth(160)
-	hideBtn:SetCallback("OnClick", function()
-		LegionRemix:SetHidden(true)
-	end)
+	hideBtn:SetCallback("OnClick", function() LegionRemix:SetHidden(true) end)
 	buttonsGroup:AddChild(hideBtn)
 
 	local resetBtn = AceGUI:Create("Button")
