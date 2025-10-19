@@ -14,10 +14,11 @@ local LegionRemix = addon.Events.LegionRemix
 local AceGUI = LibStub("AceGUI-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(PARENT_ADDON)
 
-local PHASE_LOOKUP = _G.EnhanceQoLLegionRemixPhaseData or { mount = {}, item = {}, achievement = {} }
-if type(PHASE_LOOKUP.mount) ~= "table" then PHASE_LOOKUP.mount = {} end
-if type(PHASE_LOOKUP.item) ~= "table" then PHASE_LOOKUP.item = {} end
-if type(PHASE_LOOKUP.achievement) ~= "table" then PHASE_LOOKUP.achievement = {} end
+local DEFAULT_PHASE_KEYS = { "mount", "item", "toy", "pet", "achievement" }
+local PHASE_LOOKUP = _G.EnhanceQoLLegionRemixPhaseData or {}
+for _, key in ipairs(DEFAULT_PHASE_KEYS) do
+	if type(PHASE_LOOKUP[key]) ~= "table" then PHASE_LOOKUP[key] = {} end
+end
 
 LegionRemix.phaseLookup = PHASE_LOOKUP
 
@@ -198,7 +199,7 @@ function LegionRemix:UpdateFilterButtons()
 	end
 end
 
-local BRONZE_CURRENCY_ID = 2778
+local BRONZE_CURRENCY_ID = 3252
 local DEFAULTS = {
 	overlayEnabled = true,
 	overlayHidden = false,
@@ -322,12 +323,12 @@ local CATEGORY_DATA = {
 		key = "toys",
 		label = T("Toy Box", TOY_BOX or TOYS or "Toy Box"),
 		groups = {
-			{ type = "toy", cost = 10000, items = { 131724, 131717, 129165, 130169, 142530, 142529, 142528, 143662, 153204, 153193 } },
+			{ type = "toy", cost = 10000, items = { 129165, 130169, 131717, 131724, 142528, 142529, 142530, 143662, 153193, 153204 } },
 			{ type = "toy", cost = 20000, items = { 140363 } },
-			{ type = "toy", cost = 25000, items = { 141862, 153293, 153179, 153181, 153180, 153253, 153182, 153126, 153194 } },
+			{ type = "toy", cost = 25000, items = { 141862, 153126, 153179, 153180, 153181, 153182, 153194, 153253, 153293 } },
 			{ type = "toy", cost = 35000, items = { 142265, 147843, 147867, 153124 } },
-			{ type = "toy", cost = 80000, items = { 140160, 153183, 153982 } },
-			{ type = "toy", cost = 100000, items = { 136901, 119211, 153004 } },
+			{ type = "toy", cost = 80000, items = { 140160, 152982, 153183 } },
+			{ type = "toy", cost = 100000, items = { 119211, 143544, 153004 } },
 		},
 	},
 	{
@@ -338,7 +339,7 @@ local CATEGORY_DATA = {
 			{ type = "pet", cost = 10000, items = { 1887, 2115, 2136, 1926, 1928, 1929 } },
 			{ type = "pet", cost = 20000, items = { 2120, 2118, 2119 } },
 			{ type = "pet", cost = 35000, items = { 2135, 2022, 2050, 1718 } },
-			{ type = "pet", cost = 80000, items = { 1732, 2071, 2072, 2042 } },
+			{ type = "pet", cost = 80000, items = { 1723, 2071, 2072, 2042 } },
 			{ type = "pet", cost = 100000, items = { 1803, 1937, 1719 } },
 		},
 	},
@@ -431,7 +432,9 @@ local CATEGORY_DATA = {
 local function normalizePhaseKind(kind)
 	if kind == "mount" then return "mount" end
 	if kind == "achievement" then return "achievement" end
-	if kind == "toy" or kind == "pet" or kind == "transmog" or kind == "item" then return "item" end
+	if kind == "toy" then return "toy" end
+	if kind == "pet" then return "pet" end
+	if kind == "transmog" or kind == "item" then return "item" end
 	return nil
 end
 
@@ -1532,7 +1535,7 @@ function LegionRemix:UpdateOverlay()
 			self:UpdateRow(row, display)
 		end
 	end
-	self.overlay:SetHeight(140 + dynHeight + ((visibleIndex-1) * 6))
+	self.overlay:SetHeight(140 + dynHeight + ((visibleIndex - 1) * 6))
 	self:HideUnusedRows(visibleIndex + 1)
 end
 
