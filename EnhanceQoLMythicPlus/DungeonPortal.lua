@@ -252,8 +252,7 @@ btnDockTeleport:SetScript("OnLeave", function() GameTooltip:Hide() end)
 -- Überschrift hinzufügen
 local title = frameAnchor:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
 title:SetPoint("TOP", 0, -10)
-local mSeasonTitle = MYTHIC_DUNGEON_SEASON
-title:SetFormattedText(string.gsub(mSeasonTitle, "%s*%b()", ""))
+title:SetFormattedText(CHALLENGES)
 minFrameSize = max(title:GetStringWidth() + 20, 205)
 SafeSetSize(frameAnchor, minFrameSize, 205)
 
@@ -950,7 +949,7 @@ function addon.MythicPlus.functions.BuildCurrentSeasonTeleportSection()
 		return (a.spellID or 0) < (b.spellID or 0)
 	end)
 
-	local title = MYTHIC_DUNGEON_SEASON
+	local title = CHALLENGES
 	if type(title) == "string" then title = string.gsub(title, "%s*%b()", "") end
 	return { title = title or "Mythic+ Season", items = list }
 end
