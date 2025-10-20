@@ -89,7 +89,7 @@ local function addStatOptions(frame, key, label, includeRating)
 	group:SetLayout("List")
 
 	local show = AceGUI:Create("CheckBox")
-	show:SetLabel("Show")
+	show:SetLabel(SHOW)
 	show:SetValue(db[key].enabled)
 	show:SetCallback("OnValueChanged", function(_, _, val)
 		db[key].enabled = val and true or false
@@ -99,7 +99,7 @@ local function addStatOptions(frame, key, label, includeRating)
 
 	if includeRating ~= false then
 		local rating = AceGUI:Create("CheckBox")
-		rating:SetLabel("Use rating")
+		rating:SetLabel(L["Use rating"]:format(RATING))
 		rating:SetValue(db[key].rating)
 		rating:SetCallback("OnValueChanged", function(_, _, val)
 			db[key].rating = val and true or false
@@ -109,7 +109,7 @@ local function addStatOptions(frame, key, label, includeRating)
 	end
 
 	local color = AceGUI:Create("ColorPicker")
-	color:SetLabel("Color")
+	color:SetLabel(COLOR)
 	local c = db[key].color
 	color:SetColor(c.r, c.g, c.b)
 	color:SetCallback("OnValueChanged", function(_, _, r, g, b)
@@ -154,7 +154,7 @@ local function createAceWindow()
 	wrapper:AddChild(groupCore)
 
 	local fontSize = AceGUI:Create("Slider")
-	fontSize:SetLabel("Font size")
+	fontSize:SetLabel(FONT_SIZE)
 	fontSize:SetSliderValues(8, 32, 1)
 	fontSize:SetValue(db.fontSize)
 	fontSize:SetCallback("OnValueChanged", function(_, _, val)
@@ -164,7 +164,7 @@ local function createAceWindow()
 	groupCore:AddChild(fontSize)
 
 	local vertical = AceGUI:Create("CheckBox")
-	vertical:SetLabel("Display vertically")
+	vertical:SetLabel(L["Display vertically"] or "Display vertically")
 	vertical:SetValue(db.vertical)
 	vertical:SetCallback("OnValueChanged", function(_, _, val)
 		db.vertical = val and true or false
@@ -321,7 +321,7 @@ end
 local provider = {
 	id = "stats",
 	version = 1,
-	title = "Stats",
+	title = PET_BATTLE_STATS_LABEL,
 	update = checkStats,
 	events = {
 		UNIT_SPELL_HASTE = function(stream, _, unit)

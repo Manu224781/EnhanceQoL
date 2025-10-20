@@ -4,7 +4,6 @@ if not L then return end
 --@localization(locale="frFR", namespace="Tooltip", format="lua_additive_table")@
 
 L["Tooltip"] = "Infobulle"
-L["None"] = "Aucun"
 L["Enemies"] = "Ennemis"
 L["Friendly"] = "Amical"
 L["Both"] = "Les deux"

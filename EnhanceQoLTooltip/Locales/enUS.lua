@@ -1,7 +1,6 @@
 local L = LibStub("AceLocale-3.0"):NewLocale("EnhanceQoL_Tooltip", "enUS", true)
 
 L["Tooltip"] = "Tooltip"
-L["None"] = "None"
 L["Enemies"] = "Enemies"
 L["Friendly"] = "Friendly"
 L["Both"] = "Both"

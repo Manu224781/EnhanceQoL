@@ -402,7 +402,7 @@ local function addDrinkFrame(container)
 				stone = L["CategoryHealthstones"] or (L["Prefer Healthstone first"] or "Healthstones"),
 				potion = L["CategoryPotions"] or "Potions",
 				combatpotion = L["CategoryCombatPotions"] or (L["Use Combat potions for health macro"] or "Combat potions"),
-				none = L["None"] or "None",
+				none = NONE,
 			}
 			local baseOrder = { "stone", "potion", "combatpotion", "spell" }
 			addon.db.healthPriorityOrder = addon.db.healthPriorityOrder or { "stone", "potion", addon.db.healthUseCombatPotions and "combatpotion" or "none", "none" }
@@ -495,7 +495,7 @@ local function addDrinkFrame(container)
 					end
 				end
 			end
-			if #parts == 0 then return (L["healthMacroWillUse"] or "Will use (in order): %s"):format(L["None"] or "None") end
+			if #parts == 0 then return (L["healthMacroWillUse"] or "Will use (in order): %s"):format(NONE) end
 			return (L["healthMacroWillUse"] or "Will use (in order): %s"):format(table.concat(parts, ", "))
 		end
 		local hint = addon.functions.createLabelAce(buildPriorityHint(), gold, nil, 14)

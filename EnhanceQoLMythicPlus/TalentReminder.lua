@@ -112,7 +112,7 @@ local function GetConfigName(configID)
 			return addon.MythicPlus.variables.knownLoadout[addon.MythicPlus.variables.currentSpecID][configID]
 		end
 	end
-	return "Unknown"
+	return UNKNOWN
 end
 
 local function showPopup(actTalent, requiredTalent)

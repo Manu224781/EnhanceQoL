@@ -47,7 +47,7 @@ local function createAceWindow()
 	end)
 
 	local fontSize = AceGUI:Create("Slider")
-	fontSize:SetLabel("Font size")
+	fontSize:SetLabel(FONT_SIZE)
 	fontSize:SetSliderValues(8, 32, 1)
 	fontSize:SetValue(db.fontSize)
 	fontSize:SetCallback("OnValueChanged", function(_, _, val)

@@ -25,13 +25,13 @@ local function ensureSettings(id, name)
             height = 20,
             streams = {},
             streamSet = {},
-            name = name or ("Panel " .. id),
+            name = name or ((L["Panel"] or "Panel") .. " " .. id),
             noBorder = false,
         }
     else
         info.streams = info.streams or {}
         info.streamSet = info.streamSet or {}
-        info.name = info.name or name or ("Panel " .. id)
+        info.name = info.name or name or ((L["Panel"] or "Panel") .. " " .. id)
         if info.noBorder == nil then info.noBorder = false end
     end
 

@@ -2946,6 +2946,7 @@ local function addUIFrame(container)
 		{
 			parent = "",
 			var = "ignoreTalkingHead",
+			text = string.format(L["ignoreTalkingHeadN"], HUD_EDIT_MODE_TALKING_HEAD_FRAME_LABEL),
 			type = "CheckBox",
 			callback = function(self, _, value) addon.db["ignoreTalkingHead"] = value end,
 		},
@@ -3388,7 +3389,7 @@ local function addCharacterFrame(container)
 		enchants = ENCHANTS or "Enchants",
 		gemtip = L["Gem slot tooltip"] or "Gem slot tooltip",
 		durability = DURABILITY or "Durability",
-		catalyst = "Catalyst Charges",
+		catalyst = L["Catalyst Charges"] or "Catalyst Charges",
 	}
 
 	local ddChar = AceGUI:Create("Dropdown")
@@ -4524,7 +4525,7 @@ local function buildDatapanelFrame(container)
 
 	-- Panel management controls
 	local controlGroup = addon.functions.createContainer("InlineGroup", "Flow")
-	controlGroup:SetTitle("Panels")
+	controlGroup:SetTitle(L["Panels"] or "Panels")
 	wrapper:AddChild(controlGroup)
 
 	-- Global option: require Shift to move panels
@@ -4538,11 +4539,11 @@ local function buildDatapanelFrame(container)
 	shiftLock:SetRelativeWidth(1.0)
 	controlGroup:AddChild(shiftLock)
 
-	local newName = addon.functions.createEditboxAce("Panel Name")
+	local newName = addon.functions.createEditboxAce(L["Panel Name"] or "Panel Name")
 	newName:SetRelativeWidth(0.4)
 	controlGroup:AddChild(newName)
 
-	local addButton = addon.functions.createButtonAce("Add Panel", 120, function()
+	local addButton = addon.functions.createButtonAce(L["Add Panel"] or "Add Panel", 120, function()
 		local id = newName:GetText()
 		if id and id ~= "" then
 			DataPanel.Create(id)
@@ -4560,11 +4561,11 @@ local function buildDatapanelFrame(container)
 	end
 	table.sort(panelOrder)
 
-	local dropRemove = addon.functions.createDropdownAce("Panel", panelList, panelOrder, function(self, _, val) self:SetValue(val) end)
+	local dropRemove = addon.functions.createDropdownAce(L["Panel"] or "Panel", panelList, panelOrder, function(self, _, val) self:SetValue(val) end)
 	dropRemove:SetRelativeWidth(0.4)
 	controlGroup:AddChild(dropRemove)
 
-	local removeButton = addon.functions.createButtonAce("Remove Panel", 120, function()
+	local removeButton = addon.functions.createButtonAce(L["Remove Panel"] or "Remove Panel", 120, function()
 		local id = dropRemove:GetValue()
 		if id then
 			DataPanel.Delete(id)
@@ -4596,15 +4597,17 @@ local function buildDatapanelFrame(container)
 		groupPanel:SetTitle(id)
 		wrapper:AddChild(groupPanel)
 
-		local widthSlider = addon.functions.createSliderAce("Width: " .. info.width, info.width, 50, 1000, 1, function(self, _, val)
+		local widthLabelText = HUD_EDIT_MODE_SETTING_CHAT_FRAME_WIDTH
+		local widthSlider = addon.functions.createSliderAce(("%s: %s"):format(widthLabelText, info.width), info.width, 50, 1000, 1, function(self, _, val)
 			panel.frame:SetWidth(val)
-			self:SetLabel("Width: " .. val)
+			self:SetLabel(("%s: %s"):format(widthLabelText, val))
 		end)
 		groupPanel:AddChild(widthSlider)
 
-		local heightSlider = addon.functions.createSliderAce("Height: " .. info.height, info.height, 10, 500, 1, function(self, _, val)
+		local heightLabelText = HUD_EDIT_MODE_SETTING_CHAT_FRAME_HEIGHT
+		local heightSlider = addon.functions.createSliderAce(("%s: %s"):format(heightLabelText, info.height), info.height, 10, 500, 1, function(self, _, val)
 			panel.frame:SetHeight(val)
-			self:SetLabel("Height: " .. val)
+			self:SetLabel(("%s: %s"):format(heightLabelText, val))
 		end)
 		groupPanel:AddChild(heightSlider)
 
@@ -4622,9 +4625,11 @@ local function buildDatapanelFrame(container)
 			for i, sid in ipairs(streams) do
 				titles[i] = streamList[sid] or sid
 			end
-			currentLabel = addon.functions.createLabelAce("Streams: " .. table.concat(titles, ", "))
+			currentLabel =
+				addon.functions.createLabelAce(("%s: %s"):format(L["Streams"] or "Streams", table.concat(titles, ", ")))
 		else
-			currentLabel = addon.functions.createLabelAce("Streams: none")
+			local noneText = L["Streams: none"] or ((L["Streams"] or "Streams") .. ": " .. NONE)
+			currentLabel = addon.functions.createLabelAce(noneText)
 		end
 		currentLabel:SetFullWidth(true)
 		groupPanel:AddChild(currentLabel)
@@ -4650,14 +4655,15 @@ local function buildDatapanelFrame(container)
 				for i, sid in ipairs(curStreams) do
 					titles[i] = streamList[sid] or sid
 				end
-				currentLabel:SetText("Streams: " .. table.concat(titles, ", "))
+				currentLabel:SetText(("%s: %s"):format(L["Streams"] or "Streams", table.concat(titles, ", ")))
 			else
-				currentLabel:SetText("Streams: none")
+				local noneText = L["Streams: none"] or ((L["Streams"] or "Streams") .. ": " .. NONE)
+				currentLabel:SetText(noneText)
 			end
 			if groupPanel and groupPanel.DoLayout then groupPanel:DoLayout() end
 		end
 
-		local addStream = addon.functions.createDropdownAce("Add Stream", streamList, streamOrder, function(self, _, val)
+		local addStream = addon.functions.createDropdownAce(L["Add Stream"] or "Add Stream", streamList, streamOrder, function(self, _, val)
 			if not val or val == "" then return end
 			panel:AddStream(val)
 			self:SetValue(nil)
@@ -4673,7 +4679,7 @@ local function buildDatapanelFrame(container)
 		end
 		table.sort(removeOrder, function(a, b) return removeList[a] < removeList[b] end)
 
-		removeStream = addon.functions.createDropdownAce("Remove Stream", removeList, removeOrder, function(self, _, val)
+		removeStream = addon.functions.createDropdownAce(L["Remove Stream"] or "Remove Stream", removeList, removeOrder, function(self, _, val)
 			if not val or val == "" then return end
 			panel:RemoveStream(val)
 			self:SetValue(nil)

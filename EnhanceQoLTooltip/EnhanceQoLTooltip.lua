@@ -877,7 +877,7 @@ local function addTooltipFrame2(container, which)
 
 	local function buildUnit()
 		local g, known = ensureGroup("unit", L["Unit"])
-		local list, order = addon.functions.prepareListForDropdown({ [1] = L["None"], [2] = L["Enemies"], [3] = L["Friendly"], [4] = L["Both"] })
+		local list, order = addon.functions.prepareListForDropdown({ [1] = NONE, [2] = L["Enemies"], [3] = L["Friendly"], [4] = L["Both"] })
 		local dropTooltipUnitHideType = addon.functions.createDropdownAce(L["TooltipUnitHideType"], list, order, function(self) addon.db["TooltipUnitHideType"] = self:GetValue() end)
 		dropTooltipUnitHideType:SetValue(addon.db["TooltipUnitHideType"])
 		dropTooltipUnitHideType:SetFullWidth(false)

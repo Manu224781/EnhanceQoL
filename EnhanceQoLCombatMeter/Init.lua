@@ -68,10 +68,10 @@ local function addGeneralFrame(container)
 		end)
 		groupCore:AddChild(sliderRate)
 
-		local sliderFont = addon.functions.createSliderAce(L["Font Size"] .. ": " .. addon.db["combatMeterFontSize"], addon.db["combatMeterFontSize"], 8, 32, 1, function(self, _, val)
+		local sliderFont = addon.functions.createSliderAce(FONT_SIZE .. ": " .. addon.db["combatMeterFontSize"], addon.db["combatMeterFontSize"], 8, 32, 1, function(self, _, val)
 			addon.db["combatMeterFontSize"] = val
 			if addon.CombatMeter.functions.setFontSize then addon.CombatMeter.functions.setFontSize(val) end
-			self:SetLabel(L["Font Size"] .. ": " .. val)
+			self:SetLabel(FONT_SIZE .. ": " .. val)
 		end)
 		groupCore:AddChild(sliderFont)
 

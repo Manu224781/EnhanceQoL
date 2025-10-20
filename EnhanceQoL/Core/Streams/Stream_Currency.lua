@@ -136,7 +136,7 @@ local function createAceWindow()
 	end)
 
 	local fontSize = AceGUI:Create("Slider")
-	fontSize:SetLabel("Font size")
+	fontSize:SetLabel(FONT_SIZE)
 	fontSize:SetSliderValues(8, 32, 1)
 	fontSize:SetValue(db.fontSize)
 	fontSize:SetCallback("OnValueChanged", function(_, _, val)
@@ -146,7 +146,7 @@ local function createAceWindow()
 	frame:AddChild(fontSize)
 
 	local perTip = AceGUI:Create("CheckBox")
-	perTip:SetLabel("Per-currency tooltips")
+	perTip:SetLabel(L["Per-currency tooltips"] or "Per-currency tooltips")
 	perTip:SetValue(db.tooltipPerCurrency)
 	perTip:SetCallback("OnValueChanged", function(_, _, val)
 		db.tooltipPerCurrency = val and true or false
@@ -155,7 +155,7 @@ local function createAceWindow()
 	frame:AddChild(perTip)
 
 	local showDesc = AceGUI:Create("CheckBox")
-	showDesc:SetLabel("Show description in tooltip")
+	showDesc:SetLabel(L["Show description in tooltip"] or "Show description in tooltip")
 	showDesc:SetValue(db.showDescription)
 	showDesc:SetCallback("OnValueChanged", function(_, _, val)
 		db.showDescription = val and true or false
@@ -165,11 +165,11 @@ local function createAceWindow()
 
 	local addGroup = addon.functions.createContainer("SimpleGroup", "Flow")
 	local addBox = AceGUI:Create("EditBox")
-	addBox:SetLabel("Currency ID")
+	addBox:SetLabel(L["Currency ID"] or "Currency ID")
 	addBox:SetWidth(150)
 	addGroup:AddChild(addBox)
 	local addBtn = AceGUI:Create("Button")
-	addBtn:SetText("Add")
+	addBtn:SetText(ADD)
 	addBtn:SetWidth(60)
 	addBtn:SetCallback("OnClick", function()
 		local id = tonumber(addBox:GetText())
@@ -349,7 +349,7 @@ end
 local provider = {
 	id = "currency",
 	version = 1,
-	title = "Currencies",
+	title = CURRENCY,
 	update = checkCurrencies,
 	events = {
 		PLAYER_LOGIN = function(s) fullUpdate(s) end,

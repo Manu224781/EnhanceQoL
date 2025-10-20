@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.9.2] – 2025-10-20
+
+### 🐛 Fixed
+
+- Some texts were not properly localized
+
+---
+
 ## [5.9.1] – 2025-10-19
 
 ### 🐛 Fixed

@@ -45,7 +45,7 @@ local function createAceWindow()
 	end)
 
 	local prefix = AceGUI:Create("EditBox")
-	prefix:SetLabel("Prefix")
+	prefix:SetLabel(L["Prefix"] or "Prefix")
 	prefix:SetText(db.prefix)
 	prefix:SetCallback("OnEnterPressed", function(_, _, val)
 		db.prefix = val or ""
@@ -54,7 +54,7 @@ local function createAceWindow()
 	frame:AddChild(prefix)
 
 	local fontSize = AceGUI:Create("Slider")
-	fontSize:SetLabel("Font size")
+	fontSize:SetLabel(FONT_SIZE)
 	fontSize:SetSliderValues(8, 32, 1)
 	fontSize:SetValue(db.fontSize)
 	fontSize:SetCallback("OnValueChanged", function(_, _, val)
@@ -64,7 +64,7 @@ local function createAceWindow()
 	frame:AddChild(fontSize)
 
 	local hide = AceGUI:Create("CheckBox")
-	hide:SetLabel("Hide icon")
+	hide:SetLabel(L["Hide icon"] or "Hide icon")
 	hide:SetValue(db.hideIcon)
 	hide:SetCallback("OnValueChanged", function(_, _, val)
 		db.hideIcon = val and true or false
@@ -82,13 +82,13 @@ local function GetConfigName(configID)
 			if info then return info.name end
 		end
 	end
-	return "Unknown"
+	return UNKNOWN
 end
 
 local function GetCurrentTalents(stream)
 	ensureDB()
 	local specId = PlayerUtil.GetCurrentSpecID()
-	local name = "Unknown"
+	local name = UNKNOWN
 	if specId then name = GetConfigName(C_ClassTalents.GetLastSelectedSavedConfigID(specId)) end
 	local prefix = db.prefix ~= "" and (db.prefix .. " ") or ""
 	local icon = ""
