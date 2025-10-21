@@ -11,34 +11,37 @@ local MOVEMENT_STAT_ENTRY = {
 	hideAt = 0,
 }
 local SPEED_EVENTS = {
-	"UNIT_SPEED",
+	"PLAYER_MOUNT_DISPLAY_CHANGED",
+	"UPDATE_SHAPESHIFT_FORM",
 	"PLAYER_STARTED_MOVING",
 	"PLAYER_STOPPED_MOVING",
-	"PLAYER_MOUNT_DISPLAY_CHANGED",
-	"UNIT_AURA",
-	"UPDATE_SHAPESHIFT_FORM",
+}
+local SPEED_UNIT_EVENTS = {
 	"UNIT_ENTERED_VEHICLE",
 	"UNIT_EXITED_VEHICLE",
-	"ZONE_CHANGED",
-	"ZONE_CHANGED_INDOORS",
-	"ZONE_CHANGED_NEW_AREA",
+	"UNIT_AURA",
 }
 
-local TICK = 0.2
-local CACHE_EPSILON_PCT = 0.25
-local CACHE_EPSILON_YPS = 0.05
+local MOVING_TICK = 0.2
+local IDLE_TICK = 0.8
+local MOVEMENT_THRESHOLD_YPS = 0.5
+local CACHE_EPSILON_PCT = 0.5
+local CACHE_EPSILON_YPS = 0.1
 
 local cache = { yps = BASE_MS, pct = 100 }
-local accum = TICK
+local tickInterval = MOVING_TICK
+local accum = MOVING_TICK
 local active = false
 local installed = false
 local eventsRegistered = false
+local statFrameRef
 
 local ticker = CreateFrame("Frame")
 ticker:Hide()
 
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
 
 local function CharacterUIReady()
 	return type(PAPERDOLL_STATINFO) == "table" and type(PAPERDOLL_STATCATEGORIES) == "table"
@@ -57,16 +60,31 @@ local function StatEntryMatches(entry)
 	return entry == MOVEMENT_STAT_KEY
 end
 
-local function AddStatToCategory()
+local function EnsureCategoryReady()
 	local category = GetStatCategory()
-	if not category or not category.stats then return end
+	if category and category.stats then return category end
+
+	if PaperDoll_InitStatCategories then
+		PaperDoll_InitStatCategories(PAPERDOLL_STATCATEGORY_DEFAULTORDER, "statCategoryOrder", "statCategoriesCollapsed", "player")
+	end
+
+	return GetStatCategory()
+end
+
+local function AddStatToCategory()
+	local category = EnsureCategoryReady()
+	if not category or not category.stats then return false end
 
 	for _, entry in ipairs(category.stats) do
-		if StatEntryMatches(entry) then return end
+		if StatEntryMatches(entry) then
+			installed = true
+			return false
+		end
 	end
 
 	table.insert(category.stats, MOVEMENT_STAT_ENTRY)
 	installed = true
+	return true
 end
 
 local function RemoveStatFromCategory()
@@ -78,6 +96,7 @@ local function RemoveStatFromCategory()
 	end
 
 	installed = false
+	statFrameRef = nil
 end
 
 local function RebuildPaperDoll()
@@ -95,15 +114,19 @@ local function Compute(unit)
 
 	if unit == "player" and UnitInVehicle("player") then unit = "vehicle" end
 
-	local speed, runSpeed = GetUnitSpeed(unit)
-	speed = speed or 0
+	local rawSpeed, runSpeed = GetUnitSpeed(unit)
+	rawSpeed = rawSpeed or 0
 	runSpeed = runSpeed or 0
+	local speed = rawSpeed
 
 	if speed < runSpeed then speed = runSpeed end
 
 	if C_PlayerInfo and C_PlayerInfo.GetGlidingInfo then
 		local advanced, _, glideSpeed = C_PlayerInfo.GetGlidingInfo()
-		if advanced and glideSpeed and glideSpeed > speed then speed = glideSpeed end
+		if advanced and glideSpeed then
+			if glideSpeed > speed then speed = glideSpeed end
+			if glideSpeed > rawSpeed then rawSpeed = glideSpeed end
+		end
 	end
 
 	if speed <= 0 then
@@ -115,14 +138,29 @@ local function Compute(unit)
 	end
 
 	local pct = (speed / BASE_MS) * 100
-	return speed, pct
+	return speed, pct, rawSpeed
 end
 
 local function PercentText(p)
 	return string.format("%.0f", p)
 end
 
+local function ApplyDisplay(yps, pct)
+	cache.yps = yps
+	cache.pct = pct
+
+	if not statFrameRef then return end
+
+	statFrameRef.numericValue = pct
+	PaperDollFrame_SetLabelAndText(statFrameRef, STAT_MOVEMENT_SPEED, PercentText(pct), true, pct)
+	statFrameRef.tooltip = HIGHLIGHT_FONT_COLOR_CODE .. STAT_MOVEMENT_SPEED .. FONT_COLOR_CODE_CLOSE
+	statFrameRef.tooltip2 = string.format("~%.2f yards/sec", yps)
+	statFrameRef:Show()
+end
+
 local function StatUpdate(statFrame, unit)
+	statFrameRef = statFrame
+
 	if not addon.db or not addon.db.movementSpeedStatEnabled then
 		statFrame:Hide()
 		return
@@ -131,14 +169,7 @@ local function StatUpdate(statFrame, unit)
 	unit = unit or "player"
 
 	local yps, pct = Compute(unit)
-	cache.yps = yps
-	cache.pct = pct
-
-	statFrame.numericValue = pct
-	PaperDollFrame_SetLabelAndText(statFrame, STAT_MOVEMENT_SPEED, PercentText(pct), true, pct)
-	statFrame.tooltip = HIGHLIGHT_FONT_COLOR_CODE .. STAT_MOVEMENT_SPEED .. FONT_COLOR_CODE_CLOSE
-	statFrame.tooltip2 = string.format("~%.2f yards/sec", yps)
-	statFrame:Show()
+	ApplyDisplay(yps, pct)
 end
 
 local function EnsureStatInfo()
@@ -151,45 +182,66 @@ local function EnsureStatInfo()
 	}
 end
 
-local function StatsPaneVisible()
-	if PaperDollFrame and PaperDollFrame:IsVisible() then return true end
-	if CharacterFrame and CharacterFrame:IsShown() then
-		local pane = CharacterFrame.CharacterStatsPane or _G.CharacterStatsPane
-		if pane and pane:IsVisible() then return true end
-	end
-	return false
-end
-
 local function ShouldUpdate()
-	return active and StatsPaneVisible() and PaperDollFrame_UpdateStats ~= nil
+	return active and ticker:IsShown()
 end
 
 local function ForceTick()
-	accum = TICK
+	accum = tickInterval
 end
 
 local function OnUpdate(_, elapsed)
 	if not ShouldUpdate() then
-		accum = TICK
+		accum = tickInterval
 		return
 	end
 
 	accum = accum + elapsed
-	if accum < TICK then return end
+	if accum < tickInterval then return end
 	accum = 0
 
-	local yps, pct = Compute("player")
+	local yps, pct, raw = Compute("player")
+	local moving = raw > MOVEMENT_THRESHOLD_YPS
+	local desiredInterval = moving and MOVING_TICK or IDLE_TICK
+	if desiredInterval ~= tickInterval then
+		tickInterval = desiredInterval
+		accum = 0
+	end
+
 	if math.abs(pct - cache.pct) > CACHE_EPSILON_PCT or math.abs(yps - cache.yps) > CACHE_EPSILON_YPS then
-		cache.yps = yps
-		cache.pct = pct
-		if PaperDollFrame_UpdateStats then PaperDollFrame_UpdateStats() end
+		ApplyDisplay(yps, pct)
 	end
 end
 
 ticker:SetScript("OnUpdate", OnUpdate)
 
+local function RegisterSpeedEvents()
+	if eventsRegistered then return end
+	for _, eventName in ipairs(SPEED_EVENTS) do
+		eventFrame:RegisterEvent(eventName)
+	end
+	for _, eventName in ipairs(SPEED_UNIT_EVENTS) do
+		eventFrame:RegisterUnitEvent(eventName, "player")
+	end
+	eventsRegistered = true
+end
+
+local function UnregisterSpeedEvents()
+	if not eventsRegistered then return end
+	for _, eventName in ipairs(SPEED_EVENTS) do
+		eventFrame:UnregisterEvent(eventName)
+	end
+	for _, eventName in ipairs(SPEED_UNIT_EVENTS) do
+		eventFrame:UnregisterEvent(eventName)
+	end
+	eventsRegistered = false
+end
+
 local function StartTicker()
 	if ticker:IsShown() or not active then return end
+	RegisterSpeedEvents()
+	tickInterval = MOVING_TICK
+	accum = tickInterval
 	ForceTick()
 	ticker:Show()
 end
@@ -197,7 +249,8 @@ end
 local function StopTicker()
 	if not ticker:IsShown() then return end
 	ticker:Hide()
-	accum = TICK
+	accum = tickInterval
+	UnregisterSpeedEvents()
 end
 
 local function HookCharacterFrame()
@@ -205,8 +258,12 @@ local function HookCharacterFrame()
 
 	CharacterFrame:HookScript("OnShow", function()
 		if active then
+			if not statFrameRef and PaperDollFrame_UpdateStats then PaperDollFrame_UpdateStats() end
 			StartTicker()
-			if PaperDollFrame_UpdateStats then PaperDollFrame_UpdateStats() end
+			if statFrameRef then
+				local yps, pct = Compute("player")
+				ApplyDisplay(yps, pct)
+			end
 		end
 	end)
 
@@ -223,28 +280,19 @@ local function TryInstall()
 	if not CharacterUIReady() then return end
 
 	EnsureStatInfo()
-	AddStatToCategory()
+	local added = AddStatToCategory()
 	HookCharacterFrame()
 
-	RebuildPaperDoll()
+	if added then RebuildPaperDoll() end
 
-	if CharacterFrame and CharacterFrame:IsShown() and ShouldUpdate() then StartTicker() end
-end
-
-local function RegisterSpeedEvents()
-	if eventsRegistered then return end
-	for _, eventName in ipairs(SPEED_EVENTS) do
-		eventFrame:RegisterEvent(eventName)
+	if CharacterFrame and CharacterFrame:IsShown() then
+		if not statFrameRef and PaperDollFrame_UpdateStats then PaperDollFrame_UpdateStats() end
+		StartTicker()
+		if statFrameRef then
+			local yps, pct = Compute("player")
+			ApplyDisplay(yps, pct)
+		end
 	end
-	eventsRegistered = true
-end
-
-local function UnregisterSpeedEvents()
-	if not eventsRegistered then return end
-	for _, eventName in ipairs(SPEED_EVENTS) do
-		eventFrame:UnregisterEvent(eventName)
-	end
-	eventsRegistered = false
 end
 
 eventFrame:SetScript("OnEvent", function(_, event, ...)
@@ -253,21 +301,21 @@ eventFrame:SetScript("OnEvent", function(_, event, ...)
 		if name == "Blizzard_CharacterUI" or name == "Blizzard_UIPanels_Game" then TryInstall() end
 		return
 	end
-
-	if not active then return end
-	if event == "UNIT_SPEED" then
-		local unit = ...
-		if unit ~= "player" and unit ~= "vehicle" then return end
+	if event == "PLAYER_LOGIN" then
+		TryInstall()
+		return
 	end
 
-	if StatsPaneVisible() then ForceTick() end
+	if not active or not ticker:IsShown() then return end
+	ForceTick()
 end)
 
 function mod.Enable()
 	if active then return end
 	active = true
+	tickInterval = MOVING_TICK
+	accum = tickInterval
 	cache.yps, cache.pct = Compute("player")
-	RegisterSpeedEvents()
 	TryInstall()
 end
 
@@ -275,12 +323,13 @@ function mod.Disable()
 	if not active then return end
 	active = false
 	StopTicker()
-	UnregisterSpeedEvents()
 
 	if installed then
 		RemoveStatFromCategory()
 		RebuildPaperDoll()
 	end
+
+	statFrameRef = nil
 end
 
 function mod.Refresh()
