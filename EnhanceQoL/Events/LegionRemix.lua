@@ -37,6 +37,7 @@ end
 LegionRemix.phaseTotals = LegionRemix.phaseTotals or {}
 LegionRemix.eventsRegistered = LegionRemix.eventsRegistered or false
 LegionRemix.active = LegionRemix.active or false
+LegionRemix.cachedPhases = nil
 
 function LegionRemix:GetAllPhases()
 	if self.cachedPhases then return self.cachedPhases end
@@ -262,7 +263,6 @@ local DEFAULTS = {
 }
 
 local EVENT_LIST = {
-	"PLAYER_ENTERING_WORLD",
 	"NEW_MOUNT_ADDED",
 	"MOUNT_JOURNAL_USABILITY_CHANGED",
 	"TOYS_UPDATED",
@@ -549,6 +549,11 @@ local CATEGORY_DATA = {
 	},
 }
 
+local CATEGORY_PHASE_KIND_OVERRIDES = {
+	rare_appearance = "rare_appearance",
+	cloaks = "cloaks",
+}
+
 local function normalizePhaseKind(kind)
 	if kind == "mount" then return "mount" end
 	if kind == "achievement" then return "achievement" end
@@ -557,6 +562,8 @@ local function normalizePhaseKind(kind)
 	if kind == "pet" then return "pet" end
 	if kind == "transmog" or kind == "item" then return "item" end
 	if kind == "set" then return "set" end
+	if kind == "rare_appearance" then return "rare_appearance" end
+	if kind == "cloaks" then return "cloaks" end
 	return nil
 end
 
@@ -565,7 +572,12 @@ function LegionRemix:GetPhaseFor(kind, id)
 	local normalized = normalizePhaseKind(kind)
 	if not normalized then return nil end
 	local map = PHASE_LOOKUP[normalized]
-	return map and map[id] or nil
+	if map and map[id] ~= nil then return map[id] end
+	if normalized ~= "item" then
+		local fallback = PHASE_LOOKUP.item
+		if fallback and fallback[id] ~= nil then return fallback[id] end
+	end
+	return nil
 end
 
 function LegionRemix:GetPhaseLookup() return PHASE_LOOKUP end
@@ -631,6 +643,7 @@ function LegionRemix:InvalidateAllCaches()
 	self.cache.slotGrid = {}
 	self.cache.achievements = {}
 	self.cache.achievementInfo = {}
+	self.cachedPhases = nil
 end
 
 function LegionRemix:GetPersistentNameCache()
@@ -1069,12 +1082,14 @@ end
 
 function LegionRemix:PlayerHasTransmog(itemId, mod)
 	if not itemId then return false end
-	if nil == mod then mod = 1 end
+	if mod == nil then mod = 1 end
 	local cache = ensureTable(self.cache.transmog)
 	self.cache.transmog = cache
-	if cache[itemId] ~= nil then return cache[itemId] end
-	cache[itemId] = C_TransmogCollection.PlayerHasTransmog(itemId, mod) and true or false
-	return cache[itemId]
+	cache[itemId] = cache[itemId] or {}
+	if cache[itemId][mod] ~= nil then return cache[itemId][mod] end
+	local has = C_TransmogCollection.PlayerHasTransmog(itemId, mod) and true or false
+	cache[itemId][mod] = has
+	return has
 end
 
 local function accumulatePhase(target, phase, cost, owned)
@@ -1130,6 +1145,13 @@ function LegionRemix:ProcessSetList(result, list, cost, requirements)
 	end
 end
 
+local function applyCategoryPhaseKind(entry, categoryResult, group)
+	if not entry or entry.phaseKind then return end
+	local override = group and group.phaseKind
+	if not override and categoryResult then override = CATEGORY_PHASE_KIND_OVERRIDES[categoryResult.key] end
+	if override then entry.phaseKind = override end
+end
+
 function LegionRemix:ProcessGroup(categoryResult, group)
 	if group.type == "set_achievement" then
 		local cost = group.cost or 0
@@ -1159,6 +1181,7 @@ function LegionRemix:ProcessGroup(categoryResult, group)
 					entry.requirementComplete = self:PlayerHasAchievement(requiredAchievement)
 				end
 			end
+			applyCategoryPhaseKind(entry, categoryResult, group)
 			local owned = self:PlayerHasTransmog(itemId, itemAppearanceModID)
 			addItemResult(categoryResult, owned, cost, entry)
 		end
@@ -1272,7 +1295,9 @@ function LegionRemix:ProcessGroup(categoryResult, group)
 	elseif group.type == "transmog" then
 		for _, itemId in ipairs(group.items) do
 			local owned = self:PlayerHasTransmog(itemId)
-			addItemResult(categoryResult, owned, cost, { kind = "transmog", id = itemId })
+			local entry = { kind = "transmog", id = itemId }
+			applyCategoryPhaseKind(entry, categoryResult, group)
+			addItemResult(categoryResult, owned, cost, entry)
 		end
 	elseif group.type == "set_per_class" then
 		local db = self:GetDB()
@@ -1463,6 +1488,7 @@ function LegionRemix:UpdateActivationState()
 		if not self.active then
 			self.active = true
 			self:InvalidateAllCaches()
+			self.playerClass = nil
 			self:RefreshData()
 		else
 			self:UpdateOverlay()
@@ -2239,20 +2265,13 @@ function LegionRemix:OnEvent(event, arg1)
 		return
 	end
 
-	if event == "PLAYER_ENTERING_WORLD" then
-		self.playerClass = nil
-		self:InvalidateAllCaches()
-		self:RequestRefresh()
-		return
-	end
-
 	if event == "CURRENCY_DISPLAY_UPDATE" then
 		if not arg1 or arg1 == BRONZE_CURRENCY_ID then self:RequestOverlayUpdate() end
 		return
 	end
 
 	if event == "MOUNT_JOURNAL_USABILITY_CHANGED" then
-		self:RequestOverlayUpdate()
+		self:RequestOverlayUpdate(0.75)
 		return
 	end
 
@@ -2504,11 +2523,7 @@ for _, eventName in ipairs(activationEvents) do
 end
 
 activationWatcher:SetScript("OnEvent", function(_, event, ...)
-	if event == "PLAYER_LOGIN" then
-		LegionRemix:OnEvent(event, ...)
-		return
-	end
-	if event == "PLAYER_ENTERING_WORLD" then
+	if event == "PLAYER_LOGIN" or event == "PLAYER_ENTERING_WORLD" then
 		LegionRemix:UpdateActivationState()
 		return
 	end
