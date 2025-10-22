@@ -3482,7 +3482,7 @@ local function addCharacterFrame(container)
 	end, L["instantCatalystEnabledDesc"])
 	groupInfo:AddChild(cbInstant)
 
-	local cbMovementSpeed = addon.functions.createCheckboxAce(STAT_MOVEMENT_SPEED or "Movement Speed", addon.db["movementSpeedStatEnabled"], function(_, _, value)
+	local cbMovementSpeed = addon.functions.createCheckboxAce(L["MovementSpeedInfo"]:format(STAT_MOVEMENT_SPEED), addon.db["movementSpeedStatEnabled"], function(_, _, value)
 		addon.db["movementSpeedStatEnabled"] = value
 		if value then
 			if addon.MovementSpeedStat and addon.MovementSpeedStat.Refresh then addon.MovementSpeedStat.Refresh() end
