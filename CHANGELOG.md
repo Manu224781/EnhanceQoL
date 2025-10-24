@@ -18,6 +18,8 @@
 
 ### 🐛 Fixed
 
+- Improved taint guard in world map teleports
+- Container action cleared the cached list which leads to not showing all clickable containers
 - **Infinite Bazaar** teleport was shown for non-**Timerunner** characters
 - Stat order in the **Stats Panel** now respects Blizzard’s default stat order
 

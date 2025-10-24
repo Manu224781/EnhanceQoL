@@ -7690,7 +7690,7 @@ function addon.functions.checkForContainer(bags)
 		safeItems, secureItems = addon.ContainerActions:ScanBags(bags)
 	end
 
-	if addon.ContainerActions and addon.ContainerActions.UpdateItems then addon.ContainerActions:UpdateItems(secureItems) end
+	if addon.ContainerActions and addon.ContainerActions.UpdateItems then addon.ContainerActions:UpdateItems(secureItems, bags) end
 
 	if #safeItems > 0 then
 		openItems(safeItems)

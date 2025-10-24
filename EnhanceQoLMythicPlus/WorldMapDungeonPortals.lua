@@ -946,13 +946,15 @@ function f:TryInit()
 end
 
 function f:RefreshPanel()
-	if not addon.db or not addon.db["teleportsWorldMapEnabled"] then
-		if panel then SafeSetVisible(panel, false) end
-		if tabButton then SafeSetVisible(tabButton, false) end
-		return
+	if not InCombatLockdown() then
+		if not addon.db or not addon.db["teleportsWorldMapEnabled"] then
+			if panel then SafeSetVisible(panel, false) end
+			if tabButton then SafeSetVisible(tabButton, false) end
+			return
+		end
+		if not panel then return end
+		PopulatePanel()
 	end
-	if not panel then return end
-	PopulatePanel()
 end
 
 -- Only recompute and apply cooldowns for existing buttons
