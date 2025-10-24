@@ -8,6 +8,7 @@ else
 end
 
 local L = addon.L
+local EditMode = addon.EditMode
 
 -- example
 -- /run LootAlertSystem:AddAlert(select(2,C_Item.GetItemInfo(246205)), 1, nil, nil, 504, nil, nil, nil, false, true, false)
@@ -231,6 +232,7 @@ function LootToast:Disable()
 end
 
 local DEFAULT_ANCHOR = { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 240 }
+local EDITMODE_ID = "lootToastAnchor"
 LootToast.anchorFrame = LootToast.anchorFrame
 LootToast.defaultAlertAnchor = LootToast.defaultAlertAnchor
 local GroupLootContainer = _G.GroupLootContainer
@@ -274,13 +276,76 @@ local function GetAnchorConfig()
 	return cfg
 end
 
-local function SaveAnchor(frame)
-	local point, _, relativePoint, x, y = frame:GetPoint()
+local function UpdateAnchorConfig(data)
+	if not data then return end
 	local cfg = GetAnchorConfig()
-	cfg.point = point
-	cfg.relativePoint = relativePoint or point
-	cfg.x = x
-	cfg.y = y
+	if data.point then
+		cfg.point = data.point
+		cfg.relativePoint = data.point
+	end
+	if data.relativePoint then cfg.relativePoint = data.relativePoint end
+	if data.x ~= nil then cfg.x = data.x end
+	if data.y ~= nil then cfg.y = data.y end
+end
+
+function LootToast:SyncEditModePosition()
+	if not EditMode or not self.anchorEditModeId or self.suspendEditSync or self.applyingFromEditMode then return end
+	self.suspendEditSync = true
+	local cfg = GetAnchorConfig()
+	EditMode:SetFramePosition(self.anchorEditModeId, cfg.point or DEFAULT_ANCHOR.point, cfg.x or DEFAULT_ANCHOR.x, cfg.y or DEFAULT_ANCHOR.y)
+	self.suspendEditSync = nil
+end
+
+function LootToast:RegisterAnchorWithEditMode(anchor)
+	if self.anchorRegistered or self.anchorRegistering then return end
+	if not EditMode or not EditMode.RegisterFrame or not EditMode:IsAvailable() then return end
+
+	self.anchorRegistering = true
+
+	local cfg = GetAnchorConfig()
+	local title = L["lootToastAnchorLabel"] or "Loot Toast Anchor"
+	anchor.editModeName = title
+
+	local defaults = {
+		point = cfg.point or DEFAULT_ANCHOR.point,
+		relativePoint = cfg.relativePoint or cfg.point or DEFAULT_ANCHOR.relativePoint,
+		x = cfg.x or DEFAULT_ANCHOR.x,
+		y = cfg.y or DEFAULT_ANCHOR.y,
+		width = anchor:GetWidth(),
+		height = anchor:GetHeight(),
+	}
+
+	EditMode:RegisterFrame(EDITMODE_ID, {
+		frame = anchor,
+		title = title,
+		layoutDefaults = defaults,
+		isEnabled = function() return addon.db.enableLootToastAnchor end,
+		onApply = function(_, _, data)
+			if not data then return end
+			LootToast.applyingFromEditMode = true
+			UpdateAnchorConfig(data)
+			LootToast:ApplyAnchorPosition()
+			LootToast.applyingFromEditMode = nil
+		end,
+		onPositionChanged = function(_, _, data)
+			if not data then return end
+			LootToast.applyingFromEditMode = true
+			UpdateAnchorConfig(data)
+			LootToast:ApplyAnchorPosition()
+			LootToast.applyingFromEditMode = nil
+		end,
+	})
+
+	self.anchorEditModeId = EDITMODE_ID
+	self.anchorRegistered = true
+	self.anchorRegistering = nil
+
+	anchor:EnableMouse(false)
+	anchor:RegisterForDrag()
+	anchor:SetScript("OnDragStart", nil)
+	anchor:SetScript("OnDragStop", nil)
+
+	self:SyncEditModePosition()
 end
 
 function LootToast:GetAnchorFrame()
@@ -291,14 +356,19 @@ function LootToast:GetAnchorFrame()
 	frame:SetFrameStrata("HIGH")
 	frame:SetClampedToScreen(true)
 	frame:SetMovable(true)
-	frame:EnableMouse(true)
-	frame:RegisterForDrag("LeftButton")
-	frame:SetScript("OnDragStart", frame.StartMoving)
-	frame:SetScript("OnDragStop", function(anchor)
-		anchor:StopMovingOrSizing()
-		SaveAnchor(anchor)
-		LootToast:ApplyAnchorPosition()
-	end)
+	if EditMode and EditMode.RegisterFrame then
+		frame:EnableMouse(false)
+	else
+		frame:EnableMouse(true)
+		frame:RegisterForDrag("LeftButton")
+		frame:SetScript("OnDragStart", frame.StartMoving)
+		frame:SetScript("OnDragStop", function(anchor)
+			anchor:StopMovingOrSizing()
+			local point, _, relativePoint, x, y = anchor:GetPoint()
+			UpdateAnchorConfig({ point = point, relativePoint = relativePoint or point, x = x, y = y })
+			LootToast:ApplyAnchorPosition()
+		end)
+	end
 
 	frame:SetBackdrop({
 		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -316,6 +386,7 @@ function LootToast:GetAnchorFrame()
 
 	frame:Hide()
 	self.anchorFrame = frame
+	self:RegisterAnchorWithEditMode(frame)
 	return frame
 end
 
@@ -328,6 +399,7 @@ function LootToast:ApplyAnchorPosition()
 	RememberDefaultAnchors()
 	local cfg = GetAnchorConfig()
 	local anchor = self:GetAnchorFrame()
+	self:RegisterAnchorWithEditMode(anchor)
 	anchor:ClearAllPoints()
 	anchor:SetPoint(cfg.point, UIParent, cfg.relativePoint, cfg.x, cfg.y)
 	if anchor.label then anchor.label:SetText(L["lootToastAnchorLabel"]) end
@@ -338,6 +410,7 @@ function LootToast:ApplyAnchorPosition()
 		GroupLootContainer:ClearAllPoints()
 		GroupLootContainer:SetPoint("BOTTOM", anchor, "TOP", 0, 8)
 	end
+	self:SyncEditModePosition()
 end
 
 function LootToast:ToggleAnchorPreview()
@@ -358,6 +431,7 @@ function LootToast:OnAnchorOptionChanged(enabled)
 	else
 		self:ApplyAnchorPosition()
 	end
+	if EditMode and EditMode.RefreshFrame then EditMode:RefreshFrame(EDITMODE_ID) end
 end
 
 local function ReanchorAlerts()

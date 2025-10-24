@@ -3939,24 +3939,36 @@ local function addLootFrame(container, d)
 	end, L["moveLootToastDesc"])
 	lootToastGroup:AddChild(anchorToggle)
 
-	local anchorButton = addon.functions.createButtonAce(L["lootToastAnchorButton"], 200, function()
-		if not addon.db.enableLootToastAnchor then return end
-		addon.LootToast:ToggleAnchorPreview()
-	end)
-	anchorButton:SetFullWidth(true)
-	anchorButton:SetDisabled(not addon.db.enableLootToastAnchor)
-	lootToastGroup:AddChild(anchorButton)
-
-	local anchorLabel = addon.functions.createLabelAce("")
-	anchorLabel:SetFullWidth(true)
-	local anchorHelp = L["lootToastAnchorHelp"] or L["lootToastAnchorLabel"] or ""
-	if not addon.db.enableLootToastAnchor then
-		anchorHelp = "|cff999999" .. anchorHelp .. "|r"
+	local editModeAvailable = addon.EditMode and addon.EditMode.IsAvailable and addon.EditMode:IsAvailable()
+	if editModeAvailable then
+		local anchorHint = addon.functions.createLabelAce("", nil, nil, 12)
+		anchorHint:SetFullWidth(true)
+		local hintText = L["lootToastAnchorEditModeHint"] or L["lootToastAnchorLabel"] or ""
+		if addon.db.enableLootToastAnchor then
+			anchorHint:SetText("|cffffd700" .. hintText .. "|r")
+		else
+			anchorHint:SetText("|cff999999" .. hintText .. "|r")
+		end
+		lootToastGroup:AddChild(anchorHint)
 	else
-		anchorHelp = "|cffffd700" .. anchorHelp .. "|r"
+		local anchorButton = addon.functions.createButtonAce(L["lootToastAnchorButton"] or "", 200, function()
+			if not addon.db.enableLootToastAnchor then return end
+			addon.LootToast:ToggleAnchorPreview()
+		end)
+		anchorButton:SetFullWidth(true)
+		anchorButton:SetDisabled(not addon.db.enableLootToastAnchor)
+		lootToastGroup:AddChild(anchorButton)
+
+		local anchorLabel = addon.functions.createLabelAce("", nil, nil, 12)
+		anchorLabel:SetFullWidth(true)
+		local manualHint = L["lootToastAnchorManualHint"] or L["lootToastAnchorLabel"] or ""
+		if addon.db.enableLootToastAnchor then
+			anchorLabel:SetText("|cffffd700" .. manualHint .. "|r")
+		else
+			anchorLabel:SetText("|cff999999" .. manualHint .. "|r")
+		end
+		lootToastGroup:AddChild(anchorLabel)
 	end
-	anchorLabel:SetText(anchorHelp)
-	lootToastGroup:AddChild(anchorLabel)
 
 	local filterToggle = addon.functions.createCheckboxAce(L["enableLootToastFilter"], addon.db.enableLootToastFilter, function(self, _, value)
 		addon.db.enableLootToastFilter = value
@@ -4477,25 +4489,16 @@ local function buildDatapanelFrame(container)
 	addon.db = addon.db or {}
 	addon.db.dataPanelsOptions = addon.db.dataPanelsOptions or {}
 
-	local editModeHint = addon.functions.createLabelAce(
-		"|cffffd700" .. (L["DataPanelEditModeHint"] or "Configure DataPanels in Edit Mode.") .. "|r",
-		nil,
-		nil,
-		12
-	)
+	local editModeHint = addon.functions.createLabelAce("|cffffd700" .. (L["DataPanelEditModeHint"] or "Configure DataPanels in Edit Mode.") .. "|r", nil, nil, 12)
 	editModeHint:SetFullWidth(true)
 	controlGroup:AddChild(editModeHint)
 
-	local hintToggle = addon.functions.createCheckboxAce(
-		L["Show options tooltip hint"],
-		addon.DataPanel.ShouldShowOptionsHint and addon.DataPanel.ShouldShowOptionsHint(),
-		function(_, _, val)
-			if addon.DataPanel.SetShowOptionsHint then addon.DataPanel.SetShowOptionsHint(val and true or false) end
-			for name in pairs(DataHub.streams) do
-				DataHub:RequestUpdate(name)
-			end
+	local hintToggle = addon.functions.createCheckboxAce(L["Show options tooltip hint"], addon.DataPanel.ShouldShowOptionsHint and addon.DataPanel.ShouldShowOptionsHint(), function(_, _, val)
+		if addon.DataPanel.SetShowOptionsHint then addon.DataPanel.SetShowOptionsHint(val and true or false) end
+		for name in pairs(DataHub.streams) do
+			DataHub:RequestUpdate(name)
 		end
-	)
+	end)
 	hintToggle:SetRelativeWidth(1.0)
 	controlGroup:AddChild(hintToggle)
 
@@ -4507,15 +4510,10 @@ local function buildDatapanelFrame(container)
 		ALT = ALT_KEY_TEXT or "Alt",
 	}
 	local modifierOrder = { "NONE", "SHIFT", "CTRL", "ALT" }
-	local modifierDropdown = addon.functions.createDropdownAce(
-		L["Context menu modifier"] or "Context menu modifier",
-		modifierList,
-		modifierOrder,
-		function(widget, _, key)
-			if addon.DataPanel.SetMenuModifier then addon.DataPanel.SetMenuModifier(key) end
-			if widget and widget.SetValue then widget:SetValue(key) end
-		end
-	)
+	local modifierDropdown = addon.functions.createDropdownAce(L["Context menu modifier"] or "Context menu modifier", modifierList, modifierOrder, function(widget, _, key)
+		if addon.DataPanel.SetMenuModifier then addon.DataPanel.SetMenuModifier(key) end
+		if widget and widget.SetValue then widget:SetValue(key) end
+	end)
 	if modifierDropdown.SetValue then modifierDropdown:SetValue(addon.DataPanel.GetMenuModifier and addon.DataPanel.GetMenuModifier() or "NONE") end
 	modifierDropdown:SetRelativeWidth(1.0)
 	controlGroup:AddChild(modifierDropdown)
@@ -7548,9 +7546,7 @@ local function setAllHooks()
 			end
 		elseif mediaType == "statusbar" then
 			-- When new statusbar textures are registered, refresh any UI using them
-			if addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.MarkTextureListDirty then
-				addon.Aura.ResourceBars.MarkTextureListDirty()
-			end
+			if addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.MarkTextureListDirty then addon.Aura.ResourceBars.MarkTextureListDirty() end
 			if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.RefreshBarTextureDropdown then addon.CombatMeter.functions.RefreshBarTextureDropdown() end
 			if addon.MythicPlus and addon.MythicPlus.functions and addon.MythicPlus.functions.RefreshPotionTextureDropdown then addon.MythicPlus.functions.RefreshPotionTextureDropdown() end
 			if addon.MythicPlus and addon.MythicPlus.functions and addon.MythicPlus.functions.applyPotionBarTexture then addon.MythicPlus.functions.applyPotionBarTexture() end
