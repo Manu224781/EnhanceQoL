@@ -3706,37 +3706,13 @@ local function addContainerActionsFrame(container)
 		group:AddChild(featureLabel)
 	end
 
-	local anchorButton
-	local function updateAnchorButtonLabel()
-		if not anchorButton then return end
-		if addon.ContainerActions and addon.ContainerActions.previewActive then
-			anchorButton:SetText(L["containerActionsAnchorButtonLock"] or L["containerActionsAnchorButton"])
-		else
-			anchorButton:SetText(L["containerActionsAnchorButton"])
-		end
-	end
 	local checkbox = addon.functions.createCheckboxAce(L["automaticallyOpenContainer"], addon.db["automaticallyOpenContainer"], function(_, _, value)
 		addon.db["automaticallyOpenContainer"] = value
-		if anchorButton then anchorButton:SetDisabled(not value) end
 		if addon.ContainerActions and addon.ContainerActions.OnSettingChanged then addon.ContainerActions:OnSettingChanged(value) end
-		updateAnchorButtonLabel()
 	end)
 	group:AddChild(checkbox)
 
-	anchorButton = addon.functions.createButtonAce(L["containerActionsAnchorButton"], 260, function()
-		if InCombatLockdown and InCombatLockdown() then
-			local msg = L["containerActionsAnchorLockedCombat"]
-			if msg and msg ~= "" then print("|cffff2020" .. msg .. "|r") end
-			return
-		end
-		if addon.ContainerActions and addon.ContainerActions.ToggleAnchorPreview then addon.ContainerActions:ToggleAnchorPreview() end
-		updateAnchorButtonLabel()
-	end)
-	anchorButton:SetDisabled(not addon.db["automaticallyOpenContainer"])
-	updateAnchorButtonLabel()
-	group:AddChild(anchorButton)
-
-	local desc = L["containerActionsAnchorHelp"]
+	local desc = L["containerActionsEditModeHint"] or L["containerActionsAnchorHelp"]
 	if desc and desc ~= "" then
 		local helpLabel = addon.functions.createLabelAce(desc, { r = 0.8, g = 0.8, b = 0.8 })
 		helpLabel:SetFullWidth(true)
@@ -4549,6 +4525,19 @@ local function buildDatapanelFrame(container)
 	)
 	shiftLock:SetRelativeWidth(1.0)
 	controlGroup:AddChild(shiftLock)
+
+	local hintToggle = addon.functions.createCheckboxAce(
+		L["Show options tooltip hint"],
+		addon.DataPanel.ShouldShowOptionsHint and addon.DataPanel.ShouldShowOptionsHint(),
+		function(_, _, val)
+			if addon.DataPanel.SetShowOptionsHint then addon.DataPanel.SetShowOptionsHint(val and true or false) end
+			for name in pairs(DataHub.streams) do
+				DataHub:RequestUpdate(name)
+			end
+		end
+	)
+	hintToggle:SetRelativeWidth(1.0)
+	controlGroup:AddChild(hintToggle)
 
 	local newName = addon.functions.createEditboxAce(L["Panel Name"] or "Panel Name")
 	newName:SetRelativeWidth(0.4)
