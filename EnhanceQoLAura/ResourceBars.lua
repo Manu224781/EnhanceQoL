@@ -68,7 +68,7 @@ local updateHealthBar
 local updatePowerBar
 local forceColorUpdate
 local lastBarSelectionPerSpec = {}
-local DEFAULT_STACK_SPACING = -1
+local DEFAULT_STACK_SPACING = 0
 local SEPARATOR_THICKNESS = 1
 local SEP_DEFAULT = { 1, 1, 1, 0.5 }
 local WHITE = { 1, 1, 1, 1 }
@@ -794,17 +794,10 @@ function addon.Aura.functions.addResourceFrame(container)
 						info.autoSpacing = true
 					end
 					if val == "UIParent" and prev ~= "UIParent" then
-						local cfg = getBarSettings(barType)
-						local defaultW = barType == "HEALTH" and DEFAULT_HEALTH_WIDTH or DEFAULT_POWER_WIDTH
-						local defaultH = barType == "HEALTH" and DEFAULT_HEALTH_HEIGHT or DEFAULT_POWER_HEIGHT
-						local w = (cfg and cfg.width) or defaultW or 0
-						local h = (cfg and cfg.height) or defaultH or 0
-						local pw = UIParent and UIParent.GetWidth and UIParent:GetWidth() or 0
-						local ph = UIParent and UIParent.GetHeight and UIParent:GetHeight() or 0
-						info.point = info.point or "TOPLEFT"
-						info.relativePoint = info.relativePoint or info.point or "TOPLEFT"
-						info.x = (pw - w) / 2
-						info.y = (h - ph) / 2
+						info.point = "CENTER"
+						info.relativePoint = "CENTER"
+						info.x = 0
+						info.y = 0
 						info.autoSpacing = nil
 					end
 					buildAnchorSub()
@@ -1220,7 +1213,23 @@ function addon.Aura.functions.addResourceFrame(container)
 
 				if pType ~= "RUNES" then
 					local cbVertical = addon.functions.createCheckboxAce(L["Vertical orientation"] or "Vertical orientation", cfg.verticalFill == true, function(_, _, val)
-						cfg.verticalFill = val and true or false
+						local wasVertical = cfg.verticalFill == true
+						local newVertical = val and true or false
+						cfg.verticalFill = newVertical
+						if wasVertical ~= newVertical then
+							local defaultW = (pType == "HEALTH") and DEFAULT_HEALTH_WIDTH or DEFAULT_POWER_WIDTH
+							local defaultH = (pType == "HEALTH") and DEFAULT_HEALTH_HEIGHT or DEFAULT_POWER_HEIGHT
+							local curW = cfg.width or defaultW
+							local curH = cfg.height or defaultH
+							cfg.width, cfg.height = curH, curW
+							if specIndex == addon.variables.unitSpec then
+								if pType == "HEALTH" and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.SetHealthBarSize then
+									addon.Aura.ResourceBars.SetHealthBarSize(cfg.width or defaultW, cfg.height or defaultH)
+								elseif addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.SetPowerBarSize then
+									addon.Aura.ResourceBars.SetPowerBarSize(cfg.width or defaultW, cfg.height or defaultH, pType)
+								end
+							end
+						end
 						requestActiveRefresh(specIndex)
 						buildSpec(container, specIndex)
 					end)
