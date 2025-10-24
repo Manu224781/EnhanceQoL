@@ -216,6 +216,8 @@ function ContainerActions:EnsureAnchor()
 				name = L["containerActionsAreaHeader"],
 				kind = settingType.Dropdown,
 				height = 180,
+				default = {},
+				set = function() end,
 				generator = function(_, rootDescription)
 					for _, areaKey in ipairs(AREA_BLOCK_ORDER) do
 						local key = areaKey
@@ -706,24 +708,17 @@ function ContainerActions:RequestVisibility(show, skipDesiredUpdate)
 	if self:HasVisibilityBlock() then
 		desired = false
 	end
+	button:SetAlpha(desired and 1 or 0)
 	if InCombat() then
 		self.pendingVisibility = desired
-		if not desired then
-			button:SetAlpha(0)
-			button:EnableMouse(false)
-		else
-			button:EnableMouse(true)
-		end
 		return
 	end
 	if desired then
-		button:EnableMouse(true)
-		button:SetAlpha(1)
 		if not button:IsShown() then button:Show() end
+		if not button:IsMouseEnabled() then button:EnableMouse(true) end
 	else
-		button:EnableMouse(false)
-		button:SetAlpha(0)
 		if button:IsShown() then button:Hide() end
+		if button:IsMouseEnabled() then button:EnableMouse(false) end
 	end
 end
 
