@@ -287,6 +287,7 @@ local EVENT_LIST = {
 	"TRANSMOG_SETS_UPDATE_FAVORITE",
 	"PLAYER_SPECIALIZATION_CHANGED",
 	"CURRENCY_DISPLAY_UPDATE",
+	"ACHIEVEMENT_EARNED",
 }
 
 local CLASS_MASKS = {
@@ -2756,6 +2757,7 @@ local EVENT_TO_CACHE = {
 	TRANSMOG_COLLECTION_UPDATED = { "sets", "slotGrid", "transmog" },
 	TRANSMOG_SETS_UPDATE_FAVORITE = { "sets" },
 	PLAYER_SPECIALIZATION_CHANGED = { "sets" },
+	ACHIEVEMENT_EARNED = { "achievements", "achievementInfo", "titles" },
 }
 
 function LegionRemix:OnEvent(event, arg1)

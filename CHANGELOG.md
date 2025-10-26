@@ -10,6 +10,10 @@
   - Bronze + Infinity Knowledge achievements can define World Quest requirements; "Current" only lists bosses whose quests are active and tooltips explain the missing requirements.
   - Header now shows a `Collected: X / Y` indicator that matches the active filter (All vs. Current), alongside the remaining bronze.
 
+### 🐛 Fixed
+
+- Legion Remix Tracker now listens for `ACHIEVEMENT_EARNED`, so freshly completed achievements update without reloading the UI.
+
 ---
 
 ## [5.11.0] – 2025-10-24
