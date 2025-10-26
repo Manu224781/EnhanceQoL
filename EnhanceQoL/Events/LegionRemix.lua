@@ -39,6 +39,11 @@ LegionRemix.eventsRegistered = LegionRemix.eventsRegistered or false
 LegionRemix.active = LegionRemix.active or false
 LegionRemix.cachedPhases = nil
 
+local ikName
+local function SetIKName()
+	if nil == ikName then ikName = C_CurrencyInfo.GetCurrencyInfo(3292) and C_CurrencyInfo.GetCurrencyInfo(3292).name end
+end
+
 function LegionRemix:GetAllPhases()
 	if self.cachedPhases then return self.cachedPhases end
 	local seen = {}
@@ -405,6 +410,77 @@ local CATEGORY_DATA = {
 					{ id = 971, achievementId = 61079, name = "of the Infinite Chaos" },
 					{ id = 926, achievementId = 60935, name = "Chronoscholar" },
 				},
+			},
+		},
+	},
+	{
+		key = "infinity_knowledge",
+		label = ikName or "Infinity Knowledge",
+		groups = {
+			{
+				type = "ik_achievement",
+				cost = 0,
+				items = {
+					42313,
+					61108,
+					61111,
+					61109,
+					61110,
+					61112,
+					61115,
+					61114,
+					61113,
+					42688,
+					60859,
+					60860,
+					61075,
+					61076,
+					42555,
+					61053,
+					42314,
+					42315,
+					42505,
+					42506,
+					42507,
+					42508,
+					42509,
+					42510,
+					42511,
+					42512,
+					42513,
+					42514,
+					42537,
+					42647,
+					42612,
+					60854,
+					60855,
+					60850,
+					60852,
+					42320,
+					61073,
+					61074,
+					60865,
+					60870,
+					60875,
+					61080,
+					61077,
+					42673,
+					42672,
+					42693,
+					42696,
+					42697,
+				},
+			},
+		},
+	},
+	{
+		key = "bronze",
+		label = L["Bronze"],
+		groups = {
+			{
+				type = "bronze_achievement",
+				cost = 0,
+				items = {},
 			},
 		},
 	},
@@ -1168,6 +1244,17 @@ function LegionRemix:ProcessGroup(categoryResult, group)
 		end
 		return
 	end
+	if group.type == "ik_achievement" or group.type == "bronze_achievement" then
+		local cost = group.cost or 0
+		for _, itemId in ipairs(group.items) do
+			local entry = { kind = "achievement", id = itemId }
+			entry.requiredAchievement = itemId
+			entry.requirementComplete = self:PlayerHasAchievement(itemId)
+			applyCategoryPhaseKind(entry, categoryResult, group)
+			addItemResult(categoryResult, entry.requirementComplete, cost, entry)
+		end
+		return
+	end
 	if group.type == "set_achievement_item" then
 		local cost = group.cost or 0
 		local requirements = group.requirements
@@ -1493,6 +1580,7 @@ function LegionRemix:UpdateActivationState()
 		else
 			self:UpdateOverlay()
 		end
+		SetIKName()
 	else
 		if self.eventsRegistered then self:UnregisterEvents() end
 		if self.active then self.active = false end
