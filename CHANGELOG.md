@@ -22,6 +22,7 @@
 - Food Reminder options panel now only offers an enable toggle; detailed settings live in Edit Mode.
 - Simplified Food Reminder sound selection to a single dropdown with None/Default/custom choices.
 - Tooltip → Unit options are now grouped into Player/NPC inline sections with a Player detail multiselect and dedicated modifier settings, keeping the panel compact.
+- Autofocus of chat-IM removed
 
 ### 🐛 Fixed
 

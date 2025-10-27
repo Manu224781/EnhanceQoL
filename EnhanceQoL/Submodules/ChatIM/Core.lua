@@ -54,7 +54,7 @@ local function focusTab(target)
 	local tab = ChatIM.tabs[target]
 	if tab and tab.edit then
 		ChatIM.tabGroup:SelectTab(target)
-		tab.edit:SetFocus()
+		-- tab.edit:SetFocus()
 	end
 end
 

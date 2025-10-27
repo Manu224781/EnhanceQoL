@@ -437,6 +437,7 @@ function ChatIM:CreateTab(sender, isBN, bnetID, battleTag)
 				C_ChatInfo.SendChatMessage(txt, "WHISPER", nil, tgt)
 			end
 		end
+		self:ClearFocus()
 	end)
 	eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 
@@ -717,5 +718,5 @@ function ChatIM:StartWhisper(target, bnetID, accountTag)
 	if not self.tabGroup then return end
 	self.tabGroup:SelectTab(target)
 	local tab = self.tabs[target]
-	if tab and tab.edit then tab.edit:SetFocus() end
+	-- if tab and tab.edit then tab.edit:SetFocus() end
 end
