@@ -55,7 +55,6 @@ local EQOL = select(2, ...)
 EQOL.C = {}
 
 local ACTION_BAR_FRAME_NAMES = {
-	"MainMenuBar",
 	"MultiBarBottomLeft",
 	"MultiBarBottomRight",
 	"MultiBarRight",
@@ -64,6 +63,9 @@ local ACTION_BAR_FRAME_NAMES = {
 	"MultiBar6",
 	"MultiBar7",
 }
+
+if _G.MainMenuBar then table.insert(ACTION_BAR_FRAME_NAMES, 1, "MainMenuBar") end
+if _G.MainActionBar then table.insert(ACTION_BAR_FRAME_NAMES, 1, "MainActionBar") end
 
 local ACTION_BAR_ANCHOR_ORDER = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
 
@@ -110,6 +112,13 @@ function addon.functions.GetActionBarAnchor(index) return DetermineAnchorFromBar
 function addon.functions.SetActionBarAnchor(index, anchorKey) ApplyActionBarAnchor(index, anchorKey) end
 
 local function RefreshAllActionBarAnchors()
+	if InCombatLockdown and InCombatLockdown() then
+		addon.variables = addon.variables or {}
+		addon.variables.pendingActionBarAnchorRefresh = true
+		return
+	end
+
+	if addon.variables then addon.variables.pendingActionBarAnchorRefresh = nil end
 	addon.variables.actionBarAnchorDefaults = addon.variables.actionBarAnchorDefaults or {}
 	local enabled = addon.db and addon.db.actionBarAnchorEnabled
 	for i = 1, #ACTION_BAR_FRAME_NAMES do
@@ -698,7 +707,7 @@ local function UpdateActionBarMouseover(barName, enable, variable)
 	if not bar then return end
 
 	local btnPrefix
-	if barName == "MainMenuBar" then
+	if barName == "MainMenuBar" or barName == "MainActionBar" then
 		-- we have to change the Vehice Leave Button behaviour
 		local leave = _G.MainMenuBarVehicleLeaveButton
 		if leave then
@@ -801,7 +810,7 @@ end
 local function RefreshAllRangeOverlays()
 	for _, info in ipairs(addon.variables.actionBarNames or {}) do
 		local prefix
-		if info.name == "MainMenuBar" then
+		if info.name == "MainMenuBar" or info.name == "MainActionBar" then
 			prefix = "ActionButton"
 		elseif info.name == "PetActionBar" then
 			prefix = "PetActionButton"
@@ -839,7 +848,7 @@ local function RefreshAllMacroNameVisibility()
 	local hide = addon.db and addon.db.hideMacroNames
 	for _, info in ipairs(addon.variables.actionBarNames or {}) do
 		if info.name ~= "PetActionBar" and info.name ~= "StanceBar" then
-			local prefix = info.name == "MainMenuBar" and "ActionButton" or (info.name .. "Button")
+			local prefix = (info.name == "MainMenuBar" or info.name == "MainActionBar") and "ActionButton" or (info.name .. "Button")
 			for i = 1, 12 do
 				local button = _G[prefix .. i]
 				if button then UpdateMacroNameVisibility(button, hide) end
@@ -2735,16 +2744,11 @@ local function addActionBarFrame(container, d)
 		if scroll and scroll.DoLayout then scroll:DoLayout() end
 	end
 
-	local anchorToggle = addon.functions.createCheckboxAce(
-		L["actionBarAnchorEnable"] or "Modify Action Bar anchor",
-		addon.db["actionBarAnchorEnabled"] == true,
-		function(_, _, value)
-			addon.db["actionBarAnchorEnabled"] = value and true or false
-			RefreshAllActionBarAnchors()
-			rebuildAnchorDropdowns()
-		end,
-		L["actionBarAnchorEnableDesc"]
-	)
+	local anchorToggle = addon.functions.createCheckboxAce(L["actionBarAnchorEnable"] or "Modify Action Bar anchor", addon.db["actionBarAnchorEnabled"] == true, function(_, _, value)
+		addon.db["actionBarAnchorEnabled"] = value and true or false
+		RefreshAllActionBarAnchors()
+		rebuildAnchorDropdowns()
+	end, L["actionBarAnchorEnableDesc"])
 	groupCore:AddChild(anchorToggle)
 
 	anchorGroup = addon.functions.createContainer("InlineGroup", "Flow")
@@ -2783,10 +2787,10 @@ local function addActionBarFrame(container, d)
 	end
 
 	local cbRange = addon.functions.createCheckboxAce(L["fullButtonRangeColoring"], addon.db["actionBarFullRangeColoring"], function(_, _, value)
-			addon.db["actionBarFullRangeColoring"] = value
-			RefreshAllRangeOverlays()
-			rebuildRangeOptions()
-		end, L["fullButtonRangeColoringDesc"])
+		addon.db["actionBarFullRangeColoring"] = value
+		RefreshAllRangeOverlays()
+		rebuildRangeOptions()
+	end, L["fullButtonRangeColoringDesc"])
 	groupCore:AddChild(cbRange)
 
 	rangeOptionsGroup = addon.functions.createContainer("SimpleGroup", "List")
@@ -4769,24 +4773,16 @@ local function addSocialFrame(container)
 		if not friendsOptionsGroup then return end
 		friendsOptionsGroup:ReleaseChildren()
 		if addon.db["friendsListDecorEnabled"] then
-			local showLocation = addon.functions.createCheckboxAce(
-				L["friendsListDecorShowLocation"] or "Show area and realm",
-				addon.db["friendsListDecorShowLocation"] ~= false,
-				function(_, _, value)
-					addon.db["friendsListDecorShowLocation"] = value and true or false
-					if addon.FriendsListDecor and addon.FriendsListDecor.Refresh then addon.FriendsListDecor:Refresh() end
-				end
-			)
+			local showLocation = addon.functions.createCheckboxAce(L["friendsListDecorShowLocation"] or "Show area and realm", addon.db["friendsListDecorShowLocation"] ~= false, function(_, _, value)
+				addon.db["friendsListDecorShowLocation"] = value and true or false
+				if addon.FriendsListDecor and addon.FriendsListDecor.Refresh then addon.FriendsListDecor:Refresh() end
+			end)
 			friendsOptionsGroup:AddChild(showLocation)
 
-			local hideRealm = addon.functions.createCheckboxAce(
-				L["friendsListDecorHideOwnRealm"] or "Hide your home realm",
-				addon.db["friendsListDecorHideOwnRealm"] ~= false,
-				function(_, _, value)
-					addon.db["friendsListDecorHideOwnRealm"] = value and true or false
-					if addon.FriendsListDecor and addon.FriendsListDecor.Refresh then addon.FriendsListDecor:Refresh() end
-				end
-			)
+			local hideRealm = addon.functions.createCheckboxAce(L["friendsListDecorHideOwnRealm"] or "Hide your home realm", addon.db["friendsListDecorHideOwnRealm"] ~= false, function(_, _, value)
+				addon.db["friendsListDecorHideOwnRealm"] = value and true or false
+				if addon.FriendsListDecor and addon.FriendsListDecor.Refresh then addon.FriendsListDecor:Refresh() end
+			end)
 			friendsOptionsGroup:AddChild(hideRealm)
 
 			local labelBase = L["friendsListDecorNameFontSize"] or "Friend name font size"
@@ -4795,22 +4791,15 @@ local function addSocialFrame(container)
 				return tostring(val)
 			end
 			local currentValue = addon.db["friendsListDecorNameFontSize"] or 0
-			local sliderFont = addon.functions.createSliderAce(
-				string.format("%s: %s", labelBase, fontSizeLabel(currentValue)),
-				currentValue,
-				0,
-				24,
-				1,
-				function(self, _, value)
-					local rounded = math.floor((value or 0) + 0.5)
-					if rounded > 0 and rounded < 8 then rounded = 8 end
-					if rounded > 24 then rounded = 24 end
-					addon.db["friendsListDecorNameFontSize"] = rounded
-					self:SetLabel(string.format("%s: %s", labelBase, fontSizeLabel(rounded)))
-					if rounded ~= value then self:SetValue(rounded) end
-					if addon.FriendsListDecor and addon.FriendsListDecor.Refresh then addon.FriendsListDecor:Refresh() end
-				end
-			)
+			local sliderFont = addon.functions.createSliderAce(string.format("%s: %s", labelBase, fontSizeLabel(currentValue)), currentValue, 0, 24, 1, function(self, _, value)
+				local rounded = math.floor((value or 0) + 0.5)
+				if rounded > 0 and rounded < 8 then rounded = 8 end
+				if rounded > 24 then rounded = 24 end
+				addon.db["friendsListDecorNameFontSize"] = rounded
+				self:SetLabel(string.format("%s: %s", labelBase, fontSizeLabel(rounded)))
+				if rounded ~= value then self:SetValue(rounded) end
+				if addon.FriendsListDecor and addon.FriendsListDecor.Refresh then addon.FriendsListDecor:Refresh() end
+			end)
 			friendsOptionsGroup:AddChild(sliderFont)
 		end
 		if friendsOptionsGroup.DoLayout then friendsOptionsGroup:DoLayout() end
@@ -6727,8 +6716,16 @@ local function initUI()
 	if addon.db["enableExtendedMerchant"] and addon.Merchant and addon.Merchant.Enable then addon.Merchant:Enable() end
 
 	function addon.functions.toggleDynamicFlightBar(value)
+		addon.variables = addon.variables or {}
 		local bar = UIWidgetPowerBarContainerFrame
 		if not bar then return end
+		if InCombatLockdown and InCombatLockdown() then
+			-- Defer secure attribute updates until combat lockdown ends.
+			addon.variables.pendingDynamicFlightBar = value
+			return
+		end
+
+		addon.variables.pendingDynamicFlightBar = nil
 		if value then
 			if not bar.alphaDriverSet then
 				RegisterAttributeDriver(bar, "state-visibility", "[flying]show;hide;")
@@ -8557,6 +8554,13 @@ local eventHandlers = {
 	["ACCOUNT_MONEY"] = function() addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account) end,
 	["PLAYER_REGEN_ENABLED"] = function()
 		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
+		if addon.variables then
+			if addon.variables.pendingDynamicFlightBar ~= nil then addon.functions.toggleDynamicFlightBar(addon.variables.pendingDynamicFlightBar) end
+			if addon.variables.pendingActionBarAnchorRefresh then
+				addon.variables.pendingActionBarAnchorRefresh = nil
+				RefreshAllActionBarAnchors()
+			end
+		end
 	end,
 	["PLAYER_UNGHOST"] = function()
 		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end

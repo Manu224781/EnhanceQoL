@@ -183,19 +183,37 @@ function ChatIM:SetEnabled(val)
 					ChatIM:StartWhisper(name)
 				end
 			end)
-			hooksecurefunc("ChatFrame_SendBNetTell", function(target)
-				if not ChatIM.enabled then return end
-				local bnetID = nil
-				local plain = BNTokenFindName(target) or target
-				bnetID = BNet_GetBNetIDAccount(plain)
-				target = plain
-				if bnetID then
-					local accountTag
-					local info = C_BattleNet.GetAccountInfoByID(bnetID)
-					if info then accountTag = info.battleTag end
-					if accountTag then ChatIM:StartWhisper(target, bnetID, accountTag) end
-				end
-			end)
+
+			if ChatFrameUtil and ChatFrameUtil.SendBNetTell then
+				hooksecurefunc(ChatFrameUtil, "SendBNetTell", function(target)
+					if not ChatIM.enabled then return end
+					local bnetID = nil
+					local plain = BNTokenFindName(target) or target
+					bnetID = BNet_GetBNetIDAccount(plain)
+					target = plain
+					if bnetID then
+						local accountTag
+						local info = C_BattleNet.GetAccountInfoByID(bnetID)
+						if info then accountTag = info.battleTag end
+						if accountTag then ChatIM:StartWhisper(target, bnetID, accountTag) end
+					end
+				end)
+			else
+				--Todo Remove in 12.0
+				hooksecurefunc("ChatFrame_SendBNetTell", function(target)
+					if not ChatIM.enabled then return end
+					local bnetID = nil
+					local plain = BNTokenFindName(target) or target
+					bnetID = BNet_GetBNetIDAccount(plain)
+					target = plain
+					if bnetID then
+						local accountTag
+						local info = C_BattleNet.GetAccountInfoByID(bnetID)
+						if info then accountTag = info.battleTag end
+						if accountTag then ChatIM:StartWhisper(target, bnetID, accountTag) end
+					end
+				end)
+			end
 			hooksecurefunc("ChatFrame_ReplyTell2", function()
 				if not ChatIM.enabled then return end
 				local name = ChatEdit_GetLastToldTarget() and ChatEdit_GetLastToldTarget()

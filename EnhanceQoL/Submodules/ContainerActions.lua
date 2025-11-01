@@ -174,6 +174,13 @@ end
 function ContainerActions:ApplyAnchorLayout(data)
 	local cfg = CopyAnchorConfig(data)
 	addon.db.containerActionAnchor = CopyAnchorConfig(cfg)
+
+	if InCombat() then
+		self.pendingAnchorLayout = cfg
+		return
+	end
+
+	self.pendingAnchorLayout = nil
 	local anchor = self.anchor
 	if anchor then
 		anchor:ClearAllPoints()
@@ -320,6 +327,7 @@ function ContainerActions:Init()
 	self._safe = self._safe or {}
 	self._secure = self._secure or {}
 	self.pendingItem = nil
+	self.pendingAnchorLayout = nil
 	self.pendingVisibility = nil
 	self.awaitingRefresh = nil
 	self.desiredVisibility = nil
@@ -369,6 +377,11 @@ end
 function ContainerActions:OnCombatStart() end
 
 function ContainerActions:OnCombatEnd()
+	if self.pendingAnchorLayout then
+		local pending = self.pendingAnchorLayout
+		self.pendingAnchorLayout = nil
+		self:ApplyAnchorLayout(pending)
+	end
 	if self.pendingVisibility ~= nil then
 		local desired = self.pendingVisibility
 		self.pendingVisibility = nil

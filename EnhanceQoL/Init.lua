@@ -771,7 +771,6 @@ addon.variables.ignoredEquipmentTypes = {
 
 -- Actionbars
 addon.variables.actionBarNames = {
-	{ name = "MainMenuBar", var = "mouseoverActionBar1", text = BINDING_HEADER_ACTIONBAR },
 	{ name = "MultiBarBottomLeft", var = "mouseoverActionBar2", text = BINDING_HEADER_ACTIONBAR2 },
 	{ name = "MultiBarBottomRight", var = "mouseoverActionBar3", text = BINDING_HEADER_ACTIONBAR3 },
 	{ name = "MultiBarRight", var = "mouseoverActionBar4", text = BINDING_HEADER_ACTIONBAR4 },
@@ -782,6 +781,8 @@ addon.variables.actionBarNames = {
 	{ name = "PetActionBar", var = "mouseoverActionBarPet", text = TUTORIAL_TITLE61_HUNTER },
 	{ name = "StanceBar", var = "mouseoverActionBarStanceBar", text = HUD_EDIT_MODE_STANCE_BAR_LABEL },
 }
+if _G.MainMenuBar then table.insert(addon.variables.actionBarNames, { name = "MainMenuBar", var = "mouseoverActionBar1", text = BINDING_HEADER_ACTIONBAR }) end
+if _G.MainActionBar then table.insert(addon.variables.actionBarNames, { name = "MainActionBar", var = "mouseoverActionBar1", text = BINDING_HEADER_ACTIONBAR }) end
 
 addon.variables.unitFrameNames = {
 	{ name = "PlayerFrame", var = "unitframeSettingPlayerFrame", text = HUD_EDIT_MODE_PLAYER_FRAME_LABEL },
