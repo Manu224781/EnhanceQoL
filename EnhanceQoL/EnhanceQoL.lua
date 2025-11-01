@@ -54,6 +54,73 @@ local GetContainerItemInfo = C_Container.GetContainerItemInfo
 local EQOL = select(2, ...)
 EQOL.C = {}
 
+local ACTION_BAR_FRAME_NAMES = {
+	"MainMenuBar",
+	"MultiBarBottomLeft",
+	"MultiBarBottomRight",
+	"MultiBarRight",
+	"MultiBarLeft",
+	"MultiBar5",
+	"MultiBar6",
+	"MultiBar7",
+}
+
+local ACTION_BAR_ANCHOR_ORDER = { "TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT" }
+
+local ACTION_BAR_ANCHOR_CONFIG = {
+	TOPLEFT = { addButtonsToTop = false, addButtonsToRight = true },
+	TOPRIGHT = { addButtonsToTop = false, addButtonsToRight = false },
+	BOTTOMLEFT = { addButtonsToTop = true, addButtonsToRight = true },
+	BOTTOMRIGHT = { addButtonsToTop = true, addButtonsToRight = false },
+}
+
+local function GetActionBarFrame(index)
+	local name = ACTION_BAR_FRAME_NAMES[index]
+	if not name then return nil, nil end
+	return _G[name], name
+end
+
+local function DetermineAnchorFromBar(bar)
+	if not bar then return "TOPLEFT" end
+	local addTop = bar.addButtonsToTop == true
+	local addRight = bar.addButtonsToRight == true
+	if addTop and addRight then
+		return "BOTTOMLEFT"
+	elseif addTop and not addRight then
+		return "BOTTOMRIGHT"
+	elseif not addTop and addRight then
+		return "TOPLEFT"
+	else
+		return "TOPRIGHT"
+	end
+end
+
+local function ApplyActionBarAnchor(index, anchorKey)
+	local bar = GetActionBarFrame(index)
+	if not bar then return end
+	local config = ACTION_BAR_ANCHOR_CONFIG[anchorKey]
+	if not config then return end
+	bar.addButtonsToTop = config.addButtonsToTop
+	bar.addButtonsToRight = config.addButtonsToRight
+	if bar.UpdateGridLayout then bar:UpdateGridLayout() end
+end
+
+function addon.functions.GetActionBarAnchor(index) return DetermineAnchorFromBar(select(1, GetActionBarFrame(index))) end
+
+function addon.functions.SetActionBarAnchor(index, anchorKey) ApplyActionBarAnchor(index, anchorKey) end
+
+local function RefreshAllActionBarAnchors()
+	for i = 1, #ACTION_BAR_FRAME_NAMES do
+		local key = "actionBarAnchor" .. i
+		local stored = addon.db and addon.db[key]
+		if not stored or not ACTION_BAR_ANCHOR_CONFIG[stored] then
+			stored = addon.functions.GetActionBarAnchor(i)
+			if addon.db then addon.db[key] = stored end
+		end
+		ApplyActionBarAnchor(i, stored)
+	end
+end
+
 -- localeadditions
 local headerClassInfo = L["headerClassInfo"]:format(select(1, UnitClass("player")))
 local hookedATT = false -- need to hook ATT because of the way the minimap button is created
@@ -5487,6 +5554,17 @@ local function initActionBars()
 		end
 	end
 	RefreshAllMacroNameVisibility()
+	for index = 1, #ACTION_BAR_FRAME_NAMES do
+		local dbKey = "actionBarAnchor" .. index
+		local defaultAnchor = addon.functions.GetActionBarAnchor(index)
+		addon.functions.InitDBValue(dbKey, defaultAnchor)
+		local stored = addon.db[dbKey]
+		if not ACTION_BAR_ANCHOR_CONFIG[stored] then
+			stored = defaultAnchor
+			addon.db[dbKey] = stored
+		end
+		addon.functions.SetActionBarAnchor(index, stored)
+	end
 end
 
 local function initParty()
@@ -5793,6 +5871,35 @@ local function initLoot()
 	addon.functions.InitDBValue("lootToastUseCustomSound", false)
 	addon.functions.InitDBValue("lootToastCustomSoundFile", "")
 	addon.functions.InitDBValue("lootToastAnchor", { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 240 })
+	-- migrate legacy LootRollMover-inspired settings to the new group-loot anchor keys
+	if addon.db.enableLootRollAnchor ~= nil then
+		if addon.db.enableGroupLootAnchor == nil then addon.db.enableGroupLootAnchor = addon.db.enableLootRollAnchor == true end
+		addon.db.enableLootRollAnchor = nil
+	end
+	if addon.db.lootRollAnchor then
+		addon.db.groupLootAnchor = addon.db.lootRollAnchor
+		addon.db.lootRollAnchor = nil
+	end
+	if addon.db.lootRollLayout then
+		addon.db.groupLootLayout = addon.db.lootRollLayout
+		addon.db.lootRollLayout = nil
+	end
+
+	addon.functions.InitDBValue("enableGroupLootAnchor", false)
+	addon.functions.InitDBValue("groupLootAnchor", { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 300 })
+	addon.functions.InitDBValue("groupLootLayout", { scale = 1, offsetX = 0, offsetY = 0, spacing = 4 })
+
+	local layout = addon.db.groupLootLayout
+	if type(layout) ~= "table" then
+		layout = { scale = 1, offsetX = 0, offsetY = 0, spacing = 4 }
+		addon.db.groupLootLayout = layout
+	end
+	if type(layout.scale) ~= "number" then layout.scale = 1 end
+	if layout.scale < 0.5 then layout.scale = 0.5 end
+	if layout.scale > 3 then layout.scale = 3 end
+	if layout.offsetX == nil then layout.offsetX = 0 end
+	if layout.offsetY == nil then layout.offsetY = 0 end
+	if layout.spacing == nil then layout.spacing = 4 end
 	if addon.ChatIM and addon.ChatIM.BuildSoundTable and not addon.ChatIM.availableSounds then addon.ChatIM:BuildSoundTable() end
 end
 
@@ -6143,12 +6250,17 @@ local function initSocial()
 	addon.functions.InitDBValue("blockDuelRequests", false)
 	addon.functions.InitDBValue("blockPetBattleRequests", false)
 	addon.functions.InitDBValue("blockPartyInvites", false)
+	addon.functions.InitDBValue("friendsListDecorEnabled", false)
+	addon.functions.InitDBValue("friendsListDecorShowLocation", true)
+	addon.functions.InitDBValue("friendsListDecorHideOwnRealm", true)
+	addon.functions.InitDBValue("friendsListDecorNameFontSize", 0)
 	if addon.Ignore and addon.Ignore.SetEnabled then addon.Ignore:SetEnabled(addon.db["enableIgnore"]) end
 	if addon.Ignore and addon.Ignore.UpdateAnchor then addon.Ignore:UpdateAnchor() end
+	if addon.FriendsListDecor and addon.FriendsListDecor.SetEnabled then addon.FriendsListDecor:SetEnabled(addon.db["friendsListDecorEnabled"] == true) end
 end
 
 initLootToast = function()
-	if (addon.db.enableLootToastFilter or addon.db.enableLootToastAnchor) and addon.LootToast and addon.LootToast.Enable then
+	if (addon.db.enableLootToastFilter or addon.db.enableLootToastAnchor or addon.db.enableGroupLootAnchor) and addon.LootToast and addon.LootToast.Enable then
 		addon.LootToast:Enable()
 	elseif addon.LootToast and addon.LootToast.Disable then
 		addon.LootToast:Disable()
@@ -6225,6 +6337,18 @@ local function initUI()
 
 	-- Apply once on load if enabled; do not keep overriding thereafter
 	addon.functions.applyGameMenuScale()
+
+	local stanceChildren
+	if StanceBar and StanceBar.GetChildren then stanceChildren = { StanceBar:GetChildren() } end
+
+	table.insert(addon.variables.unitFrameNames, {
+		name = "StanceBar",
+		var = "unitframeSettingStanceBar",
+		text = HUD_EDIT_MODE_STANCE_BAR_LABEL,
+		disableSetting = { "mouseoverActionBarStanceBar" },
+		children = stanceChildren or {},
+		revealAllChilds = true,
+	})
 
 	table.insert(addon.variables.unitFrameNames, {
 		name = "MicroMenu",
@@ -7008,6 +7132,7 @@ local function initCharacter()
 	addon.functions.InitDBValue("showCloakUpgradeButton", false)
 	addon.functions.InitDBValue("bagFilterFrameData", {})
 	addon.functions.InitDBValue("closeBagsOnAuctionHouse", false)
+	addon.functions.InitDBValue("showDurabilityOnCharframe", false)
 
 	hooksecurefunc(ContainerFrameCombinedBags, "UpdateItems", addon.functions.updateBags)
 	for _, frame in ipairs(ContainerFrameContainer.ContainerFrames) do
@@ -7183,6 +7308,7 @@ end
 
 function addon.functions.checkReloadFrame()
 	if addon.variables.requireReload == false then return end
+	if ReloadUIPopup and ReloadUIPopup:IsShown() then return end
 	local reloadFrame = CreateFrame("Frame", "ReloadUIPopup", UIParent, "BasicFrameTemplateWithInset")
 	reloadFrame:SetFrameStrata("TOOLTIP")
 	reloadFrame:SetSize(500, 120) -- Breite und Höhe

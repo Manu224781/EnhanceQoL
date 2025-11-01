@@ -675,6 +675,7 @@ addon.variables.shouldSocketedChecks = {
 }
 
 addon.variables.landingPageType = {
+	[3] = { title = ORDER_HALL_LANDING_PAGE_TITLE, checkbox = EXPANSION_NAME6 },
 	[10] = { title = GARRISON_LANDING_PAGE_TITLE, checkbox = GARRISON_LOCATION_TOOLTIP },
 	[20] = { title = GARRISON_TYPE_9_0_LANDING_PAGE_TITLE, checkbox = EXPANSION_NAME8 },
 	[30] = { title = DRAGONFLIGHT_LANDING_PAGE_TITLE, checkbox = EXPANSION_NAME9 },

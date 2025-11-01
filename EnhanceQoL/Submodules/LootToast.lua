@@ -205,38 +205,81 @@ local BLACKLISTED_EVENTS = {
 }
 
 function LootToast:Enable()
-	if self.enabled then return end
-	self.enabled = true
-	self.frame:RegisterEvent("SHOW_LOOT_TOAST")
-	self.frame:RegisterEvent("CHAT_MSG_LOOT")
-	self.frame:SetScript("OnEvent", function(...) self:OnEvent(...) end)
-	-- disable default toast
-
-	for event, state in pairs(BLACKLISTED_EVENTS) do
-		if state and AlertFrame:IsEventRegistered(event) then AlertFrame:UnregisterEvent(event) end
+	if not self.enabled then
+		self.enabled = true
+		if not self.alertFrameHooked then
+			hooksecurefunc(AlertFrame, "RegisterEvent", function(selfFrame, event)
+				if LootToast.handleToasts and BLACKLISTED_EVENTS[event] then xpcall(selfFrame.UnregisterEvent, selfFrame, event) end
+			end)
+			self.alertFrameHooked = true
+		end
 	end
-	hooksecurefunc(AlertFrame, "RegisterEvent", function(selfFrame, event)
-		if LootToast.enabled and BLACKLISTED_EVENTS[event] then xpcall(selfFrame.UnregisterEvent, selfFrame, event) end
-	end)
-	if addon.db.enableLootToastAnchor then self:ApplyAnchorPosition() end
+
+	self:RefreshEventBindings()
+
+	if addon.db.enableLootToastAnchor then
+		self:ApplyAnchorPosition()
+	elseif not addon.db.enableGroupLootAnchor then
+		self:RestoreDefaultAnchors()
+	end
+	if addon.db.enableGroupLootAnchor then self:ApplyGroupLootLayout() end
 end
 
 function LootToast:Disable()
 	if not self.enabled then return end
 	self.enabled = false
-	self.frame:UnregisterEvent("SHOW_LOOT_TOAST")
-	self.frame:UnregisterEvent("CHAT_MSG_LOOT")
+	self.handleToasts = false
+	if self.frame:IsEventRegistered("SHOW_LOOT_TOAST") then self.frame:UnregisterEvent("SHOW_LOOT_TOAST") end
+	if self.frame:IsEventRegistered("CHAT_MSG_LOOT") then self.frame:UnregisterEvent("CHAT_MSG_LOOT") end
 	self.frame:SetScript("OnEvent", nil)
-	AlertFrame:RegisterEvent("SHOW_LOOT_TOAST")
-	self:RestoreDefaultAnchors()
+	for event, state in pairs(BLACKLISTED_EVENTS) do
+		if state and not AlertFrame:IsEventRegistered(event) then AlertFrame:RegisterEvent(event) end
+	end
+	self:RestoreDefaultAnchors(true)
 end
 
-local DEFAULT_ANCHOR = { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 240 }
-local EDITMODE_ID = "lootToastAnchor"
-LootToast.anchorFrame = LootToast.anchorFrame
+function LootToast:RefreshEventBindings()
+	if not self.frame then return end
+	local handleToasts = addon.db and (addon.db.enableLootToastFilter == true or addon.db.enableLootToastAnchor == true) or false
+	self.handleToasts = handleToasts
+
+	if handleToasts then
+		if not self.frame:IsEventRegistered("SHOW_LOOT_TOAST") then self.frame:RegisterEvent("SHOW_LOOT_TOAST") end
+		if not self.frame:IsEventRegistered("CHAT_MSG_LOOT") then self.frame:RegisterEvent("CHAT_MSG_LOOT") end
+		self.frame:SetScript("OnEvent", function(...) self:OnEvent(...) end)
+		for event, state in pairs(BLACKLISTED_EVENTS) do
+			if state and AlertFrame:IsEventRegistered(event) then AlertFrame:UnregisterEvent(event) end
+		end
+	else
+		if self.frame:IsEventRegistered("SHOW_LOOT_TOAST") then self.frame:UnregisterEvent("SHOW_LOOT_TOAST") end
+		if self.frame:IsEventRegistered("CHAT_MSG_LOOT") then self.frame:UnregisterEvent("CHAT_MSG_LOOT") end
+		self.frame:SetScript("OnEvent", nil)
+		for event, state in pairs(BLACKLISTED_EVENTS) do
+			if state and not AlertFrame:IsEventRegistered(event) then AlertFrame:RegisterEvent(event) end
+		end
+	end
+end
+
+local DEFAULT_TOAST_ANCHOR = { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 240 }
+local DEFAULT_GROUPROLL_ANCHOR = { point = "BOTTOM", relativePoint = "BOTTOM", x = 0, y = 300 }
+local TOAST_EDITMODE_ID = "lootToastAnchor"
+local GROUPROLL_EDITMODE_ID = "groupLootAnchor"
+LootToast.toastAnchorFrame = LootToast.toastAnchorFrame
+LootToast.groupRollAnchorFrame = LootToast.groupRollAnchorFrame
 LootToast.defaultAlertAnchor = LootToast.defaultAlertAnchor
+LootToast.handleToasts = LootToast.handleToasts or false
+LootToast.alertFrameHooked = LootToast.alertFrameHooked
 local GroupLootContainer = _G.GroupLootContainer
 LootToast.defaultGroupLootAnchor = LootToast.defaultGroupLootAnchor
+LootToast.defaultBonusRollAnchor = LootToast.defaultBonusRollAnchor
+
+local DEFAULT_GROUPROLL_LAYOUT = { scale = 1, offsetX = 0, offsetY = 0, spacing = 4 }
+
+local function FrameIsAccessible(frame)
+	if not frame then return false end
+	if frame.IsForbidden and frame:IsForbidden() then return false end
+	return true
+end
 
 local function RememberDefaultAnchors()
 	if not LootToast.defaultAlertAnchor then
@@ -247,38 +290,67 @@ local function RememberDefaultAnchors()
 		local point, relativeTo, relativePoint, x, y = GroupLootContainer:GetPoint()
 		if point then LootToast.defaultGroupLootAnchor = { point = point, relativeTo = relativeTo, relativePoint = relativePoint, x = x, y = y } end
 	end
-end
-
-function LootToast:RestoreDefaultAnchors()
-	if self.anchorFrame then self.anchorFrame:Hide() end
-	local alert = self.defaultAlertAnchor
-	if alert and alert.point then
-		AlertFrame:ClearAllPoints()
-		AlertFrame:SetPoint(alert.point, alert.relativeTo, alert.relativePoint, alert.x, alert.y)
-	end
-	if GroupLootContainer then
-		local container = self.defaultGroupLootAnchor
-		if container and container.point then
-			GroupLootContainer:ClearAllPoints()
-			GroupLootContainer:SetPoint(container.point, container.relativeTo, container.relativePoint, container.x, container.y)
+	if not LootToast.defaultBonusRollAnchor then
+		local bonusFrame = _G.BonusRollFrame
+		if FrameIsAccessible(bonusFrame) then
+			local point, relativeTo, relativePoint, x, y = bonusFrame:GetPoint()
+			if point then LootToast.defaultBonusRollAnchor = { point = point, relativeTo = relativeTo, relativePoint = relativePoint, x = x, y = y } end
 		end
 	end
 end
 
-local function GetAnchorConfig()
+function LootToast:RestoreDefaultAnchors(force)
+	if force or not addon.db.enableLootToastAnchor then
+		if self.toastAnchorFrame then self.toastAnchorFrame:Hide() end
+		local alert = self.defaultAlertAnchor
+		if alert and alert.point then
+			AlertFrame:ClearAllPoints()
+			AlertFrame:SetPoint(alert.point, alert.relativeTo, alert.relativePoint, alert.x, alert.y)
+		end
+	end
+
+	if force or not addon.db.enableGroupLootAnchor then
+		if self.groupRollAnchorFrame then self.groupRollAnchorFrame:Hide() end
+		if GroupLootContainer then
+			local container = self.defaultGroupLootAnchor
+			if container and container.point then
+				GroupLootContainer:ClearAllPoints()
+				GroupLootContainer:SetPoint(container.point, container.relativeTo, container.relativePoint, container.x, container.y)
+			end
+			GroupLootContainer.ignoreFramePositionManager = nil
+			GroupLootContainer:SetScale(1)
+			for i = 1, NUM_GROUP_LOOT_FRAMES or 4 do
+				local frame = _G["GroupLootFrame" .. i]
+				if FrameIsAccessible(frame) then frame:SetScale(1) end
+			end
+		end
+		local bonusFrame = _G.BonusRollFrame
+		if FrameIsAccessible(bonusFrame) then
+			local saved = self.defaultBonusRollAnchor
+			bonusFrame:ClearAllPoints()
+			if saved and saved.point then
+				bonusFrame:SetPoint(saved.point, saved.relativeTo, saved.relativePoint, saved.x, saved.y)
+			end
+			bonusFrame:SetScale(1)
+			bonusFrame.ignoreFramePositionManager = nil
+		end
+	end
+end
+
+local function GetToastAnchorConfig()
 	addon.db.lootToastAnchor = addon.db.lootToastAnchor or {}
 	local cfg = addon.db.lootToastAnchor
 
-	cfg.point = cfg.point or DEFAULT_ANCHOR.point
-	cfg.relativePoint = cfg.relativePoint or DEFAULT_ANCHOR.relativePoint
-	cfg.x = cfg.x or DEFAULT_ANCHOR.x
-	cfg.y = cfg.y or DEFAULT_ANCHOR.y
+	cfg.point = cfg.point or DEFAULT_TOAST_ANCHOR.point
+	cfg.relativePoint = cfg.relativePoint or DEFAULT_TOAST_ANCHOR.relativePoint
+	cfg.x = cfg.x or DEFAULT_TOAST_ANCHOR.x
+	cfg.y = cfg.y or DEFAULT_TOAST_ANCHOR.y
 	return cfg
 end
 
-local function UpdateAnchorConfig(data)
+local function UpdateToastAnchorConfig(data)
 	if not data then return end
-	local cfg = GetAnchorConfig()
+	local cfg = GetToastAnchorConfig()
 	if data.point then
 		cfg.point = data.point
 		cfg.relativePoint = data.point
@@ -288,68 +360,214 @@ local function UpdateAnchorConfig(data)
 	if data.y ~= nil then cfg.y = data.y end
 end
 
-function LootToast:SyncEditModePosition()
-	if not EditMode or not self.anchorEditModeId or self.suspendEditSync or self.applyingFromEditMode then return end
-	self.suspendEditSync = true
-	local cfg = GetAnchorConfig()
-	EditMode:SetFramePosition(self.anchorEditModeId, cfg.point or DEFAULT_ANCHOR.point, cfg.x or DEFAULT_ANCHOR.x, cfg.y or DEFAULT_ANCHOR.y)
-	self.suspendEditSync = nil
+local function GetGroupRollAnchorConfig()
+	addon.db.groupLootAnchor = addon.db.groupLootAnchor or {}
+	local cfg = addon.db.groupLootAnchor
+
+	cfg.point = cfg.point or DEFAULT_GROUPROLL_ANCHOR.point
+	cfg.relativePoint = cfg.relativePoint or DEFAULT_GROUPROLL_ANCHOR.relativePoint
+	cfg.x = cfg.x or DEFAULT_GROUPROLL_ANCHOR.x
+	cfg.y = cfg.y or DEFAULT_GROUPROLL_ANCHOR.y
+	return cfg
 end
 
-function LootToast:RegisterAnchorWithEditMode(anchor)
-	if self.anchorRegistered or self.anchorRegistering then return end
+local function UpdateGroupRollAnchorConfig(data)
+	if not data then return end
+	local cfg = GetGroupRollAnchorConfig()
+	if data.point then
+		cfg.point = data.point
+		cfg.relativePoint = data.point
+	end
+	if data.relativePoint then cfg.relativePoint = data.relativePoint end
+	if data.x ~= nil then cfg.x = data.x end
+	if data.y ~= nil then cfg.y = data.y end
+end
+
+local function GetGroupLootLayoutConfig()
+	addon.db.groupLootLayout = addon.db.groupLootLayout or {}
+	local layout = addon.db.groupLootLayout
+	if type(layout.scale) ~= "number" then layout.scale = DEFAULT_GROUPROLL_LAYOUT.scale end
+	if layout.scale < 0.5 then layout.scale = 0.5 end
+	if layout.scale > 3 then layout.scale = 3 end
+	if layout.offsetX == nil then layout.offsetX = DEFAULT_GROUPROLL_LAYOUT.offsetX end
+	if layout.offsetY == nil then layout.offsetY = DEFAULT_GROUPROLL_LAYOUT.offsetY end
+	if layout.spacing == nil then layout.spacing = DEFAULT_GROUPROLL_LAYOUT.spacing end
+	return layout
+end
+
+local function UpdateAnchorLabel(anchor, layout, labelKey)
+	if not anchor or not anchor.label then return end
+	local baseLabel = labelKey and (L[labelKey] or labelKey) or L["lootToastAnchorLabel"]
+	local info = layout
+	if info and info.scale and math.abs(info.scale - 1) > 0.01 then
+		anchor.label:SetText(string.format("%s (x%.2f)", baseLabel, info.scale))
+	else
+		anchor.label:SetText(baseLabel)
+	end
+end
+
+function LootToast:GetGroupLootLayout()
+	return GetGroupLootLayoutConfig()
+end
+
+function LootToast:ApplyGroupLootLayout()
+	if not addon.db.enableGroupLootAnchor then
+		self:RestoreDefaultAnchors()
+		return
+	end
+
+	RememberDefaultAnchors()
+
+	local layout = GetGroupLootLayoutConfig()
+	local anchor = self:GetGroupRollAnchorFrame()
+	local cfg = GetGroupRollAnchorConfig()
+
+	self:RegisterGroupRollAnchorWithEditMode(anchor)
+	anchor:ClearAllPoints()
+	anchor:SetPoint(cfg.point, UIParent, cfg.relativePoint, cfg.x, cfg.y)
+	UpdateAnchorLabel(anchor, layout, "groupLootAnchorLabel")
+
+	if FrameIsAccessible(GroupLootContainer) then
+		GroupLootContainer.ignoreFramePositionManager = true
+		GroupLootContainer:EnableMouse(false)
+		GroupLootContainer:ClearAllPoints()
+		GroupLootContainer:SetPoint("BOTTOM", anchor, "BOTTOM", layout.offsetX, layout.offsetY)
+		GroupLootContainer:SetScale(layout.scale)
+	end
+
+	local bonusFrame = _G.BonusRollFrame
+	if FrameIsAccessible(bonusFrame) then
+		bonusFrame.ignoreFramePositionManager = true
+		bonusFrame:ClearAllPoints()
+		bonusFrame:SetPoint("BOTTOM", anchor, "TOP", layout.offsetX, layout.offsetY)
+		bonusFrame:SetScale(layout.scale)
+	end
+
+	self:SyncRollEditModePosition()
+end
+
+function LootToast:SyncToastEditModePosition()
+	if not EditMode or not self.toastAnchorEditModeId or self.toastAnchorSuspendEditSync or self.toastAnchorApplyingFromEditMode then return end
+	self.toastAnchorSuspendEditSync = true
+	local cfg = GetToastAnchorConfig()
+	EditMode:SetFramePosition(self.toastAnchorEditModeId, cfg.point or DEFAULT_TOAST_ANCHOR.point, cfg.x or DEFAULT_TOAST_ANCHOR.x, cfg.y or DEFAULT_TOAST_ANCHOR.y)
+	self.toastAnchorSuspendEditSync = nil
+end
+
+function LootToast:SyncRollEditModePosition()
+	if not EditMode or not self.groupRollAnchorEditModeId or self.groupRollAnchorSuspendEditSync or self.groupRollAnchorApplyingFromEditMode then return end
+	self.groupRollAnchorSuspendEditSync = true
+	local cfg = GetGroupRollAnchorConfig()
+	EditMode:SetFramePosition(self.groupRollAnchorEditModeId, cfg.point or DEFAULT_GROUPROLL_ANCHOR.point, cfg.x or DEFAULT_GROUPROLL_ANCHOR.x, cfg.y or DEFAULT_GROUPROLL_ANCHOR.y)
+	self.groupRollAnchorSuspendEditSync = nil
+end
+
+function LootToast:RegisterToastAnchorWithEditMode(anchor)
+	if self.toastAnchorRegistered or self.toastAnchorRegistering then return end
 	if not EditMode or not EditMode.RegisterFrame or not EditMode:IsAvailable() then return end
 
-	self.anchorRegistering = true
+	self.toastAnchorRegistering = true
 
-	local cfg = GetAnchorConfig()
+	local cfg = GetToastAnchorConfig()
 	local title = L["lootToastAnchorLabel"] or "Loot Toast Anchor"
 	anchor.editModeName = title
 
 	local defaults = {
-		point = cfg.point or DEFAULT_ANCHOR.point,
-		relativePoint = cfg.relativePoint or cfg.point or DEFAULT_ANCHOR.relativePoint,
-		x = cfg.x or DEFAULT_ANCHOR.x,
-		y = cfg.y or DEFAULT_ANCHOR.y,
+		point = cfg.point or DEFAULT_TOAST_ANCHOR.point,
+		relativePoint = cfg.relativePoint or cfg.point or DEFAULT_TOAST_ANCHOR.relativePoint,
+		x = cfg.x or DEFAULT_TOAST_ANCHOR.x,
+		y = cfg.y or DEFAULT_TOAST_ANCHOR.y,
 		width = anchor:GetWidth(),
 		height = anchor:GetHeight(),
 	}
 
-	EditMode:RegisterFrame(EDITMODE_ID, {
+	EditMode:RegisterFrame(TOAST_EDITMODE_ID, {
 		frame = anchor,
 		title = title,
 		layoutDefaults = defaults,
 		isEnabled = function() return addon.db.enableLootToastAnchor end,
 		onApply = function(_, _, data)
 			if not data then return end
-			LootToast.applyingFromEditMode = true
-			UpdateAnchorConfig(data)
+			LootToast.toastAnchorApplyingFromEditMode = true
+			UpdateToastAnchorConfig(data)
 			LootToast:ApplyAnchorPosition()
-			LootToast.applyingFromEditMode = nil
+			LootToast.toastAnchorApplyingFromEditMode = nil
 		end,
 		onPositionChanged = function(_, _, data)
 			if not data then return end
-			LootToast.applyingFromEditMode = true
-			UpdateAnchorConfig(data)
+			LootToast.toastAnchorApplyingFromEditMode = true
+			UpdateToastAnchorConfig(data)
 			LootToast:ApplyAnchorPosition()
-			LootToast.applyingFromEditMode = nil
+			LootToast.toastAnchorApplyingFromEditMode = nil
 		end,
 	})
 
-	self.anchorEditModeId = EDITMODE_ID
-	self.anchorRegistered = true
-	self.anchorRegistering = nil
+	self.toastAnchorEditModeId = TOAST_EDITMODE_ID
+	self.toastAnchorRegistered = true
+	self.toastAnchorRegistering = nil
 
 	anchor:EnableMouse(false)
 	anchor:RegisterForDrag()
 	anchor:SetScript("OnDragStart", nil)
 	anchor:SetScript("OnDragStop", nil)
 
-	self:SyncEditModePosition()
+	self:SyncToastEditModePosition()
 end
 
-function LootToast:GetAnchorFrame()
-	if self.anchorFrame then return self.anchorFrame end
+function LootToast:RegisterGroupRollAnchorWithEditMode(anchor)
+	if self.groupRollAnchorRegistered or self.groupRollAnchorRegistering then return end
+	if not EditMode or not EditMode.RegisterFrame or not EditMode:IsAvailable() then return end
+
+	self.groupRollAnchorRegistering = true
+
+	local cfg = GetGroupRollAnchorConfig()
+	local title = L["groupLootAnchorLabel"] or "Group Loot Anchor"
+	anchor.editModeName = title
+
+	local defaults = {
+		point = cfg.point or DEFAULT_GROUPROLL_ANCHOR.point,
+		relativePoint = cfg.relativePoint or cfg.point or DEFAULT_GROUPROLL_ANCHOR.relativePoint,
+		x = cfg.x or DEFAULT_GROUPROLL_ANCHOR.x,
+		y = cfg.y or DEFAULT_GROUPROLL_ANCHOR.y,
+		width = anchor:GetWidth(),
+		height = anchor:GetHeight(),
+	}
+
+	EditMode:RegisterFrame(GROUPROLL_EDITMODE_ID, {
+		frame = anchor,
+		title = title,
+		layoutDefaults = defaults,
+		isEnabled = function() return addon.db.enableGroupLootAnchor end,
+		onApply = function(_, _, data)
+			if not data then return end
+			LootToast.groupRollAnchorApplyingFromEditMode = true
+			UpdateGroupRollAnchorConfig(data)
+			LootToast:ApplyGroupLootLayout()
+			LootToast.groupRollAnchorApplyingFromEditMode = nil
+		end,
+		onPositionChanged = function(_, _, data)
+			if not data then return end
+			LootToast.groupRollAnchorApplyingFromEditMode = true
+			UpdateGroupRollAnchorConfig(data)
+			LootToast:ApplyGroupLootLayout()
+			LootToast.groupRollAnchorApplyingFromEditMode = nil
+		end,
+	})
+
+	self.groupRollAnchorEditModeId = GROUPROLL_EDITMODE_ID
+	self.groupRollAnchorRegistered = true
+	self.groupRollAnchorRegistering = nil
+
+	anchor:EnableMouse(false)
+	anchor:RegisterForDrag()
+	anchor:SetScript("OnDragStart", nil)
+	anchor:SetScript("OnDragStop", nil)
+
+	self:SyncRollEditModePosition()
+end
+
+function LootToast:GetToastAnchorFrame()
+	if self.toastAnchorFrame then return self.toastAnchorFrame end
 
 	local frame = CreateFrame("Frame", "EnhanceQoL_LootToastAnchor", UIParent, "BackdropTemplate")
 	frame:SetSize(240, 40)
@@ -365,7 +583,7 @@ function LootToast:GetAnchorFrame()
 		frame:SetScript("OnDragStop", function(anchor)
 			anchor:StopMovingOrSizing()
 			local point, _, relativePoint, x, y = anchor:GetPoint()
-			UpdateAnchorConfig({ point = point, relativePoint = relativePoint or point, x = x, y = y })
+			UpdateToastAnchorConfig({ point = point, relativePoint = relativePoint or point, x = x, y = y })
 			LootToast:ApplyAnchorPosition()
 		end)
 	end
@@ -385,8 +603,8 @@ function LootToast:GetAnchorFrame()
 	frame.label = label
 
 	frame:Hide()
-	self.anchorFrame = frame
-	self:RegisterAnchorWithEditMode(frame)
+	self.toastAnchorFrame = frame
+	self:RegisterToastAnchorWithEditMode(frame)
 	return frame
 end
 
@@ -397,25 +615,22 @@ function LootToast:ApplyAnchorPosition()
 	end
 
 	RememberDefaultAnchors()
-	local cfg = GetAnchorConfig()
-	local anchor = self:GetAnchorFrame()
-	self:RegisterAnchorWithEditMode(anchor)
+	local cfg = GetToastAnchorConfig()
+	local anchor = self:GetToastAnchorFrame()
+	self:RegisterToastAnchorWithEditMode(anchor)
 	anchor:ClearAllPoints()
 	anchor:SetPoint(cfg.point, UIParent, cfg.relativePoint, cfg.x, cfg.y)
-	if anchor.label then anchor.label:SetText(L["lootToastAnchorLabel"]) end
+	UpdateAnchorLabel(anchor, nil, "lootToastAnchorLabel")
 
 	AlertFrame:ClearAllPoints()
 	AlertFrame:SetPoint("BOTTOM", anchor, "BOTTOM", 0, 0)
-	if GroupLootContainer then
-		GroupLootContainer:ClearAllPoints()
-		GroupLootContainer:SetPoint("BOTTOM", anchor, "TOP", 0, 8)
-	end
-	self:SyncEditModePosition()
+	if addon.db.enableGroupLootAnchor then self:ApplyGroupLootLayout() end
+	self:SyncToastEditModePosition()
 end
 
 function LootToast:ToggleAnchorPreview()
 	if not addon.db.enableLootToastAnchor then return end
-	local anchor = self:GetAnchorFrame()
+	local anchor = self:GetToastAnchorFrame()
 	if anchor:IsShown() then
 		anchor:Hide()
 	else
@@ -426,21 +641,118 @@ end
 
 function LootToast:OnAnchorOptionChanged(enabled)
 	if not enabled then
-		if self.anchorFrame then self.anchorFrame:Hide() end
+		if self.toastAnchorFrame then self.toastAnchorFrame:Hide() end
 		self:RestoreDefaultAnchors()
 	else
 		self:ApplyAnchorPosition()
 	end
-	if EditMode and EditMode.RefreshFrame then EditMode:RefreshFrame(EDITMODE_ID) end
+	if EditMode and EditMode.RefreshFrame then EditMode:RefreshFrame(TOAST_EDITMODE_ID) end
+end
+
+function LootToast:GetGroupRollAnchorFrame()
+	if self.groupRollAnchorFrame then return self.groupRollAnchorFrame end
+
+	local frame = CreateFrame("Frame", "EnhanceQoL_GroupLootAnchor", UIParent, "BackdropTemplate")
+	local width = 277
+	local height = 67
+	if FrameIsAccessible(GroupLootFrame1) then
+		local w = GroupLootFrame1:GetWidth()
+		local h = GroupLootFrame1:GetHeight()
+		if w and w > 0 then width = w end
+		if h and h > 0 then height = h end
+	end
+	frame:SetSize(width, height)
+	frame:SetFrameStrata("HIGH")
+	frame:SetClampedToScreen(true)
+	frame:SetMovable(true)
+	if EditMode and EditMode.RegisterFrame then
+		frame:EnableMouse(false)
+	else
+		frame:EnableMouse(true)
+		frame:RegisterForDrag("LeftButton")
+		frame:SetScript("OnDragStart", frame.StartMoving)
+		frame:SetScript("OnDragStop", function(anchor)
+			anchor:StopMovingOrSizing()
+			local point, _, relativePoint, x, y = anchor:GetPoint()
+			UpdateGroupRollAnchorConfig({ point = point, relativePoint = relativePoint or point, x = x, y = y })
+			LootToast:ApplyGroupLootLayout()
+		end)
+	end
+
+	frame:SetBackdrop({
+		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		edgeSize = 12,
+		insets = { left = 2, right = 2, top = 2, bottom = 2 },
+	})
+	frame:SetBackdropColor(0.05, 0.18, 0.55, 0.35)
+	frame:SetBackdropBorderColor(0.12, 0.42, 0.82, 0.9)
+
+	local label = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	label:SetPoint("CENTER")
+	label:SetText(L["groupLootAnchorLabel"])
+	frame.label = label
+
+	frame:Hide()
+	self.groupRollAnchorFrame = frame
+	self:RegisterGroupRollAnchorWithEditMode(frame)
+	return frame
+end
+
+function LootToast:ToggleGroupRollAnchorPreview()
+	if not addon.db.enableGroupLootAnchor then return end
+	local anchor = self:GetGroupRollAnchorFrame()
+	if anchor:IsShown() then
+		anchor:Hide()
+	else
+		self:ApplyGroupLootLayout()
+		anchor:Show()
+	end
+end
+
+function LootToast:OnGroupRollAnchorOptionChanged(enabled)
+	if not enabled then
+		if self.groupRollAnchorFrame then self.groupRollAnchorFrame:Hide() end
+		self:RestoreDefaultAnchors()
+	else
+		self:ApplyGroupLootLayout()
+	end
+	if EditMode and EditMode.RefreshFrame then EditMode:RefreshFrame(GROUPROLL_EDITMODE_ID) end
 end
 
 local function ReanchorAlerts()
 	if addon.db.enableLootToastAnchor then
 		LootToast:ApplyAnchorPosition()
-	elseif LootToast.defaultAlertAnchor then
+	elseif LootToast.defaultAlertAnchor and not addon.db.enableGroupLootAnchor then
 		LootToast:RestoreDefaultAnchors()
 	end
+	if addon.db.enableGroupLootAnchor then LootToast:ApplyGroupLootLayout() end
 end
+
+local hookedGroupLootCallbacks = {}
+
+local function SetupGroupLootHooks()
+	local function tryHook(name)
+		if hookedGroupLootCallbacks[name] then return end
+		if type(_G[name]) == "function" then
+			hooksecurefunc(name, function()
+				if addon.db.enableGroupLootAnchor and LootToast.ApplyGroupLootLayout then LootToast:ApplyGroupLootLayout() end
+			end)
+			hookedGroupLootCallbacks[name] = true
+		end
+	end
+
+	tryHook("GroupLootContainer_OnLoad")
+	tryHook("GroupLootContainer_RemoveFrame")
+	tryHook("GroupLootContainer_Update")
+	tryHook("GroupLootFrame_OnShow")
+	tryHook("BonusRollFrame_OnLoad")
+	tryHook("BonusRollFrame_OnShow")
+	tryHook("BonusRollFrame_OnUpdate")
+	tryHook("BonusRollFrame_StartBonusRoll")
+end
+
+SetupGroupLootHooks()
 
 local f = CreateFrame("Frame")
 f:RegisterEvent("PLAYER_LOGIN")
@@ -449,6 +761,7 @@ f:RegisterEvent("DISPLAY_SIZE_CHANGED")
 local anchorsHooked = false
 f:SetScript("OnEvent", function()
 	RememberDefaultAnchors()
+	SetupGroupLootHooks()
 	if not anchorsHooked then
 		hooksecurefunc(AlertFrame, "UpdateAnchors", ReanchorAlerts)
 		anchorsHooked = true

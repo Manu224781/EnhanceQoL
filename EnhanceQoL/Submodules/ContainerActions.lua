@@ -122,7 +122,12 @@ local function GetCurrentInstanceType()
 	return instanceType
 end
 
-function ContainerActions:IsEnabled() return addon.db and addon.db["automaticallyOpenContainer"] end
+function ContainerActions:IsEnabled()
+	local enabled = addon.db and addon.db["automaticallyOpenContainer"]
+	if not enabled then return false end
+	if self.challengeModeActive == nil then self.challengeModeActive = self:IsChallengeModeActive() end
+	return not self.challengeModeActive
+end
 
 local function GetAreaDisplayName(key)
 	local def = AREA_BLOCKS[key]
@@ -135,8 +140,8 @@ local function GetAreaDisplayName(key)
 end
 
 function ContainerActions:GetAnchorConfig(layoutName)
-    local snapshot = BuildAnchorLayoutSnapshot(layoutName)
-    return FormatAnchorPoint(snapshot)
+	local snapshot = BuildAnchorLayoutSnapshot(layoutName)
+	return FormatAnchorPoint(snapshot)
 end
 
 function ContainerActions:GetLayoutAreaBlocks(layoutName)
@@ -167,17 +172,17 @@ function ContainerActions:SetAreaBlock(layoutName, key, enabled)
 end
 
 function ContainerActions:ApplyAnchorLayout(data)
-    local cfg = CopyAnchorConfig(data)
-    addon.db.containerActionAnchor = CopyAnchorConfig(cfg)
-    local anchor = self.anchor
-    if anchor then
-        anchor:ClearAllPoints()
-        anchor:SetPoint(cfg.point, UIParent, cfg.relativePoint, cfg.x, cfg.y)
-    end
-    if self.button then
-        self.button:ClearAllPoints()
-        self.button:SetPoint("CENTER", self:EnsureAnchor(), "CENTER", 0, 0)
-    end
+	local cfg = CopyAnchorConfig(data)
+	addon.db.containerActionAnchor = CopyAnchorConfig(cfg)
+	local anchor = self.anchor
+	if anchor then
+		anchor:ClearAllPoints()
+		anchor:SetPoint(cfg.point, UIParent, cfg.relativePoint, cfg.x, cfg.y)
+	end
+	if self.button then
+		self.button:ClearAllPoints()
+		self.button:SetPoint("CENTER", self:EnsureAnchor(), "CENTER", 0, 0)
+	end
 end
 
 function ContainerActions:EnsureAnchor()
@@ -221,20 +226,16 @@ function ContainerActions:EnsureAnchor()
 				generator = function(_, rootDescription)
 					for _, areaKey in ipairs(AREA_BLOCK_ORDER) do
 						local key = areaKey
-						rootDescription:CreateCheckbox(
-							GetAreaDisplayName(key),
-							function()
-								local layoutName = EditMode and EditMode:GetActiveLayoutName()
-								local cfg = ContainerActions:GetLayoutAreaBlocks(layoutName)
-								return not not cfg[key]
-							end,
-							function()
-								local layoutName = EditMode and EditMode:GetActiveLayoutName()
-								local cfg = ContainerActions:GetLayoutAreaBlocks(layoutName)
-								local newState = not not cfg[key]
-								ContainerActions:SetAreaBlock(layoutName, key, not newState)
-							end
-						)
+						rootDescription:CreateCheckbox(GetAreaDisplayName(key), function()
+							local layoutName = EditMode and EditMode:GetActiveLayoutName()
+							local cfg = ContainerActions:GetLayoutAreaBlocks(layoutName)
+							return not not cfg[key]
+						end, function()
+							local layoutName = EditMode and EditMode:GetActiveLayoutName()
+							local cfg = ContainerActions:GetLayoutAreaBlocks(layoutName)
+							local newState = not not cfg[key]
+							ContainerActions:SetAreaBlock(layoutName, key, not newState)
+						end)
 					end
 				end,
 			}
@@ -705,9 +706,7 @@ function ContainerActions:RequestVisibility(show, skipDesiredUpdate)
 	if not skipDesiredUpdate then self.desiredVisibility = show and true or false end
 	local button = self:EnsureButton()
 	local desired = show and true or false
-	if self:HasVisibilityBlock() then
-		desired = false
-	end
+	if self:HasVisibilityBlock() then desired = false end
 	button:SetAlpha(desired and 1 or 0)
 	if InCombat() then
 		self.pendingVisibility = desired
@@ -850,14 +849,29 @@ function ContainerActions:UpdateVehicleState()
 	self:SetVisibilityBlock("vehicle", inVehicle)
 end
 
+function ContainerActions:SetChallengeModeActive(active)
+	active = active and true or false
+	local previous = self.challengeModeActive
+	if previous == active then
+		self:SetVisibilityBlock("challengeMode", active)
+		return
+	end
+
+	self.challengeModeActive = active
+	if active then self:ApplyButtonEntry(nil) end
+	self:SetVisibilityBlock("challengeMode", active)
+
+	if previous ~= nil and addon.functions and addon.functions.checkForContainer then addon.functions.checkForContainer() end
+end
+
 function ContainerActions:OnChallengeModeStart()
-	self:SetVisibilityBlock("challengeMode", true)
+	self:SetChallengeModeActive(true)
 	self:UpdateAreaBlocks()
 end
 
 function ContainerActions:OnChallengeModeCompleted()
 	-- falls der Abschluss noch als aktiv markiert ist, korrigiert UpdateChallengeModeState dies
-	self:SetVisibilityBlock("challengeMode", false)
+	self:SetChallengeModeActive(false)
 	self:UpdateChallengeModeState()
 	self:UpdateAreaBlocks()
 end
@@ -868,7 +882,7 @@ function ContainerActions:IsChallengeModeActive()
 	return active == true
 end
 
-function ContainerActions:UpdateChallengeModeState() self:SetVisibilityBlock("challengeMode", self:IsChallengeModeActive()) end
+function ContainerActions:UpdateChallengeModeState() self:SetChallengeModeActive(self:IsChallengeModeActive()) end
 
 function ContainerActions:ShouldInspectTooltip(itemID)
 	if not itemID then return false end

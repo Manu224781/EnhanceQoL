@@ -13,6 +13,14 @@ local LegionRemix = addon.Events.LegionRemix
 
 local AceGUI = LibStub("AceGUI-3.0")
 local L = LibStub("AceLocale-3.0"):GetLocale(PARENT_ADDON)
+local EditMode = addon.EditMode
+local SettingType = EditMode and EditMode.lib and EditMode.lib.SettingType
+
+local STRATA_ORDER = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }
+local STRATA_VALUES = {}
+for _, strata in ipairs(STRATA_ORDER) do
+	STRATA_VALUES[#STRATA_VALUES + 1] = { text = strata, isRadio = true }
+end
 
 local DEFAULT_PHASE_KEYS = { "mount", "item", "toy", "pet", "achievement", "title", "rare_appearance", "cloaks" }
 local PHASE_LOOKUP = _G.EnhanceQoLLegionRemixPhaseData or {}
@@ -1107,6 +1115,246 @@ function LegionRemix:EnsureOverlayStrataDefaults(db)
 	if not VALID_FRAME_STRATA[strata] then db.overlayStrata = DEFAULTS.overlayStrata end
 end
 
+function LegionRemix:SyncEditModeValue(field, value)
+	if not EditMode or not self.editModeId or self.applyingEditMode then return end
+	EditMode:SetValue(self.editModeId, field, value, nil, true)
+end
+
+function LegionRemix:SyncEditModePosition()
+	if not EditMode or not self.editModeId then return end
+	local db = self:GetDB()
+	if not db or not db.anchor then return end
+	local point = db.anchor.point or "TOPLEFT"
+	local x = db.anchor.x or 0
+	local y = db.anchor.y or 0
+	EditMode:SetFramePosition(self.editModeId, point, x, y, nil, true)
+end
+
+function LegionRemix:ApplyEditModeSettings(data)
+	if not data then return end
+	self.applyingEditMode = true
+	if data.scale then self:SetOverlayScale(data.scale) end
+	if data.strata then self:SetOverlayStrata(data.strata) end
+	if data.hideComplete ~= nil then self:SetHideCompleteCategories(data.hideComplete) end
+	if data.collapsed ~= nil then self:SetCollapsed(data.collapsed) end
+	if data.classOnly ~= nil then self:SetClassOnly(data.classOnly) end
+	if data.enhancedTracking ~= nil then self:SetEnhancedTracking(data.enhancedTracking) end
+	if data.zoneFilters then self:ApplyZoneFilterSelection(data.zoneFilters) end
+	if data.visibleCategories then self:ApplyVisibleCategories(data.visibleCategories) end
+	self.applyingEditMode = nil
+	self:UpdateOverlay()
+end
+
+function LegionRemix:ApplyEditModePosition(data)
+	if not data then return end
+	local frame = self:CreateOverlay()
+	if not frame then return end
+	self.applyingEditMode = true
+	local point = data.point or "TOPLEFT"
+	local relativePoint = data.relativePoint or point
+	local x = data.x or 0
+	local y = data.y or 0
+	frame:ClearAllPoints()
+	frame:SetPoint(point, UIParent, relativePoint, x, y)
+	self:SaveAnchor(frame)
+	self.applyingEditMode = nil
+end
+
+function LegionRemix:RegisterEditModeFrame()
+	if not EditMode or not EditMode.RegisterFrame then return end
+	if self.editModeRegistered and self.editModeId then
+		EditMode:RefreshFrame(self.editModeId)
+		return
+	end
+
+	local frame = self:CreateOverlay()
+	if not frame then return end
+
+	local point, _, relativePoint, x, y = frame:GetPoint(1)
+	point = point or "TOPLEFT"
+	relativePoint = relativePoint or point
+	x = x or 0
+	y = y or 0
+
+	local defaults = {
+		point = point,
+		relativePoint = relativePoint,
+		x = x,
+		y = y,
+		scale = self:GetOverlayScale(),
+		strata = self:GetOverlayStrata(),
+		hideComplete = self:IsHidingCompleteCategories(),
+		zoneFilters = self:GetZoneFilterSelection(),
+		visibleCategories = self:GetVisibleCategoryKeys(),
+		collapsed = self:IsCollapsed(),
+		classOnly = self:IsClassOnly(),
+		enhancedTracking = self:IsEnhancedTrackingEnabled(),
+	}
+
+	local settings = {}
+	if SettingType then
+		settings[#settings + 1] = {
+			name = L["Overlay Scale"],
+			kind = SettingType.Slider,
+			field = "scale",
+			default = defaults.scale,
+			minValue = 0.6,
+			maxValue = 1.6,
+			valueStep = 0.05,
+			get = function() return self:GetOverlayScale() end,
+			set = function(_, value)
+				self.applyingEditMode = true
+				self:SetOverlayScale(value)
+				self.applyingEditMode = nil
+			end,
+			formatter = function(value)
+				value = tonumber(value) or defaults.scale or 1
+				value = math.floor((value / 0.05) + 0.5) * 0.05
+				if value < 0.6 then
+					value = 0.6
+				elseif value > 1.6 then
+					value = 1.6
+				end
+				return string.format("%.2f", value)
+			end,
+		}
+
+		settings[#settings + 1] = {
+			name = L["LegionRemixFrameStrata"],
+			kind = SettingType.Dropdown,
+			field = "strata",
+			default = defaults.strata,
+			values = STRATA_VALUES,
+			get = function() return self:GetOverlayStrata() end,
+			set = function(_, value)
+				self.applyingEditMode = true
+				self:SetOverlayStrata(value)
+				self.applyingEditMode = nil
+			end,
+		}
+
+		local zoneOrder = self:GetZoneFilterOrder()
+		if #zoneOrder > 0 then
+			settings[#settings + 1] = {
+				name = L["Show overlay in"],
+				kind = SettingType.Dropdown,
+				field = "zoneFilters",
+				default = CopyTable(defaults.zoneFilters or {}),
+				height = 260,
+				get = function() return CopyTable(self:GetZoneFilterSelection()) end,
+				set = function(_, value) self:ApplyZoneFilterSelection(value) end,
+				generator = function(_, root)
+					for _, zoneKey in ipairs(zoneOrder) do
+						local label = self:GetZoneTypeLabel(zoneKey)
+						root:CreateCheckbox(label, function() return self:IsZoneFilterEnabled(zoneKey) end, function()
+							local enabled = self:IsZoneFilterEnabled(zoneKey)
+							self:SetZoneFilter(zoneKey, not enabled)
+						end)
+					end
+				end,
+			}
+		end
+
+		settings[#settings + 1] = {
+			name = L["Hide complete categories"],
+			kind = SettingType.Checkbox,
+			field = "hideComplete",
+			default = defaults.hideComplete,
+			get = function() return self:IsHidingCompleteCategories() end,
+			set = function(_, value)
+				self.applyingEditMode = true
+				self:SetHideCompleteCategories(value)
+				self.applyingEditMode = nil
+			end,
+		}
+
+		settings[#settings + 1] = {
+			name = L["Collapse progress list by default"],
+			kind = SettingType.Checkbox,
+			field = "collapsed",
+			default = defaults.collapsed,
+			get = function() return self:IsCollapsed() end,
+			set = function(_, value)
+				self.applyingEditMode = true
+				self:SetCollapsed(value)
+				self.applyingEditMode = nil
+			end,
+		}
+
+		settings[#settings + 1] = {
+			name = L["Only consider sets wearable by the current character"],
+			kind = SettingType.Checkbox,
+			field = "classOnly",
+			default = defaults.classOnly,
+			get = function() return self:IsClassOnly() end,
+			set = function(_, value)
+				self.applyingEditMode = true
+				self:SetClassOnly(value)
+				self.applyingEditMode = nil
+			end,
+		}
+
+		settings[#settings + 1] = {
+			name = L["Enhanced transmog tracking (slower on login)"],
+			kind = SettingType.Checkbox,
+			field = "enhancedTracking",
+			default = defaults.enhancedTracking,
+			get = function() return self:IsEnhancedTrackingEnabled() end,
+			set = function(_, value)
+				self.applyingEditMode = true
+				self:SetEnhancedTracking(value)
+				self.applyingEditMode = nil
+			end,
+		}
+
+		local categoryOrder = self:GetCategoryOrder()
+		if #categoryOrder > 0 then
+			settings[#settings + 1] = {
+				name = L["Visible categories"],
+				kind = SettingType.Dropdown,
+				field = "visibleCategories",
+				default = CopyTable(defaults.visibleCategories or {}),
+				height = 260,
+				get = function() return CopyTable(self:GetVisibleCategoryKeys()) end,
+				set = function(_, value) self:ApplyVisibleCategories(value) end,
+				generator = function(_, root)
+					local options = self:GetCategoryOptions()
+					for _, key in ipairs(categoryOrder) do
+						local label = options[key] or key
+						root:CreateCheckbox(label, function() return self:IsCategoryVisible(key) end, function()
+							local enabled = self:IsCategoryVisible(key)
+							self:SetCategoryVisibility(key, not enabled)
+						end)
+					end
+				end,
+			}
+		end
+	end
+
+	local id = "legionremix:overlay"
+	EditMode:RegisterFrame(id, {
+		frame = frame,
+		title = L["Legion Remix Collection"],
+		layoutDefaults = defaults,
+		onApply = function(_, _, data) self:ApplyEditModeSettings(data or {}) end,
+		onPositionChanged = function(_, _, data) self:ApplyEditModePosition(data or {}) end,
+		settings = settings,
+		showOutsideEditMode = true,
+	})
+	self.editModeRegistered = true
+	self.editModeId = id
+	self:SyncEditModePosition()
+	self:SyncEditModeValue("scale", defaults.scale)
+	self:SyncEditModeValue("strata", defaults.strata)
+	self:SyncEditModeValue("hideComplete", defaults.hideComplete)
+	self:SyncEditModeValue("zoneFilters", CopyTable(defaults.zoneFilters or {}))
+	self:SyncEditModeValue("visibleCategories", CopyTable(defaults.visibleCategories or {}))
+	self:SyncEditModeValue("collapsed", defaults.collapsed)
+	self:SyncEditModeValue("classOnly", defaults.classOnly)
+	self:SyncEditModeValue("enhancedTracking", defaults.enhancedTracking)
+	self:UpdateOverlay()
+end
+
 function LegionRemix:GetCategoryOptions()
 	local options = {}
 	for _, category in ipairs(CATEGORY_DATA) do
@@ -1115,12 +1363,55 @@ function LegionRemix:GetCategoryOptions()
 	return options
 end
 
+function LegionRemix:GetCategoryOrder()
+	local order = {}
+	for _, category in ipairs(CATEGORY_DATA) do
+		order[#order + 1] = category.key
+	end
+	return order
+end
+
+function LegionRemix:GetVisibleCategoryKeys()
+	local visible = {}
+	for _, key in ipairs(self:GetCategoryOrder()) do
+		if self:IsCategoryVisible(key) then visible[#visible + 1] = key end
+	end
+	return visible
+end
+
 function LegionRemix:IsCategoryVisible(key)
 	local db = self:GetDB()
 	if not db then return true end
 	local filters = db.categoryFilters or {}
 	if filters[key] == nil then return true end
 	return filters[key]
+end
+
+function LegionRemix:ApplyVisibleCategories(selection)
+	local db = self:GetDB()
+	if not db then return end
+
+	local desired = {}
+	if type(selection) == "table" then
+		for _, key in ipairs(selection) do
+			if type(key) == "string" then desired[key] = true end
+		end
+		for key, value in pairs(selection) do
+			if type(key) == "string" and value == true then desired[key] = true end
+		end
+	end
+
+	local previous = self.applyingEditMode
+	self.applyingEditMode = true
+	local filters = {}
+	for _, key in ipairs(self:GetCategoryOrder()) do
+		if not desired[key] then filters[key] = false end
+	end
+	db.categoryFilters = filters
+	self.applyingEditMode = previous
+
+	self:RefreshData()
+	self:SyncEditModeValue("visibleCategories", self:GetVisibleCategoryKeys())
 end
 
 function LegionRemix:SetCategoryVisibility(key, visible)
@@ -1133,6 +1424,7 @@ function LegionRemix:SetCategoryVisibility(key, visible)
 		db.categoryFilters[key] = false
 	end
 	self:RefreshData()
+	self:SyncEditModeValue("visibleCategories", self:GetVisibleCategoryKeys())
 end
 
 function LegionRemix:ResetCategoryFilters()
@@ -1141,6 +1433,7 @@ function LegionRemix:ResetCategoryFilters()
 	db.categoryFilters = {}
 	self:EnsureCategoryFilterDefaults(db)
 	self:RefreshData()
+	self:SyncEditModeValue("visibleCategories", self:GetVisibleCategoryKeys())
 end
 
 function LegionRemix:GetZoneCategory()
@@ -1185,6 +1478,17 @@ function LegionRemix:GetZoneFilterOrder()
 	return order
 end
 
+function LegionRemix:GetZoneFilterSelection()
+	local db = self:GetDB()
+	local selection = {}
+	if not db then return selection end
+	local filters = db.zoneFilters or {}
+	for _, key in ipairs(SUPPORTED_ZONE_TYPES) do
+		if filters[key] then selection[#selection + 1] = key end
+	end
+	return selection
+end
+
 function LegionRemix:GetActiveZoneFilters()
 	local db = self:GetDB()
 	local filters = {}
@@ -1213,6 +1517,33 @@ function LegionRemix:SetZoneFilter(key, enabled)
 		db.zoneFilters[key] = nil
 	end
 	self:UpdateOverlay()
+	self:SyncEditModeValue("zoneFilters", self:GetZoneFilterSelection())
+end
+
+function LegionRemix:ApplyZoneFilterSelection(selection)
+	local db = self:GetDB()
+	if not db then return end
+
+	local desired = {}
+	if type(selection) == "table" then
+		for _, key in ipairs(selection) do
+			if type(key) == "string" and SUPPORTED_ZONE_LOOKUP[key] then desired[key] = true end
+		end
+		for key, value in pairs(selection) do
+			if type(key) == "string" and value == true and SUPPORTED_ZONE_LOOKUP[key] then desired[key] = true end
+		end
+	end
+
+	local previous = self.applyingEditMode
+	self.applyingEditMode = true
+	db.zoneFilters = {}
+	for _, key in ipairs(SUPPORTED_ZONE_TYPES) do
+		if desired[key] then db.zoneFilters[key] = true end
+	end
+	self.applyingEditMode = previous
+
+	self:UpdateOverlay()
+	self:SyncEditModeValue("zoneFilters", self:GetZoneFilterSelection())
 end
 
 function LegionRemix:ResetZoneFilters()
@@ -1221,6 +1552,7 @@ function LegionRemix:ResetZoneFilters()
 	db.zoneFilters = {}
 	self:EnsureZoneFilterDefaults(db)
 	self:UpdateOverlay()
+	self:SyncEditModeValue("zoneFilters", self:GetZoneFilterSelection())
 end
 
 function LegionRemix:LayoutFilterButtons()
@@ -1272,18 +1604,6 @@ function LegionRemix:UpdateContentWidth()
 	if width <= 0 then width = (self.overlay:GetWidth() or 0) - 32 end
 	if width < 100 then width = 100 end
 	self.overlay.content:SetWidth(width)
-end
-
-function LegionRemix:RefreshLockButton()
-	if not self.overlay or not self.overlay.lockButton then return end
-	local db = self:GetDB()
-	local locked = db and db.locked
-	local iconPath = locked and "Interface\\AddOns\\EnhanceQoL\\Icons\\ClosedLock.tga" or "Interface\\AddOns\\EnhanceQoL\\Icons\\OpenLock.tga"
-	self.overlay.lockButton.icon:SetTexture(iconPath)
-	self.overlay.lockButton.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
-	self.overlay.lockButton:SetBackdropColor(locked and 0.12 or 0.05, 0.15, locked and 0.04 or 0.06, 0.88)
-	self.overlay.lockButton:SetBackdropBorderColor(locked and 0.32 or 0.18, locked and 0.52 or 0.48, 0.12, 0.75)
-	self.overlay.lockButton.tooltipText = locked and UNLOCK or LOCK
 end
 
 function LegionRemix:PlayerHasMount(mountId)
@@ -2087,6 +2407,7 @@ function LegionRemix:SaveAnchor(frame)
 		db.anchor.x = x or 0
 		db.anchor.y = y or 0
 	end
+	self:SyncEditModePosition()
 end
 
 local function setButtonTexture(button, collapsed)
@@ -2396,8 +2717,7 @@ function LegionRemix:CreateOverlay()
 	frame:EnableMouse(true)
 	frame:RegisterForDrag("LeftButton")
 	frame:SetScript("OnDragStart", function(f)
-		local db = LegionRemix:GetDB()
-		if db and db.locked then return end
+		if not (EditMode and EditMode.IsInEditMode and EditMode:IsInEditMode()) then return end
 		f:StartMoving()
 	end)
 	frame:SetScript("OnDragStop", function(f)
@@ -2478,24 +2798,9 @@ function LegionRemix:CreateOverlay()
 	end)
 	closeButton:SetScript("OnLeave", GameTooltip_Hide)
 
-	local lockButton = createHeaderButton(28, 26)
-	lockButton:SetPoint("RIGHT", closeButton, "LEFT", -6, 0)
-	lockButton.tooltipText = LOCK
-	lockButton:SetScript("OnEnter", function(btn)
-		GameTooltip:SetOwner(btn, "ANCHOR_LEFT")
-		GameTooltip:SetText(btn.tooltipText or LOCK)
-	end)
-	lockButton:SetScript("OnLeave", GameTooltip_Hide)
-	lockButton:SetScript("OnClick", function()
-		local db = LegionRemix:GetDB()
-		if not db then return end
-		db.locked = not db.locked
-		LegionRemix:RefreshLockButton()
-	end)
-
 	local optionsTooltip = SETTINGS
 	local optionsButton = createHeaderButton(24, 26)
-	optionsButton:SetPoint("RIGHT", lockButton, "LEFT", -6, 0)
+	optionsButton:SetPoint("RIGHT", closeButton, "LEFT", -6, 0)
 	optionsButton.tooltipText = optionsTooltip
 	optionsButton.icon:SetTexture("Interface\\Buttons\\UI-OptionsButton")
 	optionsButton.icon:SetTexCoord(0.1, 0.9, 0.1, 0.9)
@@ -2557,7 +2862,6 @@ function LegionRemix:CreateOverlay()
 	frame.progressAllText = progressAllText
 	frame.collapseButton = collapse
 	frame.closeButton = closeButton
-	frame.lockButton = lockButton
 	frame.optionsButton = optionsButton
 	frame.filterBar = filterBar
 	-- frame.scrollFrame = scrollFrame
@@ -2568,7 +2872,6 @@ function LegionRemix:CreateOverlay()
 	self:ApplyAnchor(frame)
 	self:BuildFilterButtons()
 	self:UpdateFilterButtons()
-	self:RefreshLockButton()
 	self:UpdateContentWidth()
 	frame:SetScript("OnSizeChanged", function()
 		LegionRemix:UpdateContentWidth()
@@ -2591,8 +2894,6 @@ function LegionRemix:UpdateOverlay()
 	frame:Show()
 	if frame.collapseButton then frame.collapseButton.tooltipText = db and db.collapsed and HERO_TALENTS_EXPAND or HERO_TALENTS_COLLAPSE end
 	setButtonTexture(frame.collapseButton, db and db.collapsed)
-	if frame.lockButton then frame.lockButton.tooltipText = db and db.locked and UNLOCK or LOCK end
-	self:RefreshLockButton()
 
 	self:UpdateFilterButtons()
 
@@ -2682,7 +2983,13 @@ function LegionRemix:SetOverlayEnabled(value)
 	db.overlayEnabled = value and true or false
 	if value then db.overlayHidden = false end
 	self:UpdateActivationState()
-	self:RefreshLockButton()
+	if value then self:RegisterEditModeFrame() end
+end
+
+function LegionRemix:IsCollapsed()
+	local db = self:GetDB()
+	if not db then return false end
+	return db.collapsed and true or false
 end
 
 function LegionRemix:SetCollapsed(value)
@@ -2690,6 +2997,7 @@ function LegionRemix:SetCollapsed(value)
 	if not db then return end
 	db.collapsed = value and true or false
 	self:UpdateOverlay()
+	self:SyncEditModeValue("collapsed", db.collapsed)
 end
 
 function LegionRemix:GetOverlayScale()
@@ -2714,6 +3022,7 @@ function LegionRemix:SetOverlayScale(value)
 		self:UpdateContentWidth()
 		self:LayoutFilterButtons()
 	end
+	self:SyncEditModeValue("scale", scale)
 end
 
 function LegionRemix:GetOverlayStrata()
@@ -2733,6 +3042,7 @@ function LegionRemix:SetOverlayStrata(value)
 	if self.overlay then
 		self.overlay:SetFrameStrata(value)
 	end
+	self:SyncEditModeValue("strata", value)
 end
 
 function LegionRemix:OpenOptions()
@@ -2749,6 +3059,13 @@ function LegionRemix:SetClassOnly(value)
 	db.classOnly = value and true or false
 	self:InvalidateAllCaches()
 	self:RefreshData()
+	self:SyncEditModeValue("classOnly", db.classOnly and true or false)
+end
+
+function LegionRemix:IsClassOnly()
+	local db = self:GetDB()
+	if not db then return false end
+	return db.classOnly and true or false
 end
 
 function LegionRemix:SetEnhancedTracking(value)
@@ -2757,6 +3074,13 @@ function LegionRemix:SetEnhancedTracking(value)
 	db.enhancedTracking = value and true or false
 	self:InvalidateAllCaches()
 	self:RefreshData()
+	self:SyncEditModeValue("enhancedTracking", db.enhancedTracking and true or false)
+end
+
+function LegionRemix:IsEnhancedTrackingEnabled()
+	local db = self:GetDB()
+	if not db then return true end
+	return db.enhancedTracking ~= false
 end
 
 function LegionRemix:IsHidingCompleteCategories()
@@ -2772,6 +3096,7 @@ function LegionRemix:SetHideCompleteCategories(value)
 	if db.hideCompleteCategories == enabled then return end
 	db.hideCompleteCategories = enabled
 	self:UpdateOverlay()
+	self:SyncEditModeValue("hideComplete", enabled)
 end
 
 function LegionRemix:ResetPosition()
@@ -2779,6 +3104,7 @@ function LegionRemix:ResetPosition()
 	if not db then return end
 	db.anchor = CopyTable(DEFAULTS.anchor)
 	self:ApplyAnchor(self.overlay)
+	self:SyncEditModePosition()
 end
 
 function LegionRemix:SetHidden(value)
@@ -2888,219 +3214,6 @@ function LegionRemix:Init()
 	self:InvalidateAllCaches()
 	self.initialized = true
 	self:UpdateActivationState()
-end
-
-local function addSpacer(container)
-	local spacer = AceGUI:Create("Label")
-	spacer:SetFullWidth(true)
-	spacer:SetText(" ")
-	container:AddChild(spacer)
-end
-
-local function addCheckbox(container, text, getter, setter)
-	local checkbox = AceGUI:Create("CheckBox")
-	checkbox:SetLabel(text)
-	checkbox:SetValue(getter())
-	checkbox:SetFullWidth(true)
-	checkbox:SetCallback("OnValueChanged", function(_, _, val) setter(val and true or false) end)
-	container:AddChild(checkbox)
-	return checkbox
-end
-
-function LegionRemix:BuildOptionsUI(container)
-	container:ReleaseChildren()
-	local scroll = AceGUI:Create("ScrollFrame")
-	scroll:SetLayout("List")
-	container:AddChild(scroll)
-
-	local intro = AceGUI:Create("Label")
-	intro:SetFullWidth(true)
-	intro:SetText(L["Track your Legion Remix Bronze collection"])
-	scroll:AddChild(intro)
-
-	addSpacer(scroll)
-
-	addCheckbox(scroll, L["Enable overlay"], function()
-		local db = LegionRemix:GetDB()
-		return db and db.overlayEnabled
-	end, function(value)
-		LegionRemix:SetOverlayEnabled(value)
-		container:ReleaseChildren()
-		LegionRemix:BuildOptionsUI(container)
-	end)
-
-	if LegionRemix:GetDB().overlayEnabled then
-		addCheckbox(scroll, L["Collapse progress list by default"], function()
-			local db = LegionRemix:GetDB()
-			return db and db.collapsed
-		end, function(value) LegionRemix:SetCollapsed(value) end)
-
-		addCheckbox(scroll, L["Lock overlay position"], function()
-			local db = LegionRemix:GetDB()
-			return db and db.locked
-		end, function(value)
-			local db = LegionRemix:GetDB()
-			if db then
-				db.locked = value
-				LegionRemix:RefreshLockButton()
-			end
-		end)
-
-		addSpacer(scroll)
-
-		local scaleSlider = AceGUI:Create("Slider")
-		scaleSlider:SetLabel(L["Overlay Scale"])
-		scaleSlider:SetSliderValues(0.6, 1.6, 0.05)
-		local initialScale = LegionRemix:GetOverlayScale()
-		if type(initialScale) ~= "number" then initialScale = DEFAULTS.overlayScale or 1 end
-		scaleSlider:SetValue(initialScale)
-		scaleSlider:SetFullWidth(true)
-		scaleSlider:SetCallback("OnValueChanged", function(_, _, val)
-			if type(val) ~= "number" then return end
-			LegionRemix:SetOverlayScale(val)
-		end)
-		scroll:AddChild(scaleSlider)
-
-		local layoutRow = AceGUI:Create("SimpleGroup")
-		layoutRow:SetLayout("Flow")
-		layoutRow:SetFullWidth(true)
-
-		local function halfWidth(widget)
-			widget:SetRelativeWidth(0.5)
-		end
-
-		local strataDropdown = AceGUI:Create("Dropdown")
-		strataDropdown:SetLabel("Frame Strata")
-		halfWidth(strataDropdown)
-		local strataOptions = {
-			BACKGROUND = "Background",
-			LOW = "Low",
-			MEDIUM = "Medium",
-			HIGH = "High",
-			DIALOG = "Dialog",
-			FULLSCREEN = "Fullscreen",
-			FULLSCREEN_DIALOG = "Fullscreen Dialog",
-			TOOLTIP = "Tooltip",
-		}
-		local strataOrder = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCREEN", "FULLSCREEN_DIALOG", "TOOLTIP" }
-		strataDropdown:SetList(strataOptions, strataOrder)
-		strataDropdown:SetValue(LegionRemix:GetOverlayStrata())
-		strataDropdown:SetCallback("OnValueChanged", function(_, _, key)
-			if type(key) ~= "string" then return end
-			LegionRemix:SetOverlayStrata(key)
-		end)
-		layoutRow:AddChild(strataDropdown)
-
-		local zoneDropdown = AceGUI:Create("Dropdown")
-		zoneDropdown:SetLabel(L["Show overlay in"])
-		zoneDropdown:SetMultiselect(true)
-		halfWidth(zoneDropdown)
-		local zoneOptions = LegionRemix:GetZoneFilterOptions()
-		zoneDropdown:SetList(zoneOptions, LegionRemix:GetZoneFilterOrder())
-		local function refreshZoneDropdown()
-			local refreshed = LegionRemix:GetZoneFilterOptions()
-			zoneDropdown:SetList(refreshed, LegionRemix:GetZoneFilterOrder())
-			for _, key in ipairs(LegionRemix:GetZoneFilterOrder()) do
-				zoneDropdown:SetItemValue(key, LegionRemix:IsZoneFilterEnabled(key))
-			end
-		end
-		zoneDropdown:SetCallback("OnValueChanged", function(_, _, key, state) LegionRemix:SetZoneFilter(key, state) end)
-		layoutRow:AddChild(zoneDropdown)
-		scroll:AddChild(layoutRow)
-
-		addSpacer(scroll)
-		refreshZoneDropdown()
-
-		addSpacer(scroll)
-
-		addCheckbox(scroll, L["Only consider sets wearable by the current character"], function()
-			local db = LegionRemix:GetDB()
-			return db and db.classOnly
-		end, function(value) LegionRemix:SetClassOnly(value) end)
-
-		addCheckbox(scroll, L["Enhanced transmog tracking (slower on login)"], function()
-			local db = LegionRemix:GetDB()
-			return db and db.enhancedTracking
-		end, function(value) LegionRemix:SetEnhancedTracking(value) end)
-
-		addCheckbox(scroll, L["Hide complete categories"], function() return LegionRemix:IsHidingCompleteCategories() end, function(value) LegionRemix:SetHideCompleteCategories(value) end)
-
-		addSpacer(scroll)
-
-		local categoryDropdown = AceGUI:Create("Dropdown")
-		categoryDropdown:SetLabel(L["Visible categories"])
-		categoryDropdown:SetMultiselect(true)
-		categoryDropdown:SetFullWidth(true)
-		local categoryOptions = LegionRemix:GetCategoryOptions()
-		local categoryOrder = {}
-		for _, category in ipairs(CATEGORY_DATA) do
-			categoryOrder[#categoryOrder + 1] = category.key
-		end
-		categoryDropdown:SetList(categoryOptions, categoryOrder)
-		local function refreshCategoryDropdown()
-			categoryDropdown:SetList(LegionRemix:GetCategoryOptions(), categoryOrder)
-			for _, category in ipairs(CATEGORY_DATA) do
-				categoryDropdown:SetItemValue(category.key, LegionRemix:IsCategoryVisible(category.key))
-			end
-		end
-		categoryDropdown:SetCallback("OnValueChanged", function(_, _, key, state) LegionRemix:SetCategoryVisibility(key, state) end)
-		scroll:AddChild(categoryDropdown)
-		refreshCategoryDropdown()
-
-		local categoryButtons = AceGUI:Create("SimpleGroup")
-		categoryButtons:SetLayout("Flow")
-		categoryButtons:SetFullWidth(true)
-		local showAllCategories = AceGUI:Create("Button")
-		showAllCategories:SetText(L["Show all categories"])
-		showAllCategories:SetWidth(180)
-		showAllCategories:SetCallback("OnClick", function()
-			LegionRemix:ResetCategoryFilters()
-			refreshCategoryDropdown()
-		end)
-		categoryButtons:AddChild(showAllCategories)
-		scroll:AddChild(categoryButtons)
-
-		addSpacer(scroll)
-
-		local buttonsGroup = AceGUI:Create("SimpleGroup")
-		buttonsGroup:SetLayout("Flow")
-		buttonsGroup:SetFullWidth(true)
-		scroll:AddChild(buttonsGroup)
-
-		local showBtn = AceGUI:Create("Button")
-		showBtn:SetText(L["Show overlay"])
-		showBtn:SetWidth(160)
-		showBtn:SetCallback("OnClick", function()
-			LegionRemix:SetHidden(false)
-			LegionRemix:SetOverlayEnabled(true)
-		end)
-		buttonsGroup:AddChild(showBtn)
-
-		local hideBtn = AceGUI:Create("Button")
-		hideBtn:SetText(L["Hide overlay"])
-		hideBtn:SetWidth(160)
-		hideBtn:SetCallback("OnClick", function() LegionRemix:SetHidden(true) end)
-		buttonsGroup:AddChild(hideBtn)
-
-		local resetBtn = AceGUI:Create("Button")
-		resetBtn:SetText(RESET_POSITION)
-		resetBtn:SetWidth(160)
-		resetBtn:SetCallback("OnClick", function() LegionRemix:ResetPosition() end)
-		buttonsGroup:AddChild(resetBtn)
-
-		local refreshBtn = AceGUI:Create("Button")
-		refreshBtn:SetText(REFRESH)
-		refreshBtn:SetWidth(160)
-		refreshBtn:SetCallback("OnClick", function() LegionRemix:RefreshData() end)
-		buttonsGroup:AddChild(refreshBtn)
-	end
-end
-
-LegionRemix.functions = LegionRemix.functions or {}
-
-function LegionRemix.functions.treeCallback(container, group)
-	LegionRemix:Init()
-	LegionRemix:BuildOptionsUI(container)
 end
 
 local activationEvents = {

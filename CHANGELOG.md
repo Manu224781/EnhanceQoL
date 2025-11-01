@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.12.1] – 2025-10-28
+
+### ✨ Added
+
+- Friends list decorator on the friends panel with class-coloured names, faction badges, status/game icon tweaks, and Real ID display (toggleable via module API)
+
+### 🐛 Fixed
+
+- Resource bars with seperator were behind the bar
+- Container action button now stays disabled while a Challenge Mode run is active
+
+---
+
 ## [5.12.0] – 2025-10-26
 
 ### ✨ Added

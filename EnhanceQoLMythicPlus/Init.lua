@@ -8,7 +8,7 @@ end
 
 -- Always use the improved Keystone Helper UI (legacy removed)
 -- PullTimer
-addon.functions.InitDBValue("enableKeystoneHelper", true)
+addon.functions.InitDBValue("enableKeystoneHelper", false)
 addon.functions.InitDBValue("autoInsertKeystone", false)
 addon.functions.InitDBValue("closeBagsOnKeyInsert", false)
 addon.functions.InitDBValue("noChatOnPullTimer", false)
@@ -28,6 +28,7 @@ addon.functions.InitDBValue("CooldownTrackerPoint", "CENTER")
 addon.functions.InitDBValue("CooldownTrackerX", 0)
 addon.functions.InitDBValue("CooldownTrackerY", 0)
 addon.functions.InitDBValue("CooldownTrackerBarHeight", 30)
+addon.functions.InitDBValue("CooldownTrackerWidth", 200)
 addon.functions.InitDBValue("potionTrackerBarTexture", "DEFAULT")
 
 -- Potion Tracker

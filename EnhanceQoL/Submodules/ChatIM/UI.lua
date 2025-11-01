@@ -18,6 +18,8 @@ local ChatIM = addon.ChatIM
 ChatIM.maxHistoryLines = ChatIM.maxHistoryLines or (addon.db and addon.db["chatIMMaxHistory"]) or 250
 
 local MU = MenuUtil -- global ab 11.0+
+-- TODO: Remove BNSendWhisper in 12.0.0
+local BNSendWhisper = BNSendWhisper or C_BattleNet.SendWhisper
 
 local regionTable = { "US", "KR", "EU", "TW", "CN" }
 local regionKey = regionTable[GetCurrentRegion()] or "EU" -- or EU for PTR because that is region 90+

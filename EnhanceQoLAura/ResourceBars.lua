@@ -566,11 +566,6 @@ local function applyStatusBarInsets(frame, inset, force)
 		frame.absorbBar:SetPoint("BOTTOMRIGHT", inner, "BOTTOMRIGHT")
 		alignTexture(frame.absorbBar, frame.absorbBar)
 	end
-	if frame._sepOverlay then
-		frame._sepOverlay:ClearAllPoints()
-		frame._sepOverlay:SetPoint("TOPLEFT", inner, "TOPLEFT")
-		frame._sepOverlay:SetPoint("BOTTOMRIGHT", inner, "BOTTOMRIGHT")
-	end
 
 	frame._rbContentInset = frame._rbContentInset or {}
 	frame._rbContentInset.left = l
@@ -2847,25 +2842,36 @@ updateBarSeparators = function(pType)
 	end
 
 	local inset = bar._rbContentInset or ZERO_INSETS
-	local overlayParent = bar._rbInner or bar
-	-- Ensure we draw separators above any child frames (e.g., Rune sub-bars)
-	if not bar._sepOverlay then
-		bar._sepOverlay = CreateFrame("Frame", nil, overlayParent)
-		bar._sepOverlay:EnableMouse(false)
+	local inner = bar._rbInner or bar
+
+	-- Legacy overlay cleanup: no longer needed
+	if bar._sepOverlay then
+		bar._sepOverlay:Hide()
+		bar._sepOverlay:SetParent(nil)
+		bar._sepOverlay = nil
 	end
-	if bar._sepOverlay:GetParent() ~= overlayParent then bar._sepOverlay:SetParent(overlayParent) end
-	bar._sepOverlay:ClearAllPoints()
-	bar._sepOverlay:SetAllPoints(overlayParent)
-	-- Keep overlay on top of child frames
-	local baseLevel = (bar:GetFrameLevel() or 1)
-	bar._sepOverlay:SetFrameStrata(bar:GetFrameStrata())
-	bar._sepOverlay:SetFrameLevel(baseLevel + 20)
 
 	bar.separatorMarks = bar.separatorMarks or {}
-	-- Ensure existing marks render on the overlay frame
-	for _, tx in ipairs(bar.separatorMarks) do
-		if tx and tx.GetParent and tx:GetParent() ~= bar._sepOverlay then tx:SetParent(bar._sepOverlay) end
+
+	local function AcquireMark(index)
+		local tex = bar.separatorMarks[index]
+		if not tex then
+			tex = bar:CreateTexture(nil, "OVERLAY", nil, 7)
+			bar.separatorMarks[index] = tex
+		elseif tex.GetParent and tex:GetParent() ~= bar then
+			tex:SetParent(bar)
+		end
+		if tex.SetDrawLayer then tex:SetDrawLayer("OVERLAY", 7) end
+		return tex
 	end
+
+	for _, tx in ipairs(bar.separatorMarks) do
+		if tx then
+			if tx.GetParent and tx:GetParent() ~= bar then tx:SetParent(bar) end
+			if tx.SetDrawLayer then tx:SetDrawLayer("OVERLAY", 7) end
+		end
+	end
+
 	local needed = segments - 1
 	local w = max(1, (bar:GetWidth() or 0) - (inset.left + inset.right))
 	local h = max(1, (bar:GetHeight() or 0) - (inset.top + inset.bottom))
@@ -2897,26 +2903,20 @@ updateBarSeparators = function(pType)
 		return
 	end
 
-	-- Ensure we have enough textures
-	for i = #bar.separatorMarks + 1, needed do
-		local tx = bar._sepOverlay:CreateTexture(nil, "OVERLAY")
-		tx:SetColorTexture(r, g, b, a)
-		bar.separatorMarks[i] = tx
-	end
 	-- Position visible separators
 	for i = 1, needed do
-		local tx = bar.separatorMarks[i]
+		local tx = AcquireMark(i)
 		tx:ClearAllPoints()
 		local frac = i / segments
 		local half = floor(thickness * 0.5)
 		tx:SetColorTexture(r, g, b, a)
 		if vertical then
 			local y = Snap(bar, h * frac)
-			tx:SetPoint("TOP", bar._sepOverlay, "TOP", 0, -(y - max(0, half)))
+			tx:SetPoint("TOP", inner, "TOP", 0, -(y - max(0, half)))
 			tx:SetSize(w, thickness)
 		else
 			local x = Snap(bar, w * frac)
-			tx:SetPoint("LEFT", bar._sepOverlay, "LEFT", x - max(0, half), 0)
+			tx:SetPoint("LEFT", inner, "LEFT", x - max(0, half), 0)
 			tx:SetSize(thickness, h)
 		end
 		tx:Show()
