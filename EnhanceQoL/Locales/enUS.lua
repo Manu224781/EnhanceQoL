@@ -354,6 +354,10 @@ L["TargetHealthText"] = "Target health text"
 L["HealthTextExplain"] = "%s follows Blizzard 'Status Text'. Any other mode shows your chosen format for Player, Target, and Boss frames."
 
 L["ActionbarHideExplain"] = 'Set the action bar to hidden and show on mouseover. This works only when your Action Bar is set to "%s" and "%s" in %s'
+L["ActionBarVisibilityLabel"] = "Visibility"
+L["ActionBarVisibilityMouseover"] = "Mouseover"
+L["ActionBarVisibilityInCombat"] = "Always in combat"
+L["ActionBarVisibilityOutOfCombat"] = "Always out of combat"
 L["fullButtonRangeColoring"] = "Full button range coloring"
 L["fullButtonRangeColoringDesc"] = "Tint the entire action button when out of range"
 L["rangeOverlayColor"] = "Overlay color"

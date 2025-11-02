@@ -7,6 +7,7 @@
 - Loot → _Group loot roll frames_ section with an enable toggle and live scale slider for the new anchor system.
 - Social → _Friends list enhancements_ panel to toggle the decorator and adjust location visibility, home-realm hiding, and name font size.
 - Action Bar → _Button growth_ controls that let you enable custom anchors per bar and choose growth directions from a compact dropdown grid.
+- Action Bar → _Visibility_ dropdown now supports combining Mouseover, in-combat, and out-of-combat states per bar while keeping the Blizzard default when everything is unchecked.
 
 ### 🐛 Fixed
 

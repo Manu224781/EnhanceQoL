@@ -680,34 +680,131 @@ local EQOL_LastMouseoverVar
 
 local function EQOL_ShouldKeepVisibleByFlyout() return _G.SpellFlyout and _G.SpellFlyout:IsShown() and MouseIsOver(_G.SpellFlyout) end
 
-local function EQOL_HideBarIfNotHovered(bar, variable)
-	if not addon.db or not addon.db[variable] then return end
-	C_Timer.After(0, function()
-		-- Only hide if neither the bar nor the spell flyout is under the mouse
-		if not MouseIsOver(bar) and not EQOL_ShouldKeepVisibleByFlyout() then bar:SetAlpha(0) end
-	end)
+local function GetActionBarVisibilityConfig(variable, incoming, persistLegacy)
+	local source = incoming
+	if source == nil and addon.db then source = addon.db[variable] end
+
+	local config
+	if type(source) == "table" then
+		config = {
+			MOUSEOVER = source.MOUSEOVER == true,
+			ALWAYS_IN_COMBAT = source.ALWAYS_IN_COMBAT == true,
+			ALWAYS_OUT_OF_COMBAT = source.ALWAYS_OUT_OF_COMBAT == true,
+		}
+	elseif source == true then
+		config = {
+			MOUSEOVER = true,
+			ALWAYS_IN_COMBAT = false,
+			ALWAYS_OUT_OF_COMBAT = false,
+		}
+	else
+		config = nil
+	end
+
+	if config and not (config.MOUSEOVER or config.ALWAYS_IN_COMBAT or config.ALWAYS_OUT_OF_COMBAT) then
+		config = nil
+	end
+
+	if persistLegacy and addon.db then
+		if not config then
+			addon.db[variable] = nil
+		else
+			local stored = {}
+			if config.MOUSEOVER then stored.MOUSEOVER = true end
+			if config.ALWAYS_IN_COMBAT then stored.ALWAYS_IN_COMBAT = true end
+			if config.ALWAYS_OUT_OF_COMBAT then stored.ALWAYS_OUT_OF_COMBAT = true end
+			addon.db[variable] = stored
+		end
+	end
+
+	return config
 end
 
+local function NormalizeActionBarVisibilityConfig(variable, incoming)
+	return GetActionBarVisibilityConfig(variable, incoming, true)
+end
+
+local function ActionBarShouldForceShowByConfig(config, combatOverride)
+	if not config then return false end
+	local inCombat = combatOverride
+	if inCombat == nil then inCombat = InCombatLockdown and InCombatLockdown() end
+	if inCombat then return config.ALWAYS_IN_COMBAT == true end
+	return config.ALWAYS_OUT_OF_COMBAT == true
+end
+
+local function IsActionBarMouseoverEnabled(variable)
+	local cfg = GetActionBarVisibilityConfig(variable)
+	return cfg and cfg.MOUSEOVER == true
+end
+
+local function ApplyActionBarAlpha(bar, variable, config, combatOverride)
+	if not bar then return end
+	local cfg
+	if type(config) == "table" then
+		cfg = NormalizeActionBarVisibilityConfig(variable, config)
+	elseif config ~= nil then
+		cfg = NormalizeActionBarVisibilityConfig(variable, config)
+	else
+		cfg = GetActionBarVisibilityConfig(variable)
+	end
+	if not cfg then return end
+	if ActionBarShouldForceShowByConfig(cfg, combatOverride) then
+		bar:SetAlpha(1)
+		return
+	end
+	if cfg.MOUSEOVER then
+		if MouseIsOver(bar) or EQOL_ShouldKeepVisibleByFlyout() then
+			bar:SetAlpha(1)
+		else
+			bar:SetAlpha(0)
+		end
+	else
+		bar:SetAlpha(0)
+	end
+end
+
+local function EQOL_HideBarIfNotHovered(bar, variable)
+	local cfg = GetActionBarVisibilityConfig(variable)
+	if not cfg then return end
+	C_Timer.After(0, function()
+		local current = GetActionBarVisibilityConfig(variable)
+		if not current then return end
+		if ActionBarShouldForceShowByConfig(current) then
+			bar:SetAlpha(1)
+			return
+		end
+		if not current.MOUSEOVER then
+			bar:SetAlpha(0)
+			return
+		end
+		-- Only hide if neither the bar nor the spell flyout is under the mouse
+		if not MouseIsOver(bar) and not EQOL_ShouldKeepVisibleByFlyout() then
+			bar:SetAlpha(0)
+		else
+			bar:SetAlpha(1)
+		end
+	end)
+end
 local function EQOL_HookSpellFlyout()
 	local flyout = _G.SpellFlyout
 	if not flyout or flyout.EQOL_MouseoverHooked then return end
 
 	flyout:HookScript("OnEnter", function()
-		if EQOL_LastMouseoverBar and addon.db and addon.db[EQOL_LastMouseoverVar] then EQOL_LastMouseoverBar:SetAlpha(1) end
+		if EQOL_LastMouseoverBar and IsActionBarMouseoverEnabled(EQOL_LastMouseoverVar) then EQOL_LastMouseoverBar:SetAlpha(1) end
 	end)
 
 	flyout:HookScript("OnLeave", function()
-		if EQOL_LastMouseoverBar and addon.db and addon.db[EQOL_LastMouseoverVar] then EQOL_HideBarIfNotHovered(EQOL_LastMouseoverBar, EQOL_LastMouseoverVar) end
+		if EQOL_LastMouseoverBar and IsActionBarMouseoverEnabled(EQOL_LastMouseoverVar) then EQOL_HideBarIfNotHovered(EQOL_LastMouseoverBar, EQOL_LastMouseoverVar) end
 	end)
 
 	flyout:HookScript("OnHide", function()
-		if EQOL_LastMouseoverBar and addon.db and addon.db[EQOL_LastMouseoverVar] then EQOL_HideBarIfNotHovered(EQOL_LastMouseoverBar, EQOL_LastMouseoverVar) end
+		if EQOL_LastMouseoverBar and IsActionBarMouseoverEnabled(EQOL_LastMouseoverVar) then EQOL_HideBarIfNotHovered(EQOL_LastMouseoverBar, EQOL_LastMouseoverVar) end
 	end)
 
 	flyout.EQOL_MouseoverHooked = true
 end
 -- Action Bars
-local function UpdateActionBarMouseover(barName, enable, variable)
+local function UpdateActionBarMouseover(barName, config, variable)
 	local bar = _G[barName]
 	if not bar then return end
 
@@ -728,66 +825,98 @@ local function UpdateActionBarMouseover(barName, enable, variable)
 		btnPrefix = barName .. "Button"
 	end
 
-	if enable then
-		bar:SetAlpha(0)
-		-- bar:EnableMouse(true)
-		bar:SetScript("OnEnter", function(self)
+	local cfg = NormalizeActionBarVisibilityConfig(variable, config)
+
+	if not cfg then
+		bar:SetScript("OnEnter", nil)
+		bar:SetScript("OnLeave", nil)
+		bar:SetAlpha(1)
+		if EQOL_LastMouseoverVar == variable then
+			if EQOL_LastMouseoverBar == bar then EQOL_LastMouseoverBar = nil end
+			EQOL_LastMouseoverVar = nil
+		end
+		return
+	end
+
+	if cfg.MOUSEOVER then
+		bar:SetScript("OnEnter", function()
+			local current = GetActionBarVisibilityConfig(variable)
+			if not current or not current.MOUSEOVER then return end
 			bar:SetAlpha(1)
 			EQOL_LastMouseoverBar = bar
 			EQOL_LastMouseoverVar = variable
 		end)
-		bar:SetScript("OnLeave", function(self) EQOL_HideBarIfNotHovered(bar, variable) end)
-		for i = 1, 12 do
-			local button = _G[btnPrefix .. i]
-			if button and not hookedButtons[button] then
-				if button.OnEnter then
-					button:HookScript("OnEnter", function(self)
-						if addon.db[variable] then
-							bar:SetAlpha(1)
-							EQOL_LastMouseoverBar = bar
-							EQOL_LastMouseoverVar = variable
-						end
-					end)
-					hookedButtons[button] = true
-				else
-					-- button:EnableMouse(true)
-					button:SetScript("OnEnter", function(self)
-						bar:SetAlpha(1)
-						EQOL_LastMouseoverBar = bar
-						EQOL_LastMouseoverVar = variable
-					end)
-				end
-				if button.OnLeave then
-					button:HookScript("OnLeave", function(self)
-						if addon.db[variable] then EQOL_HideBarIfNotHovered(bar, variable) end
-					end)
-				else
-					button:EnableMouse(true)
-					button:SetScript("OnLeave", function(self)
-						EQOL_HideBarIfNotHovered(bar, variable)
-						GameTooltip:Hide()
-					end)
-				end
-				if not hookedButtons[button] then GameTooltipActionButton(button) end
-			end
-		end
-		-- Ensure flyout hooks are in place (once)
-		C_Timer.After(0, EQOL_HookSpellFlyout)
+		bar:SetScript("OnLeave", function() EQOL_HideBarIfNotHovered(bar, variable) end)
 	else
-		bar:SetAlpha(1)
-		-- bar:EnableMouse(true)
 		bar:SetScript("OnEnter", nil)
 		bar:SetScript("OnLeave", nil)
-		for i = 1, 12 do
-			local button = _G[btnPrefix .. i]
-			if button and not hookedButtons[button] then
-				-- button:EnableMouse(true)
-				button:SetScript("OnEnter", nil)
-				button:SetScript("OnLeave", nil)
-				GameTooltipActionButton(button)
-			end
+	end
+
+	local function handleButtonEnter()
+		local current = GetActionBarVisibilityConfig(variable)
+		if not current then return end
+		if current.MOUSEOVER then
+			bar:SetAlpha(1)
+			EQOL_LastMouseoverBar = bar
+			EQOL_LastMouseoverVar = variable
+		elseif ActionBarShouldForceShowByConfig(current) then
+			bar:SetAlpha(1)
 		end
 	end
+
+	local function handleButtonLeave()
+		EQOL_HideBarIfNotHovered(bar, variable)
+	end
+
+	for i = 1, 12 do
+		local button = _G[btnPrefix .. i]
+		if button and not hookedButtons[button] then
+			if button.OnEnter then
+				button:HookScript("OnEnter", handleButtonEnter)
+				hookedButtons[button] = true
+			else
+				button:SetScript("OnEnter", handleButtonEnter)
+			end
+			if button.OnLeave then
+				button:HookScript("OnLeave", handleButtonLeave)
+			else
+				button:EnableMouse(true)
+				button:SetScript("OnLeave", function()
+					handleButtonLeave()
+					GameTooltip:Hide()
+				end)
+			end
+			if not hookedButtons[button] then GameTooltipActionButton(button) end
+		end
+	end
+
+	if cfg.MOUSEOVER then C_Timer.After(0, EQOL_HookSpellFlyout) end
+
+	ApplyActionBarAlpha(bar, variable, cfg)
+end
+
+local function RefreshAllActionBarVisibilityAlpha(_, event)
+	local combatOverride
+	if event == "PLAYER_REGEN_DISABLED" then
+		combatOverride = true
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		combatOverride = false
+	end
+	for _, info in ipairs(addon.variables.actionBarNames or {}) do
+		local bar = _G[info.name]
+		if bar then ApplyActionBarAlpha(bar, info.var, nil, combatOverride) end
+	end
+end
+
+local function EnsureActionBarVisibilityWatcher()
+	addon.variables = addon.variables or {}
+	if addon.variables.actionBarVisibilityWatcher then return end
+	local watcher = CreateFrame("Frame")
+	watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+	watcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+	watcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+	watcher:SetScript("OnEvent", RefreshAllActionBarVisibilityAlpha)
+	addon.variables.actionBarVisibilityWatcher = watcher
 end
 
 -- Enhance QoL: Full button range coloring (taint-safe)
@@ -2696,16 +2825,50 @@ local function addActionBarFrame(container, d)
 
 	groupCore:AddChild(addon.functions.createSpacerAce())
 
+	local visibilityOptions = {
+		MOUSEOVER = L["ActionBarVisibilityMouseover"] or "Mouseover",
+		ALWAYS_IN_COMBAT = L["ActionBarVisibilityInCombat"] or "Always in combat",
+		ALWAYS_OUT_OF_COMBAT = L["ActionBarVisibilityOutOfCombat"] or "Always out of combat",
+	}
+	local visibilityOrder = { "MOUSEOVER", "ALWAYS_IN_COMBAT", "ALWAYS_OUT_OF_COMBAT" }
+
+	local function updateVisibilitySelection(var, key, checked)
+		if not var or not key then return nil end
+		local store = addon.db[var]
+		if type(store) ~= "table" then store = {} end
+		if checked then
+			store[key] = true
+		else
+			store[key] = nil
+		end
+		return NormalizeActionBarVisibilityConfig(var, store)
+	end
+
+	local visibilityGroup = addon.functions.createContainer("InlineGroup", "Flow")
+	visibilityGroup:SetTitle(L["ActionBarVisibilityLabel"] or "Visibility")
+	groupCore:AddChild(visibilityGroup)
+
 	for _, cbData in ipairs(addon.variables.actionBarNames) do
-		local desc
-		if cbData.desc then desc = cbData.desc end
-		local cbElement = addon.functions.createCheckboxAce(cbData.text, addon.db[cbData.var], function(self, _, value)
-			if cbData.var and cbData.name then
-				addon.db[cbData.var] = value
-				UpdateActionBarMouseover(cbData.name, value, cbData.var)
-			end
-		end, desc)
-		groupCore:AddChild(cbElement)
+		local dropdown = AceGUI:Create("Dropdown")
+		dropdown:SetLabel(cbData.text)
+		dropdown:SetList(visibilityOptions, visibilityOrder)
+		dropdown:SetMultiselect(true)
+		dropdown:SetFullWidth(false)
+		dropdown:SetRelativeWidth(0.5)
+		dropdown:SetCallback("OnValueChanged", function(_, _, key, checked)
+			if not cbData.var or not cbData.name then return end
+			local normalized = updateVisibilitySelection(cbData.var, key, checked)
+			UpdateActionBarMouseover(cbData.name, normalized, cbData.var)
+		end)
+
+		local stored = NormalizeActionBarVisibilityConfig(cbData.var)
+		if stored then
+			if stored.MOUSEOVER then dropdown:SetItemValue("MOUSEOVER", true) end
+			if stored.ALWAYS_IN_COMBAT then dropdown:SetItemValue("ALWAYS_IN_COMBAT", true) end
+			if stored.ALWAYS_OUT_OF_COMBAT then dropdown:SetItemValue("ALWAYS_OUT_OF_COMBAT", true) end
+		end
+
+		visibilityGroup:AddChild(dropdown)
 	end
 
 	local cbHideMacroNames = addon.functions.createCheckboxAce(L["hideMacroNames"], addon.db["hideMacroNames"], function(_, _, value)
@@ -5740,9 +5903,12 @@ local function initActionBars()
 	addon.functions.InitDBValue("hideMacroNames", false)
 	for _, cbData in ipairs(addon.variables.actionBarNames) do
 		if cbData.var and cbData.name then
-			if addon.db[cbData.var] then UpdateActionBarMouseover(cbData.name, addon.db[cbData.var], cbData.var) end
+			local cfg = NormalizeActionBarVisibilityConfig(cbData.var, addon.db[cbData.var])
+			UpdateActionBarMouseover(cbData.name, cfg, cbData.var)
 		end
 	end
+	RefreshAllActionBarVisibilityAlpha()
+	EnsureActionBarVisibilityWatcher()
 	RefreshAllMacroNameVisibility()
 	addon.variables.actionBarAnchorDefaults = addon.variables.actionBarAnchorDefaults or {}
 	for index = 1, #ACTION_BAR_FRAME_NAMES do
