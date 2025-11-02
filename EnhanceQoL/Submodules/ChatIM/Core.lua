@@ -6,6 +6,7 @@ else
 	error(parentAddonName .. " is not loaded")
 end
 local LSM = LibStub("LibSharedMedia-3.0")
+local ChatFrameUtil = _G.ChatFrameUtil
 
 local ChatIM = addon.ChatIM or {}
 addon.ChatIM = ChatIM

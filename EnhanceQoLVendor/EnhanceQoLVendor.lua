@@ -13,7 +13,6 @@ local sellMoreButton
 local hasMoreItems = false
 local sellMarkLookup = {}
 local destroyMarkLookup = {}
-local applySellDestroyOverlaysToFrame
 local updateSellMarks
 local updateDestroyUI
 local updateDestroyButtonState
@@ -1567,16 +1566,13 @@ local function AltClickHook(self, button)
 						end
 					end
 				elseif button == "RightButton" then
-					local removed = false
 					if addon.db["vendorIncludeSellList"][id] then
 						addon.db["vendorIncludeSellList"][id] = nil
 						print(REMOVE .. ":", id, name)
-						removed = true
 					end
 					if addon.db["vendorIncludeDestroyList"] and addon.db["vendorIncludeDestroyList"][id] then
 						addon.db["vendorIncludeDestroyList"][id] = nil
 						print(string.format(L["vendorDestroyRemoved"], name or ("Item #" .. tostring(id)), id))
-						removed = true
 					end
 				end
 				updateSellMarks(nil, true)
