@@ -589,6 +589,11 @@ UpdateUnitFrameMouseover = function(barName, cbData)
 		hookedUnitFrames[frame] = true
 	end
 
+	if InCombatLockdown and InCombatLockdown() then
+		QueueUnitFrameDriverUpdate(frame, isMouseover and nil or driverExpression, cbData)
+		return
+	end
+
 	if isMouseover then
 		ApplyUnitFrameStateDriver(frame, nil, cbData)
 		RestoreUnitFrameVisibility(frame, cbData)
@@ -6167,6 +6172,11 @@ local function initUnitFrame()
 	addon.functions.ApplyRestingVisuals = ApplyRestingVisuals
 
 	function addon.functions.togglePartyFrameTitle(value)
+		if InCombatLockdown and InCombatLockdown() then
+			addon.variables = addon.variables or {}
+			addon.variables.pendingPartyFrameTitle = value
+			return
+		end
 		if not CompactPartyFrameTitle then return end
 		if value then
 			CompactPartyFrameTitle:Hide()
@@ -6245,6 +6255,12 @@ local function initUnitFrame()
 	function addon.functions.updatePartyFrameScale()
 		if not addon.db["unitFrameScaleEnabled"] then return end
 		if not addon.db["unitFrameScale"] then return end
+		if InCombatLockdown and InCombatLockdown() then
+			addon.variables = addon.variables or {}
+			addon.variables.pendingPartyFrameScale = true
+			return
+		end
+		if addon.variables then addon.variables.pendingPartyFrameScale = nil end
 		if CompactPartyFrame then CompactPartyFrame:SetScale(addon.db["unitFrameScale"]) end
 	end
 
@@ -8559,6 +8575,15 @@ local eventHandlers = {
 			if addon.variables.pendingActionBarAnchorRefresh then
 				addon.variables.pendingActionBarAnchorRefresh = nil
 				RefreshAllActionBarAnchors()
+			end
+			if addon.variables.pendingPartyFrameScale then
+				addon.variables.pendingPartyFrameScale = nil
+				addon.functions.updatePartyFrameScale()
+			end
+			if addon.variables.pendingPartyFrameTitle ~= nil then
+				local pending = addon.variables.pendingPartyFrameTitle
+				addon.variables.pendingPartyFrameTitle = nil
+				addon.functions.togglePartyFrameTitle(pending)
 			end
 		end
 	end,
