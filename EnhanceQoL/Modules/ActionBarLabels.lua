@@ -327,10 +327,6 @@ end
 local function InstallHotkeyHook()
 	if Labels.hotkeyHookInstalled then return end
 	local hooked = false
-	if type(ActionButton_UpdateHotkeys) == "function" then
-		hooksecurefunc("ActionButton_UpdateHotkeys", ApplyHotkeyStyling)
-		hooked = true
-	end
 	if ActionBarActionButtonMixin and type(ActionBarActionButtonMixin.UpdateHotkeys) == "function" then
 		hooksecurefunc(ActionBarActionButtonMixin, "UpdateHotkeys", ApplyHotkeyStyling)
 		hooked = true
