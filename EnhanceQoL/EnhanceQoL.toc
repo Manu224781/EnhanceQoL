@@ -48,6 +48,7 @@ Events\LegionRemixPhaseData.lua
 Events\LegionRemix.lua
 Modules\ActionBarLabels.lua
 EnhanceQoL.lua
+Modules\ItemsOptions.lua
 Core\DataHub.lua
 Core\DataPanel.lua
 Core\MovementSpeedStat.lua
