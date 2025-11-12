@@ -37,6 +37,8 @@ local tostring = tostring
 local floor, max, min, ceil, abs = math.floor, math.max, math.min, math.ceil, math.abs
 local tinsert, tsort = table.insert, table.sort
 local tconcat = table.concat
+local RAID_CLASS_COLORS = RAID_CLASS_COLORS
+local CUSTOM_CLASS_COLORS = CUSTOM_CLASS_COLORS
 local RegisterStateDriver = RegisterStateDriver
 local UnregisterStateDriver = UnregisterStateDriver
 local InCombatLockdown = InCombatLockdown
@@ -89,6 +91,7 @@ local COSMETIC_BAR_KEYS = {
 	"textOffset",
 	"useBarColor",
 	"barColor",
+	"useClassColor",
 	"useMaxColor",
 	"maxColor",
 	"reverseFill",
@@ -102,6 +105,18 @@ local COSMETIC_BAR_KEYS = {
 	"cooldownTextFontSize",
 	"backdrop",
 }
+
+local function getPlayerClassColor()
+	local class = addon and addon.variables and addon.variables.unitClass
+	if not class then return 0, 0.7, 0, 1 end
+	local color = (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[class]) or (RAID_CLASS_COLORS and RAID_CLASS_COLORS[class])
+	if color then return color.r or color[1] or 0, color.g or color[2] or 0.7, color.b or color[3] or 0, color.a or 1 end
+	return 0, 0.7, 0, 1
+end
+
+local function setBarDesaturated(bar, flag)
+	if bar and bar.SetStatusBarDesaturated then bar:SetStatusBarDesaturated(flag and true or false) end
+end
 
 local function getPowerBarColor(type)
 	local colorTable = PowerBarColor
@@ -744,7 +759,12 @@ local function applyBarFillColor(bar, cfg, pType)
 	if not bar then return end
 	cfg = cfg or {}
 	local r, g, b, a
-	if cfg.useBarColor then
+	local shouldDesaturate = false
+	if pType == "HEALTH" and cfg.useClassColor == true then
+		r, g, b, a = getPlayerClassColor()
+		a = a or (cfg.barColor and cfg.barColor[4]) or 1
+		shouldDesaturate = true
+	elseif cfg.useBarColor then
 		local color = cfg.barColor or WHITE
 		r, g, b, a = color[1] or 1, color[2] or 1, color[3] or 1, color[4] or 1
 	else
@@ -752,6 +772,7 @@ local function applyBarFillColor(bar, cfg, pType)
 		a = (cfg.barColor and cfg.barColor[4]) or 1
 	end
 	bar:SetStatusBarColor(r, g, b, a or 1)
+	setBarDesaturated(bar, shouldDesaturate)
 	bar._baseColor = bar._baseColor or {}
 	bar._baseColor[1], bar._baseColor[2], bar._baseColor[3], bar._baseColor[4] = r, g, b, a or 1
 	bar._lastColor = bar._lastColor or {}
@@ -1063,6 +1084,20 @@ function addon.Aura.functions.addResourceFrame(container)
 			PlayerFrame = "PlayerFrame",
 			TargetFrame = "TargetFrame",
 		}
+		local extraAnchorFrames = {
+			EssentialCooldownViewer = "EssentialCooldownViewer",
+			UtilityCooldownViewer = "UtilityCooldownViewer",
+			BuffBarCooldownViewer = "BuffBarCooldownViewer",
+			BuffIconCooldownViewer = "BuffIconCooldownViewer",
+		}
+		for name, label in pairs(extraAnchorFrames) do
+			baseFrameList[name] = label
+		end
+		if addon.variables and addon.variables.actionBarNames then
+			for _, info in ipairs(addon.variables.actionBarNames) do
+				if info.name then baseFrameList[info.name] = info.text or info.name end
+			end
+		end
 
 		local function displayNameForBarType(pType)
 			if pType == "HEALTH" then return HEALTH end
@@ -1256,11 +1291,11 @@ function addon.Aura.functions.addResourceFrame(container)
 			-- Ensure DB defaults
 			for pType in pairs(available) do
 				if pType ~= "HEALTH" then
-					dbSpec[pType] = dbSpec[pType]
-						or {
-							enabled = false,
-							width = DEFAULT_POWER_WIDTH,
-							height = DEFAULT_POWER_HEIGHT,
+			dbSpec[pType] = dbSpec[pType]
+				or {
+					enabled = false,
+					width = DEFAULT_POWER_WIDTH,
+					height = DEFAULT_POWER_HEIGHT,
 							textStyle = pType == "MANA" and "PERCENT" or "CURMAX",
 							fontSize = 16,
 							fontFace = addon.variables.defaultFont,
@@ -1283,11 +1318,11 @@ function addon.Aura.functions.addResourceFrame(container)
 							showSeparator = false,
 							separatorColor = { 1, 1, 1, 0.5 },
 							separatorThickness = SEPARATOR_THICKNESS,
-							showCooldownText = false,
-							cooldownTextFontSize = 16,
-							reverseFill = false,
-							verticalFill = false,
-							smoothFill = false,
+					showCooldownText = false,
+					cooldownTextFontSize = 16,
+					reverseFill = false,
+					verticalFill = false,
+					smoothFill = false,
 						}
 					dbSpec[pType].anchor = dbSpec[pType].anchor or {}
 				end
@@ -1319,6 +1354,7 @@ function addon.Aura.functions.addResourceFrame(container)
 					},
 					textOffset = { x = 0, y = 0 },
 					useBarColor = false,
+					useClassColor = false,
 					barColor = { 1, 1, 1, 1 },
 					useMaxColor = false,
 					maxColor = { 1, 1, 1, 1 },
@@ -1574,17 +1610,35 @@ function addon.Aura.functions.addResourceFrame(container)
 				local colorPicker
 				local maxColorPicker
 				local maxColorCheckbox
+				local customColorCheckbox
+				local classColorCheckbox
+				local suppressColorToggle = false
 				local function refreshMaxColorControls()
 					if maxColorPicker then maxColorPicker:SetDisabled(not (cfg.useMaxColor == true)) end
 				end
+				local function refreshColorPickerState()
+					if colorPicker then colorPicker:SetDisabled(not (cfg.useBarColor == true) or cfg.useClassColor == true) end
+				end
+				local function syncCheckboxValue(widget, value)
+					if not widget or not widget.GetValue or not widget.SetValue then return end
+					if widget:GetValue() == value then return end
+					suppressColorToggle = true
+					widget:SetValue(value)
+					suppressColorToggle = false
+				end
 
-				local cb = addon.functions.createCheckboxAce(L["Use custom color"] or "Use custom color", cfg.useBarColor == true, function(_, _, val)
+				customColorCheckbox = addon.functions.createCheckboxAce(L["Use custom color"] or "Use custom color", cfg.useBarColor == true, function(_, _, val)
+					if suppressColorToggle then return end
 					cfg.useBarColor = val and true or false
-					if colorPicker then colorPicker:SetDisabled(not cfg.useBarColor) end
+					if cfg.useBarColor and cfg.useClassColor then
+						cfg.useClassColor = false
+						syncCheckboxValue(classColorCheckbox, false)
+					end
+					refreshColorPickerState()
 					notifyRefresh()
 				end)
-				cb:SetFullWidth(true)
-				group:AddChild(cb)
+				customColorCheckbox:SetFullWidth(true)
+				group:AddChild(customColorCheckbox)
 
 				colorPicker = AceGUI:Create("ColorPicker")
 				colorPicker:SetLabel(L["Bar color"] or "Bar color")
@@ -1597,8 +1651,23 @@ function addon.Aura.functions.addResourceFrame(container)
 				end)
 				colorPicker:SetFullWidth(false)
 				colorPicker:SetRelativeWidth(0.5)
-				colorPicker:SetDisabled(not (cfg.useBarColor == true))
+				colorPicker:SetDisabled(not (cfg.useBarColor == true) or cfg.useClassColor == true)
 				group:AddChild(colorPicker)
+
+				if pType == "HEALTH" then
+					classColorCheckbox = addon.functions.createCheckboxAce(L["Use class color"] or "Use class color", cfg.useClassColor == true, function(_, _, val)
+						if suppressColorToggle then return end
+						cfg.useClassColor = val and true or false
+						if cfg.useClassColor and cfg.useBarColor then
+							cfg.useBarColor = false
+							syncCheckboxValue(customColorCheckbox, false)
+						end
+						refreshColorPickerState()
+						notifyRefresh()
+					end)
+					classColorCheckbox:SetFullWidth(true)
+					group:AddChild(classColorCheckbox)
+				end
 
 				maxColorCheckbox = addon.functions.createCheckboxAce(L["Use max color"] or "Use max color at maximum", cfg.useMaxColor == true, function(_, _, val)
 					cfg.useMaxColor = val and true or false
@@ -1622,6 +1691,7 @@ function addon.Aura.functions.addResourceFrame(container)
 				group:AddChild(maxColorPicker)
 
 				refreshMaxColorControls()
+				refreshColorPickerState()
 			end
 
 			local function addBehaviorControls(parent, cfg, pType)
@@ -2271,6 +2341,8 @@ function updateHealthBar(evt)
 		if settings.useBarColor then
 			local custom = settings.barColor or WHITE
 			baseR, baseG, baseB, baseA = custom[1] or 1, custom[2] or 1, custom[3] or 1, custom[4] or 1
+		elseif settings.useClassColor then
+			baseR, baseG, baseB, baseA = getPlayerClassColor()
 		else
 			if percent >= 60 then
 				baseR, baseG, baseB, baseA = 0, 0.7, 0, 1
@@ -2298,6 +2370,7 @@ function updateHealthBar(evt)
 			healthBar._lastColor = lc
 			healthBar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
 		end
+		setBarDesaturated(healthBar, settings.useClassColor == true and settings.useBarColor ~= true)
 
 		local absorbBar = healthBar.absorbBar
 		if absorbBar then
