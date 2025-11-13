@@ -1291,11 +1291,11 @@ function addon.Aura.functions.addResourceFrame(container)
 			-- Ensure DB defaults
 			for pType in pairs(available) do
 				if pType ~= "HEALTH" then
-			dbSpec[pType] = dbSpec[pType]
-				or {
-					enabled = false,
-					width = DEFAULT_POWER_WIDTH,
-					height = DEFAULT_POWER_HEIGHT,
+					dbSpec[pType] = dbSpec[pType]
+						or {
+							enabled = false,
+							width = DEFAULT_POWER_WIDTH,
+							height = DEFAULT_POWER_HEIGHT,
 							textStyle = pType == "MANA" and "PERCENT" or "CURMAX",
 							fontSize = 16,
 							fontFace = addon.variables.defaultFont,
@@ -1318,11 +1318,11 @@ function addon.Aura.functions.addResourceFrame(container)
 							showSeparator = false,
 							separatorColor = { 1, 1, 1, 0.5 },
 							separatorThickness = SEPARATOR_THICKNESS,
-					showCooldownText = false,
-					cooldownTextFontSize = 16,
-					reverseFill = false,
-					verticalFill = false,
-					smoothFill = false,
+							showCooldownText = false,
+							cooldownTextFontSize = 16,
+							reverseFill = false,
+							verticalFill = false,
+							smoothFill = false,
 						}
 					dbSpec[pType].anchor = dbSpec[pType].anchor or {}
 				end
@@ -1906,14 +1906,19 @@ function addon.Aura.functions.addResourceFrame(container)
 				if lastSpecCopyBar[specKey] then dropBar:SetValue(lastSpecCopyBar[specKey]) end
 				optionsRow:AddChild(dropBar)
 
-				local cbCosmetic = addon.functions.createCheckboxAce(L["Appearance only"] or "Appearance only", lastSpecCopyCosmetic[specKey] == true, function(_, _, val) lastSpecCopyCosmetic[specKey] = val and true or false end)
+				local cbCosmetic = addon.functions.createCheckboxAce(
+					L["Appearance only"] or "Appearance only",
+					lastSpecCopyCosmetic[specKey] == true,
+					function(_, _, val) lastSpecCopyCosmetic[specKey] = val and true or false end
+				)
 				cbCosmetic:SetFullWidth(false)
 				cbCosmetic:SetRelativeWidth(0.4)
 				optionsRow:AddChild(cbCosmetic)
 
 				updateDropBarState()
 
-				local info = addon.functions.createLabelAce(L["Copy settings info"] or "Copies settings from the selected specialization. Use scope and appearance options above to control what is copied.")
+				local info =
+					addon.functions.createLabelAce(L["Copy settings info"] or "Copies settings from the selected specialization. Use scope and appearance options above to control what is copied.")
 				info:SetFullWidth(true)
 				copyGroup:AddChild(info)
 			end
@@ -2304,8 +2309,14 @@ function updateHealthBar(evt)
 		end
 		healthBar._lastVal = curHealth
 
-		local percent = (curHealth / max(maxHealth, 1)) * 100
-		local percentStr = tostring(floor(percent + 0.5))
+		local percent, percentStr
+		if addon.variables.isMidnight then
+			percent = AbbreviateLargeNumbers(UnitHealthPercent("player", true, true) or 0)
+			percentStr = string.format("%s%%", percent)
+		else
+			percent = (curHealth / max(maxHealth, 1)) * 100
+			percentStr = tostring(floor(percent + 0.5))
+		end
 		if healthBar.text then
 			local style = settings and settings.textStyle or "PERCENT"
 			if style == "NONE" then
@@ -3535,14 +3546,10 @@ local function setPowerbars()
 		end
 	end
 
-	if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.ApplyVisibilityPreference then
-		addon.Aura.ResourceBars.ApplyVisibilityPreference("fromSetPowerbars")
-	end
+	if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.ApplyVisibilityPreference then addon.Aura.ResourceBars.ApplyVisibilityPreference("fromSetPowerbars") end
 end
 
-local function shouldHideResourceBarsOutOfCombat()
-	return addon and addon.db and addon.db.resourceBarsHideOutOfCombat == true
-end
+local function shouldHideResourceBarsOutOfCombat() return addon and addon.db and addon.db.resourceBarsHideOutOfCombat == true end
 
 local function forEachResourceBarFrame(callback)
 	if type(callback) ~= "function" then return end
@@ -3645,9 +3652,7 @@ function ResourceBars.ApplyVisibilityPreference(context)
 			applyVisibilityDriverToFrame(frame, nil)
 		end
 	end)
-	if not hideOutOfCombat and context ~= "fromSetPowerbars" and frameAnchor then
-		setPowerbars()
-	end
+	if not hideOutOfCombat and context ~= "fromSetPowerbars" and frameAnchor then setPowerbars() end
 end
 
 local resourceBarsLoaded = addon.Aura.ResourceBars ~= nil
