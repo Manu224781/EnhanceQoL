@@ -469,6 +469,8 @@ local function BuildAceWindow()
 	win:SetLayout("Fill")
 
 	local tree = AceGUI:Create("TreeGroup")
+	tree.enabletooltips = false
+
 	addon.Query.ui.tree = tree
 	tree:SetTree({
 		{ value = "generator", text = "Generator" },

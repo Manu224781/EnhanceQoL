@@ -5518,7 +5518,8 @@ local function CreateUI()
 
 	-- Create the TreeGroup with new top-level navigation
 	addon.treeGroup = AceGUI:Create("TreeGroup")
-
+	addon.treeGroup.enabletooltips = false
+	
 	-- Top: Combat & Dungeons (children added by sub-addons like Aura, Mythic+, Drink, CombatMeter)
 	addon.functions.addToTree(nil, { value = "combat", text = L["CombatDungeons"] })
 

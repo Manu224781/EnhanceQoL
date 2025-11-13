@@ -841,6 +841,8 @@ function CN.functions.addCooldownNotifyOptions(container)
 	local tree = getCategoryTree()
 
 	treeGroup = AceGUI:Create("TreeGroup")
+	treeGroup.enabletooltips = false
+
 	treeGroup:SetTree(tree)
 	treeGroup:SetCallback("OnGroupSelected", function(widget, _, value)
 		if value == "ADD_CATEGORY" then

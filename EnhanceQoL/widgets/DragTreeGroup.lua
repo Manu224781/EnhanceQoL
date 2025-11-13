@@ -14,6 +14,7 @@ local DRAG_DELAY = 0.2 -- seconds to hold before drag starts
 
 local function Constructor()
 	local tree = AceGUI:Create("TreeGroup")
+	tree.enabletooltips = false
 	tree.type = Type
 
 	local function showDragIcon(texture)
