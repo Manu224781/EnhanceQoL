@@ -25,6 +25,8 @@
 - MythicPlus features
   - Automark of tank and healer (these require hardware events now)
   - Potiontracker
+- Aura features
+  - Casttracker
 
 ### 🐛 Fixed
 

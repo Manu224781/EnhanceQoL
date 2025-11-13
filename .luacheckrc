@@ -1983,6 +1983,7 @@ globals = {
 	"C_Glue",
 	"UnitHealthPercentColor",
 	"C_CurveUtil",
+	"issecrettable",
 	"ReloadUIPopup",
 	"FRIENDS_BUTTON_TYPE_WOW",
 	"FRIENDS_TEXTURE_DND",

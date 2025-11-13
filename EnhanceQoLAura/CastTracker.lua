@@ -7,6 +7,8 @@ else
 	error(parentAddonName .. " is not loaded")
 end
 
+if addon.variables.isMidnight then return end
+
 addon.Aura = addon.Aura or {}
 addon.Aura.CastTracker = addon.Aura.CastTracker or {}
 local CastTracker = addon.Aura.CastTracker
