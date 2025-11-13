@@ -844,20 +844,21 @@ local function EnsureFrameState(frame, cbData)
 	return state
 end
 
-UpdateUnitFrameMouseover = function(barName, cbData)
-	if not cbData or not cbData.var then return end
-
-	local frame = _G[barName]
+local function ClearUnitFrameState(frame, cbData)
 	if not frame then return end
+	ApplyUnitFrameStateDriver(frame, nil)
+	RestoreUnitFrameVisibility(frame, cbData)
+	frameVisibilityStates[frame] = nil
+end
 
-	local config = NormalizeUnitFrameVisibilityConfig(cbData.var)
+local function ApplyVisibilityToUnitFrame(frameName, cbData, config)
+	if type(frameName) ~= "string" or frameName == "" then return false end
+	local frame = _G[frameName]
+	if not frame then return false end
 
 	if not config then
-		ApplyUnitFrameStateDriver(frame, nil)
-		RestoreUnitFrameVisibility(frame, cbData)
-		frameVisibilityStates[frame] = nil
-		UpdateFrameVisibilityHealthRegistration()
-		return
+		ClearUnitFrameState(frame, cbData)
+		return true
 	end
 
 	local state = EnsureFrameState(frame, cbData)
@@ -867,7 +868,6 @@ UpdateUnitFrameMouseover = function(barName, cbData)
 	local driverExpression = BuildUnitFrameDriverExpression(config)
 	local needsHealth = config and config.PLAYER_HEALTH_NOT_FULL and state.supportsPlayerHealthRule
 	local useDriver = driverExpression and not config.MOUSEOVER and not needsHealth
-
 
 	if useDriver then
 		state.driverActive = true
@@ -883,8 +883,7 @@ UpdateUnitFrameMouseover = function(barName, cbData)
 				if child and child.SetAlpha then child:SetAlpha(1) end
 			end
 		end
-		UpdateFrameVisibilityHealthRegistration()
-		return
+		return true
 	end
 
 	state.driverActive = false
@@ -896,6 +895,45 @@ UpdateUnitFrameMouseover = function(barName, cbData)
 		state.isMouseOver = false
 	end
 	ApplyFrameVisibilityState(state)
+	return true
+end
+
+UpdateUnitFrameMouseover = function(barName, cbData)
+	if not cbData or not cbData.var then return end
+
+	local config = NormalizeUnitFrameVisibilityConfig(cbData.var)
+	local handled = false
+
+	local function processTarget(name)
+		if ApplyVisibilityToUnitFrame(name, cbData, config) then handled = true end
+	end
+
+	local onlyChildren = cbData.onlyChildren
+	local hasChildTargets = false
+	if type(onlyChildren) == "table" then
+		local seen = {}
+		for _, child in ipairs(onlyChildren) do
+			if type(child) == "string" and child ~= "" and not seen[child] then
+				processTarget(child)
+				seen[child] = true
+				hasChildTargets = true
+			end
+		end
+		for _, child in pairs(onlyChildren) do
+			if type(child) == "string" and child ~= "" and not seen[child] then
+				processTarget(child)
+				seen[child] = true
+				hasChildTargets = true
+			end
+		end
+		if hasChildTargets then
+			local container = _G[barName]
+			ClearUnitFrameState(container, cbData)
+		end
+	end
+
+	if not hasChildTargets then processTarget(barName) end
+
 	UpdateFrameVisibilityHealthRegistration()
 end
 addon.functions.UpdateUnitFrameMouseover = UpdateUnitFrameMouseover

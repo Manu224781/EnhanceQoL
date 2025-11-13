@@ -803,6 +803,7 @@ addon.variables.unitFrameNames = {
 		var = "unitframeSettingBossTargetFrame",
 		text = HUD_EDIT_MODE_BOSS_FRAMES_LABEL,
 		allowedVisibility = { "NONE", "MOUSEOVER", "HIDE" },
+		onlyChildren = { "Boss1TargetFrame", "Boss2TargetFrame", "Boss3TargetFrame", "Boss4TargetFrame", "Boss5TargetFrame" },
 	},
 	{ name = "TargetFrame", var = "unitframeSettingTargetFrame", text = HUD_EDIT_MODE_TARGET_FRAME_LABEL },
 	{

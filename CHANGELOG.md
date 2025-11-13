@@ -13,6 +13,7 @@
 - Nameplate health percent/absolute fixed for midnight beta
 - Tooltip error while hovering and enabled ignore list
 - Show Playerframe on 100% health fixed for midnight beta
+- Boss Frames were not targetable when changing the visibility behaviour
 
 ---
 
