@@ -6163,7 +6163,7 @@ local eventHandlers = {
 			loadSubAddon("EnhanceQoLSound")
 			loadSubAddon("EnhanceQoLMouse")
 			loadSubAddon("EnhanceQoLMythicPlus")
-			loadSubAddon("EnhanceQoLCombatMeter")
+			if not addon.variables.isMidnight then loadSubAddon("EnhanceQoLCombatMeter") end
 			loadSubAddon("EnhanceQoLDrinkMacro")
 			loadSubAddon("EnhanceQoLTooltip")
 			loadSubAddon("EnhanceQoLVendor")
