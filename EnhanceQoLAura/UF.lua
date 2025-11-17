@@ -59,6 +59,10 @@ local TARGET_POWER_NAME = "EQOLUFTargetPower"
 local TARGET_STATUS_NAME = "EQOLUFTargetStatus"
 local MIN_WIDTH = 50
 
+local function getFont(path)
+	if path and path ~= "" then return path end
+	return addon.variables and addon.variables.defaultFont or (LSM and LSM:Fetch("font", LSM.DefaultMedia.font)) or STANDARD_TEXT_FONT
+end
 local UNITS = {
 	player = {
 		unit = "player",
@@ -201,7 +205,7 @@ local function updateTargetAuraIcons()
 
 	local list = {}
 	for _, aura in pairs(targetAuras) do
-		if aura.isHarmful then list[#list + 1] = aura end
+		list[#list + 1] = aura
 	end
 	table.sort(list, function(a, b)
 		local ea = a.expirationTime or math.huge
@@ -225,7 +229,7 @@ local function updateTargetAuraIcons()
 			btn.icon:SetAllPoints(btn)
 			btn.cd = CreateFrame("Cooldown", nil, btn, "CooldownFrameTemplate")
 			btn.cd:SetAllPoints(btn)
-			btn.count = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			btn.count = btn:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 			btn.count:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -2, 2)
 			icons[i] = btn
 		else
@@ -264,11 +268,11 @@ local function fullScanTargetAuras()
 	resetTargetAuras()
 	if not UnitExists or not UnitExists("target") then return end
 	if C_UnitAuras and C_UnitAuras.GetAuraSlots then
-		local helpful = { C_UnitAuras.GetAuraSlots("target", "HELPFUL") }
+		local helpful = { C_UnitAuras.GetAuraSlots("target", "HELPFUL|CANCELABLE") }
 		for i = 2, #helpful do
 			cacheTargetAura(C_UnitAuras.GetAuraDataBySlot("target", helpful[i]))
 		end
-		local harmful = { C_UnitAuras.GetAuraSlots("target", "HARMFUL|PLAYER") }
+		local harmful = { C_UnitAuras.GetAuraSlots("target", "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY") }
 		for i = 2, #harmful do
 			cacheTargetAura(C_UnitAuras.GetAuraDataBySlot("target", harmful[i]))
 		end
@@ -389,11 +393,6 @@ do
 	targetDefaults.anchor.x = (targetDefaults.anchor.x or 0) + 260
 	targetDefaults.auraIcons = { size = 24, padding = 2, max = 16, showCooldown = true }
 	defaults.target = targetDefaults
-end
-
-local function getFont(path)
-	if path and path ~= "" then return path end
-	return addon.variables and addon.variables.defaultFont or (LSM and LSM:Fetch("font", LSM.DefaultMedia.font)) or STANDARD_TEXT_FONT
 end
 
 local function setBackdrop(frame, borderCfg)
@@ -721,8 +720,7 @@ local function layoutFrame(cfg, unit)
 
 	if unit == "target" and st.auraContainer then
 		st.auraContainer:ClearAllPoints()
-		local ac = cfg.auraIcons or defaults.target.auraIcons or { padding = 2 }
-		st.auraContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", 0, -(ac.padding or 0))
+		st.auraContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", 0, -5)
 		st.auraContainer:SetWidth(width + borderInset * 2)
 	end
 end
@@ -949,9 +947,9 @@ local function onEvent(self, event, unit, arg1)
 		end
 		if eventInfo.addedAuras then
 			for _, aura in ipairs(eventInfo.addedAuras) do
-				if not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, "HARMFUL|PLAYER") then
+				if not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY") then
 					cacheTargetAura(aura)
-				elseif not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, "HELPFUL") then
+				elseif not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, "HELPFUL|CANCELABLE") then
 					cacheTargetAura(aura)
 				end
 			end
