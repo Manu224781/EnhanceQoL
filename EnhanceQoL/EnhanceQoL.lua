@@ -1112,17 +1112,17 @@ local function ApplyActionBarAlpha(bar, variable, config, combatOverride)
 	end
 	if not cfg then return end
 	if ActionBarShouldForceShowByConfig(cfg, combatOverride) then
-		bar:SetAlpha(1)
+		ApplyAlphaToRegion(bar, 1, true)
 		return
 	end
 	if cfg.MOUSEOVER then
 		if MouseIsOver(bar) or EQOL_ShouldKeepVisibleByFlyout() then
-			bar:SetAlpha(1)
+			ApplyAlphaToRegion(bar, 1, true)
 		else
-			bar:SetAlpha(0)
+			ApplyAlphaToRegion(bar, 0, true)
 		end
 	else
-		bar:SetAlpha(0)
+		ApplyAlphaToRegion(bar, 0, true)
 	end
 end
 
@@ -1133,18 +1133,18 @@ local function EQOL_HideBarIfNotHovered(bar, variable)
 		local current = GetActionBarVisibilityConfig(variable)
 		if not current then return end
 		if ActionBarShouldForceShowByConfig(current) then
-			bar:SetAlpha(1)
+			ApplyAlphaToRegion(bar, 1, true)
 			return
 		end
 		if not current.MOUSEOVER then
-			bar:SetAlpha(0)
+			ApplyAlphaToRegion(bar, 0, true)
 			return
 		end
 		-- Only hide if neither the bar nor the spell flyout is under the mouse
 		if not MouseIsOver(bar) and not EQOL_ShouldKeepVisibleByFlyout() then
-			bar:SetAlpha(0)
+			ApplyAlphaToRegion(bar, 0, true)
 		else
-			bar:SetAlpha(1)
+			ApplyAlphaToRegion(bar, 1, true)
 		end
 	end)
 end

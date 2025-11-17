@@ -1,5 +1,13 @@
 # Changelog
 
+## [6.1.0] – 2025-11-20
+
+### ✨ Added
+
+- Actionbar and Frame fading if you choose to hide it
+- PlayerFrame
+  - Show when I target something
+
 ## [6.0.0] – 2025-11-15
 
 ## Midnight Beta – Addon Status
