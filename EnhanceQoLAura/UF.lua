@@ -37,6 +37,8 @@ local UnitName, UnitClass, UnitLevel, UnitClassification = UnitName, UnitClass, 
 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function() return 0 end
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local CUSTOM_CLASS_COLORS = CUSTOM_CLASS_COLORS
+local AuraUtil = AuraUtil
+local C_UnitAuras = C_UnitAuras
 local CopyTable = CopyTable
 local UIParent = UIParent
 local CreateFrame = CreateFrame
@@ -79,6 +81,45 @@ local UNITS = {
 local issecretvalue = _G.issecretvalue
 local mainPowerEnum
 local mainPowerToken
+local states = {}
+local targetAuras = {}
+
+local function resetTargetAuras()
+	for k in pairs(targetAuras) do
+		targetAuras[k] = nil
+	end
+end
+
+local function cacheTargetAura(aura)
+	if not aura or not aura.auraInstanceID then return end
+	targetAuras[aura.auraInstanceID] = {
+		auraInstanceID = aura.auraInstanceID,
+		spellId = aura.spellId,
+		name = aura.name,
+		icon = aura.icon,
+		isHelpful = aura.isHelpful,
+		isHarmful = aura.isHarmful,
+		applications = aura.applications,
+		duration = aura.duration,
+		expirationTime = aura.expirationTime,
+		sourceUnit = aura.sourceUnit,
+	}
+end
+
+local function fullScanTargetAuras()
+	resetTargetAuras()
+	if not UnitExists or not UnitExists("target") then return end
+	if C_UnitAuras and C_UnitAuras.GetAuraSlots then
+		local helpful = {C_UnitAuras.GetAuraSlots("target", "HELPFUL")}
+		for i = 2, #helpful do
+			cacheTargetAura(C_UnitAuras.GetAuraDataBySlot("target", helpful[i]))
+		end
+		local harmful = {C_UnitAuras.GetAuraSlots("target", "HARMFUL")}
+		for i = 2, #harmful do
+			cacheTargetAura(C_UnitAuras.GetAuraDataBySlot("target", harmful[i]))
+		end
+	end
+end
 local function refreshMainPower(unit)
 	unit = unit or PLAYER_UNIT
 	local enumId, token = UnitPowerType(unit)
@@ -251,6 +292,8 @@ do
 end
 
 local states = {}
+local targetAuras = {}
+local targetAuras = {}
 
 local function ensureDB(unit)
 	addon.db = addon.db or {}
@@ -752,6 +795,7 @@ local unitEvents = {
 	"UNIT_MAXPOWER",
 	"UNIT_DISPLAYPOWER",
 	"UNIT_NAME_UPDATE",
+	"UNIT_AURA",
 }
 local FREQUENT = { ENERGY = true, FOCUS = true, RAGE = true, RUNIC_POWER = true, LUNAR_POWER = true }
 
@@ -772,7 +816,6 @@ local allowedEventUnit = {
 }
 
 local function onEvent(self, event, unit, arg1)
-	
 	if unitEvents[unit] and not allowedEventUnit[unit] then return end
 	if event == "PLAYER_ENTERING_WORLD" then
 		refreshMainPower(PLAYER_UNIT)
@@ -789,10 +832,38 @@ local function onEvent(self, event, unit, arg1)
 	elseif event == "PLAYER_TARGET_CHANGED" then
 		if UnitExists("target") then
 			refreshMainPower("target")
+			fullScanTargetAuras()
 			applyConfig("target")
 			if states and states["target"] and states["target"].frame then states["target"].frame:Show() end
 		else
+			resetTargetAuras()
 			if states and states["target"] and states["target"].frame then states["target"].frame:Hide() end
+		end
+	elseif event == "UNIT_AURA" and unit == "target" then
+		local eventInfo = arg1
+		if not UnitExists("target") then
+			resetTargetAuras()
+			return
+		end
+		if not eventInfo or eventInfo.isFullUpdate then
+			fullScanTargetAuras()
+			return
+		end
+		if eventInfo.addedAuras then
+			for _, aura in ipairs(eventInfo.addedAuras) do
+				cacheTargetAura(aura)
+			end
+		end
+		if eventInfo.updatedAuraInstanceIDs and C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID then
+			for _, inst in ipairs(eventInfo.updatedAuraInstanceIDs) do
+				local data = C_UnitAuras.GetAuraDataByAuraInstanceID("target", inst)
+				if data then cacheTargetAura(data) end
+			end
+		end
+		if eventInfo.removedAuraInstanceIDs then
+			for _, inst in ipairs(eventInfo.removedAuraInstanceIDs) do
+				targetAuras[inst] = nil
+			end
 		end
 	elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
 		if unit == PLAYER_UNIT then updateHealth(ensureDB("player"), "player") end
@@ -1366,4 +1437,5 @@ if not addon.Aura.UFInitialized then
 	end
 end
 
+UF.targetAuras = targetAuras
 return UF
