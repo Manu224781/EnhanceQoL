@@ -152,8 +152,9 @@ local function setBackdrop(frame, borderCfg)
 end
 
 local UnitHealthPercent = UnitHealthPercent
+local UnitPowerPercent = UnitPowerPercent
 
-local function formatText(mode, cur, maxv, useShort)
+local function formatText(mode, cur, maxv, useShort, percentValue)
 	if mode == "NONE" then return "" end
 	if addon.variables and addon.variables.isMidnight and issecretvalue then
 		if (cur and issecretvalue(cur)) or (maxv and issecretvalue(maxv)) then
@@ -163,13 +164,13 @@ local function formatText(mode, cur, maxv, useShort)
 			if mode == "CURRENT" then return tostring(scur) end
 			if mode == "CURMAX" then return ("%s / %s"):format(tostring(scur), tostring(smax)) end
 			if mode == "PERCENT" then
-				local pct = AbbreviateLargeNumbers(UnitHealthPercent(PLAYER_UNIT, true, true) or 0)
-				return ("%s%%"):format(tostring(pct))
+				if percentValue ~= nil then return ("%s%%"):format(tostring(AbbreviateLargeNumbers(percentValue))) end
 			end
 			return ""
 		end
 	end
 	if mode == "PERCENT" then
+		if percentValue ~= nil then return ("%d%%"):format(floor(percentValue + 0.5)) end
 		if not maxv or maxv == 0 then return "0%" end
 		return ("%d%%"):format(floor((cur or 0) / maxv * 100 + 0.5))
 	end
@@ -188,11 +189,21 @@ local function updateHealth(cfg)
 	state.health:SetMinMaxValues(0, maxv > 0 and maxv or 1)
 	state.health:SetValue(cur or 0)
 	local hc = cfg.health or {}
+	local percentVal
+	if addon.variables and addon.variables.isMidnight and UnitHealthPercent then
+		percentVal = UnitHealthPercent(PLAYER_UNIT, true, true)
+	else
+		if (not addon.variables or not addon.variables.isMidnight or not issecretvalue or (not issecretvalue(cur) and not issecretvalue(maxv))) and maxv and maxv > 0 then
+			percentVal = (cur or 0) / maxv * 100
+		end
+	end
 	local hr, hg, hb, ha
 	if hc.useClassColor then
 		local class = select(2, UnitClass(PLAYER_UNIT))
 		local c = (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[class]) or (RAID_CLASS_COLORS and RAID_CLASS_COLORS[class])
-		if c then hr, hg, hb, ha = c.r or c[1], c.g or c[2], c.b or c[3], c.a or c[4] end
+		if c then
+			hr, hg, hb, ha = c.r or c[1], c.g or c[2], c.b or c[3], c.a or c[4]
+		end
 	end
 	if not hr then
 		local color = hc.color or { 0, 0.8, 0, 1 }
@@ -206,8 +217,8 @@ local function updateHealth(cfg)
 		local ac = hc.absorbColor or { 0.85, 0.95, 1, 0.7 }
 		state.absorb:SetStatusBarColor(ac[1] or 0.85, ac[2] or 0.95, ac[3] or 1, ac[4] or 0.7)
 	end
-	if state.healthTextLeft then state.healthTextLeft:SetText(formatText(hc.textLeft or "PERCENT", cur, maxv, hc.useShortNumbers ~= false)) end
-	if state.healthTextRight then state.healthTextRight:SetText(formatText(hc.textRight or "CURMAX", cur, maxv, hc.useShortNumbers ~= false)) end
+	if state.healthTextLeft then state.healthTextLeft:SetText(formatText(hc.textLeft or "PERCENT", cur, maxv, hc.useShortNumbers ~= false, percentVal)) end
+	if state.healthTextRight then state.healthTextRight:SetText(formatText(hc.textRight or "CURMAX", cur, maxv, hc.useShortNumbers ~= false, percentVal)) end
 end
 
 local function updatePower(cfg)
@@ -218,10 +229,18 @@ local function updatePower(cfg)
 	bar:SetMinMaxValues(0, maxv > 0 and maxv or 1)
 	bar:SetValue(cur or 0)
 	local pcfg = cfg.power or {}
+	local percentVal
+	if addon.variables and addon.variables.isMidnight and UnitPowerPercent then
+		percentVal = UnitPowerPercent(PLAYER_UNIT, nil, true, true)
+	else
+		if (not addon.variables or not addon.variables.isMidnight or not issecretvalue or (not issecretvalue(cur) and not issecretvalue(maxv))) and maxv and maxv > 0 then
+			percentVal = (cur or 0) / maxv * 100
+		end
+	end
 	local c = pcfg.color or { 0.1, 0.45, 1, 1 }
 	bar:SetStatusBarColor(c[1] or 0.1, c[2] or 0.45, c[3] or 1, c[4] or 1)
-	if state.powerTextLeft then state.powerTextLeft:SetText(formatText(pcfg.textLeft or "PERCENT", cur, maxv, pcfg.useShortNumbers ~= false)) end
-	if state.powerTextRight then state.powerTextRight:SetText(formatText(pcfg.textRight or "CURMAX", cur, maxv, pcfg.useShortNumbers ~= false)) end
+	if state.powerTextLeft then state.powerTextLeft:SetText(formatText(pcfg.textLeft or "PERCENT", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
+	if state.powerTextRight then state.powerTextRight:SetText(formatText(pcfg.textRight or "CURMAX", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
 end
 
 local function applyFont(fs, fontPath, size)
@@ -774,21 +793,15 @@ if addon.functions and addon.functions.RegisterOptionsPage then
 		lbl:SetFullWidth(true)
 		container:AddChild(lbl)
 	end)
-	addon.functions.RegisterOptionsPage("ufplus\001player", function(container)
-		addOptions(container, false)
-	end)
+	addon.functions.RegisterOptionsPage("ufplus\001player", function(container) addOptions(container, false) end)
 	if addon.functions.addToTree then
-		addon.functions.addToTree(
-			nil,
-			{
-				value = "ufplus",
-				text = L["UFPlusRoot"] or "UF Plus",
-				children = {
-					{ value = "player", text = L["UFPlayerFrame"] or PLAYER },
-				},
+		addon.functions.addToTree(nil, {
+			value = "ufplus",
+			text = L["UFPlusRoot"] or "UF Plus",
+			children = {
+				{ value = "player", text = L["UFPlayerFrame"] or PLAYER },
 			},
-			true
-		)
+		}, true)
 	end
 end
 
