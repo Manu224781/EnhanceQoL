@@ -173,9 +173,21 @@ local function shortValue(val)
 	return tostring(floor(val + 0.5))
 end
 
+local function hideBlizzardPlayerFrame()
+	if not _G.PlayerFrame then return end
+	_G.PlayerFrame:Hide()
+	_G.PlayerFrame:HookScript("OnShow", _G.PlayerFrame.Hide)
+end
+
+local function hideBlizzardTargetFrame()
+	if not _G.TargetFrame then return end
+	_G.TargetFrame:Hide()
+	_G.TargetFrame:HookScript("OnShow", _G.TargetFrame.Hide)
+end
+
 local defaults = {
 	player = {
-		enabled = true,
+		enabled = false,
 		width = 220,
 		healthHeight = 24,
 		powerHeight = 16,
@@ -195,7 +207,6 @@ local defaults = {
 			fontSize = 14,
 			font = nil,
 			fontOutline = "OUTLINE", -- fallback to default font
-			fontOutline = "OUTLINE",
 			offsetLeft = { x = 6, y = 0 },
 			offsetRight = { x = -6, y = 0 },
 			useShortNumbers = true,
@@ -365,7 +376,11 @@ local function updateHealth(cfg, unit)
 	if not st or not st.health or not st.frame then return end
 	local cur = UnitHealth(unit)
 	local maxv = UnitHealthMax(unit)
-	st.health:SetMinMaxValues(0, maxv > 0 and maxv or 1)
+	if issecretvalue and issecretvalue(maxv) then
+		st.health:SetMinMaxValues(0, maxv or 1)
+	else
+		st.health:SetMinMaxValues(0, maxv > 0 and maxv or 1)
+	end
 	st.health:SetValue(cur or 0)
 	local hc = cfg.health or {}
 	configureSpecialTexture(st.health, "HEALTH", hc.texture, hc)
@@ -397,7 +412,11 @@ local function updateHealth(cfg, unit)
 	end
 	if st.absorb then
 		local abs = UnitGetTotalAbsorbs and UnitGetTotalAbsorbs(unit) or 0
-		st.absorb:SetMinMaxValues(0, maxv > 0 and maxv or 1)
+		if issecretvalue and issecretvalue(maxv) then
+			st.absorb:SetMinMaxValues(0, maxv or 1)
+		else
+			st.absorb:SetMinMaxValues(0, maxv > 0 and maxv or 1)
+		end
 		st.absorb:SetValue(abs or 0)
 		local ac = hc.absorbColor or { 0.85, 0.95, 1, 0.7 }
 		st.absorb:SetStatusBarColor(ac[1] or 0.85, ac[2] or 0.95, ac[3] or 1, ac[4] or 0.7)
@@ -415,7 +434,11 @@ local function updatePower(cfg, unit)
 	powerEnum = powerEnum or 0
 	local cur = UnitPower(unit, powerEnum)
 	local maxv = UnitPowerMax(unit, powerEnum)
-	bar:SetMinMaxValues(0, maxv > 0 and maxv or 1)
+	if issecretvalue and issecretvalue(maxv) then
+		bar:SetMinMaxValues(0, maxv or 1)
+	else
+		bar:SetMinMaxValues(0, maxv > 0 and maxv or 1)
+	end
 	bar:SetValue(cur or 0)
 	local pcfg = cfg.power or {}
 	configureSpecialTexture(bar, powerToken, pcfg.texture, pcfg)
@@ -442,8 +465,18 @@ local function updatePower(cfg, unit)
 		end
 	end
 	bar:SetStatusBarColor(cr or 0.1, cg or 0.45, cb or 1, ca or 1)
-	if st.powerTextLeft then st.powerTextLeft:SetText(formatText(pcfg.textLeft or "PERCENT", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
-	if st.powerTextRight then st.powerTextRight:SetText(formatText(pcfg.textRight or "CURMAX", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
+	if st.powerTextLeft then
+		if (issecretvalue and not issecretvalue(maxv)) or maxv == 0 then
+			st.powerTextLeft:SetText("")
+		else
+			st.powerTextLeft:SetText(formatText(pcfg.textLeft or "PERCENT", cur, maxv, pcfg.useShortNumbers ~= false, percentVal))
+		end
+	end
+	if (issecretvalue and not issecretvalue(maxv)) or maxv == 0 then
+		st.powerTextRight:SetText("")
+	else
+		if st.powerTextRight then st.powerTextRight:SetText(formatText(pcfg.textRight or "CURMAX", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
+	end
 end
 
 local function applyFont(fs, fontPath, size, outline)
@@ -576,12 +609,14 @@ local function ensureFrames(unit)
 	if not info then return end
 	states[unit] = states[unit] or {}
 	local st = states[unit]
+	addon.variables.states = states
 	if st.frame then return end
 	st.frame = _G[info.frameName] or CreateFrame("Button", info.frameName, UIParent, "BackdropTemplate,SecureUnitButtonTemplate")
 	st.frame:SetAttribute("unit", info.unit)
 	st.frame:SetAttribute("type1", "target")
 	st.frame:SetAttribute("type2", "togglemenu")
 	st.frame:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	st.frame:Hide()
 
 	if info.dropdown then st.frame.menu = info.dropdown end
 	st.frame:SetClampedToScreen(true)
@@ -681,26 +716,17 @@ local function applyConfig(unit)
 		return
 	end
 	ensureFrames(unit)
+	st = states[unit]
 	applyBars(cfg, unit)
 	layoutFrame(cfg, unit)
 	updateStatus(cfg, unit)
 	updateNameAndLevel(cfg, unit)
 	updateHealth(cfg, unit)
 	updatePower(cfg, unit)
-	if unit == "target" then hideBlizzardTargetFrame() end
-	if st and st.frame then st.frame:Show() end
-end
-
-local function hideBlizzardPlayerFrame()
-	if not _G.PlayerFrame then return end
-	_G.PlayerFrame:Hide()
-	_G.PlayerFrame:HookScript("OnShow", _G.PlayerFrame.Hide)
-end
-
-local function hideBlizzardTargetFrame()
-	if not _G.TargetFrame then return end
-	_G.TargetFrame:Hide()
-	_G.TargetFrame:HookScript("OnShow", _G.TargetFrame.Hide)
+	-- if unit == "target" then hideBlizzardTargetFrame() end
+	if unit == "player" then
+		if st and st.frame then st.frame:Show() end
+	end
 end
 
 local unitEvents = {
@@ -721,11 +747,19 @@ local generalEvents = {
 	"PLAYER_DEAD",
 	"PLAYER_ALIVE",
 	"PLAYER_TARGET_CHANGED",
+	"PLAYER_LOGIN",
 }
 
 local eventFrame
 
+local allowedEventUnit = {
+	["target"] = true,
+	["player"] = true,
+}
+
 local function onEvent(self, event, unit, arg1)
+	
+	if unitEvents[unit] and not allowedEventUnit[unit] then return end
 	if event == "PLAYER_ENTERING_WORLD" then
 		refreshMainPower(PLAYER_UNIT)
 		applyConfig("player")
@@ -739,8 +773,13 @@ local function onEvent(self, event, unit, arg1)
 		updateHealth(ensureDB("player"), "player")
 		updatePower(ensureDB("player"), "player")
 	elseif event == "PLAYER_TARGET_CHANGED" then
-		refreshMainPower("target")
-		applyConfig("target")
+		if UnitExists("target") then
+			refreshMainPower("target")
+			applyConfig("target")
+			if states and states["target"] and states["target"].frame then states["target"].frame:Show() end
+		else
+			if states and states["target"] and states["target"].frame then states["target"].frame:Hide() end
+		end
 	elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
 		if unit == PLAYER_UNIT then updateHealth(ensureDB("player"), "player") end
 		if unit == "target" then updateHealth(ensureDB("target"), "target") end
@@ -770,8 +809,7 @@ local function ensureEventHandling()
 	if eventFrame then return end
 	eventFrame = CreateFrame("Frame")
 	for _, evt in ipairs(unitEvents) do
-		eventFrame:RegisterUnitEvent(evt, "player")
-		eventFrame:RegisterUnitEvent(evt, "target")
+		eventFrame:RegisterEvent(evt)
 	end
 	for _, evt in ipairs(generalEvents) do
 		eventFrame:RegisterEvent(evt)
@@ -831,9 +869,7 @@ local function addOptions(container, skipClear, unit)
 		parent:AddChild(cp)
 		return cp
 	end
-	local function refresh()
-		UF.Refresh()
-	end
+	local function refresh() UF.Refresh() end
 	local enableLabel = isPlayer and (L["UFPlayerEnable"] or "Enable custom player frame") or (L["UFTargetEnable"] or "Enable custom target frame")
 	local enableCB = addon.functions.createCheckboxAce(enableLabel, cfg.enabled == true, function(_, _, val)
 		cfg.enabled = val and true or false
