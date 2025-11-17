@@ -268,7 +268,7 @@ local function fullScanTargetAuras()
 		for i = 2, #helpful do
 			cacheTargetAura(C_UnitAuras.GetAuraDataBySlot("target", helpful[i]))
 		end
-		local harmful = { C_UnitAuras.GetAuraSlots("target", "HARMFUL") }
+		local harmful = { C_UnitAuras.GetAuraSlots("target", "HARMFUL|PLAYER") }
 		for i = 2, #harmful do
 			cacheTargetAura(C_UnitAuras.GetAuraDataBySlot("target", harmful[i]))
 		end
@@ -949,18 +949,19 @@ local function onEvent(self, event, unit, arg1)
 		end
 		if eventInfo.addedAuras then
 			for _, aura in ipairs(eventInfo.addedAuras) do
-				cacheTargetAura(aura)
-			end
-		end
-		if eventInfo.updatedAuras then
-			for _, aura in ipairs(eventInfo.updatedAuras) do
-				cacheTargetAura(aura)
+				if not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, "HARMFUL|PLAYER") then
+					cacheTargetAura(aura)
+				elseif not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, "HELPFUL") then
+					cacheTargetAura(aura)
+				end
 			end
 		end
 		if eventInfo.updatedAuraInstanceIDs and C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID then
 			for _, inst in ipairs(eventInfo.updatedAuraInstanceIDs) do
-				local data = C_UnitAuras.GetAuraDataByAuraInstanceID("target", inst)
-				if data then cacheTargetAura(data) end
+				if targetAuras[inst] then
+					local data = C_UnitAuras.GetAuraDataByAuraInstanceID("target", inst)
+					if data then cacheTargetAura(data) end
+				end
 			end
 		end
 		if eventInfo.removedAuraInstanceIDs then
