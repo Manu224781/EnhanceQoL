@@ -33,7 +33,7 @@ local UnitHealth, UnitHealthMax = UnitHealth, UnitHealthMax
 local UnitPower, UnitPowerMax, UnitPowerType = UnitPower, UnitPowerMax, UnitPowerType
 local EnumPowerType = Enum and Enum.PowerType
 local PowerBarColor = PowerBarColor
-local UnitName, UnitClass, UnitLevel = UnitName, UnitClass, UnitLevel
+local UnitName, UnitClass, UnitLevel, UnitClassification = UnitName, UnitClass, UnitLevel, UnitClassification
 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function() return 0 end
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
 local CUSTOM_CLASS_COLORS = CUSTOM_CLASS_COLORS
@@ -702,7 +702,21 @@ local function updateNameAndLevel(cfg, unit)
 		st.levelText:SetShown(enabled)
 		if enabled then
 			local lc = scfg.levelColor or { 1, 0.85, 0, 1 }
-			st.levelText:SetText(UnitLevel(unit) or "")
+			local rawLevel = UnitLevel(unit) or 0
+			local levelText = rawLevel > 0 and tostring(rawLevel) or "??"
+			local classification = UnitClassification and UnitClassification(unit)
+			if classification == "worldboss" then
+				levelText = "??"
+			elseif classification == "elite" then
+				levelText = levelText .. "+"
+			elseif classification == "rareelite" then
+				levelText = levelText .. " R+"
+			elseif classification == "rare" then
+				levelText = levelText .. " R"
+			elseif classification == "trivial" or classification == "minus" then
+				levelText = levelText .. "-"
+			end
+			st.levelText:SetText(levelText)
 			st.levelText:SetTextColor(lc[1] or 1, lc[2] or 0.85, lc[3] or 0, lc[4] or 1)
 		end
 	end
