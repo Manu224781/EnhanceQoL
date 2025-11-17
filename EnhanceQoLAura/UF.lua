@@ -31,6 +31,8 @@ local atlasByPower = {
 
 local UnitHealth, UnitHealthMax = UnitHealth, UnitHealthMax
 local UnitPower, UnitPowerMax, UnitPowerType = UnitPower, UnitPowerMax, UnitPowerType
+local EnumPowerType = Enum and Enum.PowerType
+local PowerBarColor = PowerBarColor
 local UnitName, UnitClass, UnitLevel = UnitName, UnitClass, UnitLevel
 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function() return 0 end
 local RAID_CLASS_COLORS = RAID_CLASS_COLORS
@@ -113,6 +115,18 @@ local function ensureRootNode()
 	addTreeNode("ufplus", { value = "ufplus", text = L["UFPlusRoot"] or "UF Plus" }, nil)
 end
 
+local function getPowerColor(pToken)
+	if not pToken then pToken = EnumPowerType.MANA end
+	if PowerBarColor then
+		local c = PowerBarColor[pToken]
+		if c then
+			if c.r then return c.r, c.g, c.b, c.a or 1 end
+			if c[1] then return c[1], c[2], c[3], c[4] or 1 end
+		end
+	end
+	return 0.1, 0.45, 1, 1
+end
+
 local function shortValue(val)
 	if val == nil then return "" end
 	if addon.variables and addon.variables.isMidnight then return AbbreviateNumbers(val) end
@@ -158,6 +172,7 @@ local defaults = {
 		power = {
 			color = { 0.1, 0.45, 1, 1 },
 			backdrop = { enabled = true, color = { 0, 0, 0, 0.6 } },
+			useClassColor = true,
 			textLeft = "PERCENT",
 			textRight = "CURMAX",
 			fontSize = 14,
@@ -381,8 +396,19 @@ local function updatePower(cfg)
 			percentVal = (cur or 0) / maxv * 100
 		end
 	end
-	local c = pcfg.color or { 0.1, 0.45, 1, 1 }
-	bar:SetStatusBarColor(c[1] or 0.1, c[2] or 0.45, c[3] or 1, c[4] or 1)
+	local cr, cg, cb, ca
+	if pcfg.useClassColor then
+		local class = select(2, UnitClass(PLAYER_UNIT))
+		local cc = (CUSTOM_CLASS_COLORS and CUSTOM_CLASS_COLORS[class]) or (RAID_CLASS_COLORS and RAID_CLASS_COLORS[class])
+		if cc then
+			cr, cg, cb, ca = getPowerColor(powerToken)
+		end
+	end
+	if not cr then
+		cr, cg, cb, ca = getPowerColor(powerToken)
+		if pcfg.color and pcfg.color[1] then cr, cg, cb, ca = pcfg.color[1], pcfg.color[2], pcfg.color[3], pcfg.color[4] or 1 end
+	end
+	bar:SetStatusBarColor(cr or 0.1, cg or 0.45, cb or 1, ca or 1)
 	if state.powerTextLeft then state.powerTextLeft:SetText(formatText(pcfg.textLeft or "PERCENT", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
 	if state.powerTextRight then state.powerTextRight:SetText(formatText(pcfg.textRight or "CURMAX", cur, maxv, pcfg.useShortNumbers ~= false, percentVal)) end
 end
@@ -813,7 +839,17 @@ local function addOptions(container, skipClear)
 	UF.ui = UF.ui or {}
 	UF.ui.healthColorPicker = addColorPicker(colorRow, L["UFHealthColor"] or "Health color", cfg.health.color or defaults.player.health.color, function() UF.Refresh() end)
 	if UF.ui.healthColorPicker then UF.ui.healthColorPicker:SetDisabled(cfg.health.useClassColor == true) end
-	addColorPicker(colorRow, L["UFPowerColor"] or "Power color", cfg.power.color or defaults.player.power.color, function() UF.Refresh() end)
+	local cbPowerClassColor = addon.functions.createCheckboxAce(L["UFUseClassColorPower"] or "Use class color (power)", cfg.power.useClassColor == true, function(_, _, val)
+		cfg.power.useClassColor = val and true or false
+		if UF.ui and UF.ui.powerColorPicker then UF.ui.powerColorPicker:SetDisabled(cfg.power.useClassColor == true) end
+		UF.Refresh()
+	end)
+	cbPowerClassColor:SetRelativeWidth(0.5)
+	colorRow:AddChild(cbPowerClassColor)
+
+	UF.ui.powerColorPicker = addColorPicker(colorRow, L["UFPowerColor"] or "Power color", cfg.power.color or { getPowerColor(getMainPower()) }, function() UF.Refresh() end)
+	UF.ui.powerColorPicker:SetRelativeWidth(0.5)
+	if UF.ui.powerColorPicker then UF.ui.powerColorPicker:SetDisabled(cfg.power.useClassColor == true) end
 
 	local function textureDropdown(parent, sec)
 		if not parent then return end
