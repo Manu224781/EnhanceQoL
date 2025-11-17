@@ -6592,12 +6592,14 @@ local eventHandlers = {
 			addon.variables.unitSpecId = specId
 		end
 
-		addon.db["moneyTracker"][UnitGUID("player")] = {
-			name = UnitName("player"),
-			realm = GetRealmName(),
-			money = GetMoney(),
-			class = select(2, UnitClass("player")),
-		}
+		if addon.db["moneyTracker"] then
+			addon.db["moneyTracker"][UnitGUID("player")] = {
+				name = UnitName("player"),
+				realm = GetRealmName(),
+				money = GetMoney(),
+				class = select(2, UnitClass("player")),
+			}
+		end
 		addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account)
 		if addon.ChatIM then addon.ChatIM:BuildSoundTable() end
 
@@ -6619,7 +6621,9 @@ local eventHandlers = {
 	end,
 	["PLAYER_MONEY"] = function()
 		if addon.db["showDurabilityOnCharframe"] then calculateDurability() end
-		if addon.db["moneyTracker"][UnitGUID("player")]["money"] then addon.db["moneyTracker"][UnitGUID("player")]["money"] = GetMoney() end
+		if addon.db["moneyTracker"] and addon.db["moneyTracker"][UnitGUID("player")] and addon.db["moneyTracker"][UnitGUID("player")]["money"] then
+			addon.db["moneyTracker"][UnitGUID("player")]["money"] = GetMoney()
+		end
 	end,
 	["ACCOUNT_MONEY"] = function() addon.db["warbandGold"] = C_Bank.FetchDepositedMoney(Enum.BankType.Account) end,
 	["PLAYER_REGEN_ENABLED"] = function()
