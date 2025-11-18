@@ -321,11 +321,11 @@ local function fullScanTargetAuras()
 	if not UnitExists or not UnitExists("target") then return end
 	if C_UnitAuras and C_UnitAuras.GetUnitAuras then
 		local helpful = C_UnitAuras.GetUnitAuras("target", "HELPFUL|CANCELABLE")
-		for i=1, #helpful do
+		for i = 1, #helpful do
 			cacheTargetAura(helpful[i])
 		end
 		local harmful = C_UnitAuras.GetUnitAuras("target", "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY")
-		for i=1, #harmful do
+		for i = 1, #harmful do
 			cacheTargetAura(harmful[i])
 		end
 	elseif C_UnitAuras and C_UnitAuras.GetAuraSlots then
@@ -1048,6 +1048,7 @@ local function onEvent(self, event, unit, arg1)
 		end
 	elseif event == "UNIT_AURA" and unit == "target" then
 		local eventInfo = arg1
+		local changed = {}
 		if not UnitExists("target") then
 			resetTargetAuras()
 			updateTargetAuraIcons()
@@ -1072,14 +1073,18 @@ local function onEvent(self, event, unit, arg1)
 					local data = C_UnitAuras.GetAuraDataByAuraInstanceID("target", inst)
 					if data then cacheTargetAura(data) end
 				end
+				changed[inst] = true
 			end
 		end
 		if eventInfo.removedAuraInstanceIDs then
 			for _, inst in ipairs(eventInfo.removedAuraInstanceIDs) do
 				targetAuras[inst] = nil
+				changed[inst] = true
 			end
 		end
-		updateTargetAuraIcons()
+		if #changed then
+			-- updateTargetAuraIcons()
+		end
 	elseif event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_ABSORB_AMOUNT_CHANGED" then
 		if unit == PLAYER_UNIT then updateHealth(playerCfg, "player") end
 		if unit == "target" then updateHealth(targetCfg, "target") end
