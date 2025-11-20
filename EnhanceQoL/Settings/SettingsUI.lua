@@ -47,36 +47,19 @@ function addon.functions.SettingsCreateButton(layout, text, func, searchtags)
 	layout:AddInitializer(btn)
 end
 
-local function buildHistoryOptions()
-	local container = Settings.CreateControlTextContainer()
-	container:Add("", L["SettingsChatHistoryPlaceholder"])
-	local entries = {}
-	for name in pairs(EnhanceQoL_IMHistory or {}) do
-		table.insert(entries, name)
-	end
-	table.sort(entries, function(a, b) return string.lower(a or "") < string.lower(b or "") end)
-	for _, name in ipairs(entries) do
-		container:Add(name, name)
-	end
-	if #entries > 0 then container:Add(CLEAR_HISTORY_VALUE, L["ChatIMHistoryClearAll"]) end
-	return container:GetData()
-end
-
 function addon.functions.SettingsCreateDropdown(cat, cbData, searchtags)
-	local container = Settings.CreateControlTextContainer()
-	local entries = {}
-	for name in pairs(cbData.list or {}) do
-		table.insert(entries, name)
-	end
-	table.sort(entries, function(a, b) return string.lower(a or "") < string.lower(b or "") end)
-	for _, name in ipairs(entries) do
-		container:Add(name, name)
+	local options = function()
+		local container = Settings.CreateControlTextContainer()
+		for key, value in pairs(cbData.list or {}) do
+			container:Add(key, value)
+		end
+		return container:GetData()
 	end
 
-	local setting = Settings.RegisterProxySetting(cat, "EQOL_" .. cbData.var, Settings.VarType.String, cbData.text, false, cbData.get, cbData.set)
+	local setting = Settings.RegisterProxySetting(cat, "EQOL_" .. cbData.var, cbData.type or Settings.VarType.String, cbData.text, cbData.default, cbData.get, cbData.set)
 
-	local dropdown = Settings.CreateDropdown(cat, setting, container.GetData, cbData.desc)
-	-- if historyDropdown.SetParentInitializer then historyDropdown:SetParentInitializer(imElement, isIMEnabled) end
+	local dropdown = Settings.CreateDropdown(cat, setting, options, cbData.desc)
+	if cbData.parent then dropdown:SetParentInitializer(cbData.element, cbData.parentCheck) end
 end
 
 local cat, layout = Settings.RegisterVerticalLayoutCategory(addonName)

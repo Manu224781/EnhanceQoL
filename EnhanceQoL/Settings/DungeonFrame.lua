@@ -224,8 +224,21 @@ local data = {
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
-addon.functions.SettingsCreateCheckboxes(cChar, data)
+local rData1 = addon.functions.SettingsCreateCheckboxes(cChar, data)
 
+data = {
+	list = { [1] = L["groupfinderSkipRolecheckUseSpec"], [2] = L["groupfinderSkipRolecheckUseLFD"] },
+	text = L["groupfinderSkipRolecheckHeadline"],
+	get = function() return addon.db["groupfinderSkipRoleSelectOption"] or 1 end,
+	set = function(key) addon.db["groupfinderSkipRoleSelectOption"] = key end,
+	parentCheck = function() return rData1["groupfinderSkipRoleSelect"] and rData1["groupfinderSkipRoleSelect"].setting and rData1["groupfinderSkipRoleSelect"].setting:GetValue() == true end,
+	element = rData1["groupfinderSkipRoleSelect"].element,
+	parent = true,
+	default = 1,
+	var = "groupfinderSkipRoleSelectOption",
+	type = Settings.VarType.Number,
+}
+addon.functions.SettingsCreateDropdown(cChar, data)
 --- DELVES
 
 addon.functions.SettingsCreateHeadline(cChar, DELVES_LABEL)
@@ -252,6 +265,24 @@ data = {
 table.sort(data, function(a, b) return a.text < b.text end)
 
 local rData = addon.functions.SettingsCreateCheckbox(cChar, data)
+
+data = {
+	list = {
+		SHIFT = SHIFT_KEY_TEXT,
+		CTRL = CTRL_KEY_TEXT,
+		ALT = ALT_KEY_TEXT,
+	},
+	text = L["timeoutReleaseModifierLabel"],
+	get = function() return addon.db["timeoutReleaseModifier"] or "SHIFT" end,
+	set = function(key) addon.db["timeoutReleaseModifier"] = key end,
+	parentCheck = function() return rData.setting and rData.setting:GetValue() == true end,
+	element = rData.element,
+	parent = true,
+	default = "SHIFT",
+	var = "timeoutReleaseModifier",
+}
+
+addon.functions.SettingsCreateDropdown(cChar, data)
 
 local timeoutReleaseGroups = {
 	{
@@ -372,31 +403,6 @@ for _, group in ipairs(timeoutReleaseGroups) do
 end
 
 addon.functions.SettingsCreateCheckboxes(cChar, timeoutReleaseGroups)
-
--- 		local modifierOptions = {
--- 			SHIFT = modifierDisplayNames.SHIFT or "SHIFT",
--- 			CTRL = modifierDisplayNames.CTRL or "CTRL",
--- 			ALT = modifierDisplayNames.ALT or "ALT",
--- 		}
--- 		local modifierOrder = { "SHIFT", "CTRL", "ALT" }
--- 		local modifierDropdown = addon.functions.createDropdownAce(L["timeoutReleaseModifierLabel"] or "Modifier key", modifierOptions, modifierOrder, function(_, _, key)
--- 			if modifierCheckers[key] then addon.db["timeoutReleaseModifier"] = key end
--- 		end)
--- 		modifierDropdown:SetValue(addon.db["timeoutReleaseModifier"] or "SHIFT")
--- 		groupCore:AddChild(modifierDropdown)
--- 	end
-
--- 	if addon.db["groupfinderSkipRoleSelect"] then
--- 		local list, order = addon.functions.prepareListForDropdown({ [1] = L["groupfinderSkipRolecheckUseSpec"], [2] = L["groupfinderSkipRolecheckUseLFD"] }, true)
-
--- 		local dropRoleSelect = addon.functions.createDropdownAce("", list, order, function(self, _, value) addon.db["groupfinderSkipRoleSelectOption"] = value end)
--- 		dropRoleSelect:SetValue(addon.db["groupfinderSkipRoleSelectOption"])
-
--- 		local groupSkipRole = addon.functions.createContainer("InlineGroup", "List")
--- 		wrapper:AddChild(groupSkipRole)
--- 		groupSkipRole:SetTitle(L["groupfinderSkipRolecheckHeadline"])
--- 		groupSkipRole:AddChild(dropRoleSelect)
--- 	end
 
 ---- REGION END
 
