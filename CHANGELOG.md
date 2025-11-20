@@ -2,6 +2,10 @@
 
 ## [6.2.0] – 2025-11-22
 
+### Options Update
+
+Starting to change stuff to blizzard options, for now only a small part is there but more and more will follow
+
 ### ✨ Added
 
 - Shortening per _Currency_ in _Currency Stream_ added
