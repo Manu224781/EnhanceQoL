@@ -132,6 +132,7 @@ L["enableMoneyTrackerDesc"] = "When you mouse over your gold in your bags, you c
 L["showOnlyGoldOnMoney"] = "Show account gold only (hide silver and copper)"
 L["warbandGold"] = "Warband gold"
 L["moneyTrackerRemovePlayer"] = "All known characters"
+L["moneyTrackerRemoveConfirm"] = "Remove %s from the money tracker? Press Accept to delete this entry."
 L["showBagFilterMenu"] = "Enable item filter in bags"
 L["showBagFilterMenuDesc"] = "Only usable when Combined Bags is enabled. Hold %s to move the frame"
 L["fadeBagQualityIcons"] = "Fade profession quality icons during search and filtering"

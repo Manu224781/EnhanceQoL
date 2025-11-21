@@ -79,51 +79,51 @@ local function addVendorMainFrame2(container)
 	end
 
 	local function buildConvenience()
-		local g, known = ensureGroup("conv", L["Convenience"])
-		local checkboxes = {}
-		local items = {
-			-- {
-			-- 	var = "autoRepair",
-			-- 	text = L["autoRepair"],
-			-- 	func = function(_, _, v)
-			-- 		addon.db["autoRepair"] = v
-			-- 		if checkboxes["autoRepairGuildBank"] then
-			-- 			checkboxes["autoRepairGuildBank"]:SetDisabled(not v)
-			-- 			if not v and addon.db["autoRepairGuildBank"] then
-			-- 				addon.db["autoRepairGuildBank"] = false
-			-- 				checkboxes["autoRepairGuildBank"]:SetValue(false)
-			-- 			end
-			-- 		end
-			-- 	end,
-			-- 	desc = L["autoRepairDesc"],
-			-- },
-			-- {
-			-- 	var = "autoRepairGuildBank",
-			-- 	text = L["autoRepairGuildBank"],
-			-- 	func = function(_, _, v) addon.db["autoRepairGuildBank"] = v end,
-			-- 	desc = L["autoRepairGuildBankDesc"],
-			-- },
-			-- {
-			-- 	var = "sellAllJunk",
-			-- 	text = L["sellAllJunk"],
-			-- 	func = function(_, _, v)
-			-- 		addon.db["sellAllJunk"] = v
-			-- 		if v then showBagIgnoreWarning() end
-			-- 	end,
-			-- 	desc = L["sellAllJunkDesc"],
-			-- },
-		}
-		for _, it in ipairs(items) do
-			local w = addon.functions.createCheckboxAce(it.text, addon.db[it.var], it.func, it.desc)
-			if it.var == "autoRepairGuildBank" then w:SetDisabled(not addon.db["autoRepair"]) end
-			g:AddChild(w)
-			checkboxes[it.var] = w
-		end
+		-- local g, known = ensureGroup("conv", L["Convenience"])
+		-- local checkboxes = {}
+		-- local items = {
+		-- {
+		-- 	var = "autoRepair",
+		-- 	text = L["autoRepair"],
+		-- 	func = function(_, _, v)
+		-- 		addon.db["autoRepair"] = v
+		-- 		if checkboxes["autoRepairGuildBank"] then
+		-- 			checkboxes["autoRepairGuildBank"]:SetDisabled(not v)
+		-- 			if not v and addon.db["autoRepairGuildBank"] then
+		-- 				addon.db["autoRepairGuildBank"] = false
+		-- 				checkboxes["autoRepairGuildBank"]:SetValue(false)
+		-- 			end
+		-- 		end
+		-- 	end,
+		-- 	desc = L["autoRepairDesc"],
+		-- },
+		-- {
+		-- 	var = "autoRepairGuildBank",
+		-- 	text = L["autoRepairGuildBank"],
+		-- 	func = function(_, _, v) addon.db["autoRepairGuildBank"] = v end,
+		-- 	desc = L["autoRepairGuildBankDesc"],
+		-- },
+		-- {
+		-- 	var = "sellAllJunk",
+		-- 	text = L["sellAllJunk"],
+		-- 	func = function(_, _, v)
+		-- 		addon.db["sellAllJunk"] = v
+		-- 		if v then showBagIgnoreWarning() end
+		-- 	end,
+		-- 	desc = L["sellAllJunkDesc"],
+		-- },
+		-- }
+		-- for _, it in ipairs(items) do
+		-- 	local w = addon.functions.createCheckboxAce(it.text, addon.db[it.var], it.func, it.desc)
+		-- 	if it.var == "autoRepairGuildBank" then w:SetDisabled(not addon.db["autoRepair"]) end
+		-- 	g:AddChild(w)
+		-- 	checkboxes[it.var] = w
+		-- end
 
-		if known then
-			g:ResumeLayout()
-			doLayout()
-		end
+		-- if known then
+		-- 	g:ResumeLayout()
+		-- 	doLayout()
+		-- end
 	end
 
 	local function buildMerchant()
@@ -173,55 +173,55 @@ local function addVendorMainFrame2(container)
 	end
 
 	local function buildMailbox()
-		local g, known = ensureGroup("mail", MINIMAP_TRACKING_MAILBOX)
-		local w = addon.functions.createCheckboxAce(L["enableMailboxAddressBook"], addon.db["enableMailboxAddressBook"], function(_, _, value)
-			addon.db["enableMailboxAddressBook"] = value
-			if addon.Mailbox then
-				if addon.Mailbox.SetEnabled then addon.Mailbox:SetEnabled(value) end
-				if value and addon.Mailbox.AddSelfToContacts then addon.Mailbox:AddSelfToContacts() end
-				if value and addon.Mailbox.RefreshList then addon.Mailbox:RefreshList() end
-			end
-			buildMailbox()
-		end, L["enableMailboxAddressBookDesc"])
-		g:AddChild(w)
+		-- local g, known = ensureGroup("mail", MINIMAP_TRACKING_MAILBOX)
+		-- local w = addon.functions.createCheckboxAce(L["enableMailboxAddressBook"], addon.db["enableMailboxAddressBook"], function(_, _, value)
+		-- 	addon.db["enableMailboxAddressBook"] = value
+		-- 	if addon.Mailbox then
+		-- 		if addon.Mailbox.SetEnabled then addon.Mailbox:SetEnabled(value) end
+		-- 		if value and addon.Mailbox.AddSelfToContacts then addon.Mailbox:AddSelfToContacts() end
+		-- 		if value and addon.Mailbox.RefreshList then addon.Mailbox:RefreshList() end
+		-- 	end
+		-- 	buildMailbox()
+		-- end, L["enableMailboxAddressBookDesc"])
+		-- g:AddChild(w)
 
-		if addon.db["enableMailboxAddressBook"] then
-			local sub = addon.functions.createContainer("InlineGroup", "List")
-			sub:SetTitle(L["mailboxRemoveHeader"])
-			g:AddChild(sub)
+		-- if addon.db["enableMailboxAddressBook"] then
+		-- 	local sub = addon.functions.createContainer("InlineGroup", "List")
+		-- 	sub:SetTitle(L["mailboxRemoveHeader"])
+		-- 	g:AddChild(sub)
 
-			local tList = {}
-			for key, rec in pairs(addon.db["mailboxContacts"]) do
-				local class = rec and rec.class
-				local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class or ""] or { r = 1, g = 1, b = 1 }
-				tList[key] = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, key)
-			end
-			local list, order = addon.functions.prepareListForDropdown(tList)
-			local drop = addon.functions.createDropdownAce(L["mailboxRemoveSelect"], list, order, nil)
-			sub:AddChild(drop)
+		-- 	local tList = {}
+		-- 	for key, rec in pairs(addon.db["mailboxContacts"]) do
+		-- 		local class = rec and rec.class
+		-- 		local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class or ""] or { r = 1, g = 1, b = 1 }
+		-- 		tList[key] = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, key)
+		-- 	end
+		-- 	local list, order = addon.functions.prepareListForDropdown(tList)
+		-- 	local drop = addon.functions.createDropdownAce(L["mailboxRemoveSelect"], list, order, nil)
+		-- 	sub:AddChild(drop)
 
-			local btn = addon.functions.createButtonAce(REMOVE, 120, function()
-				local selected = drop:GetValue()
-				if selected and addon.db["mailboxContacts"][selected] then
-					addon.db["mailboxContacts"][selected] = nil
-					local refresh = {}
-					for key, rec in pairs(addon.db["mailboxContacts"]) do
-						local class = rec and rec.class
-						local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class or ""] or { r = 1, g = 1, b = 1 }
-						refresh[key] = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, key)
-					end
-					local nl, no = addon.functions.prepareListForDropdown(refresh)
-					drop:SetList(nl, no)
-					drop:SetValue(nil)
-					if addon.Mailbox and addon.Mailbox.RefreshList then addon.Mailbox:RefreshList() end
-				end
-			end)
-			sub:AddChild(btn)
-		end
-		if known then
-			g:ResumeLayout()
-			doLayout()
-		end
+		-- 	local btn = addon.functions.createButtonAce(REMOVE, 120, function()
+		-- 		local selected = drop:GetValue()
+		-- 		if selected and addon.db["mailboxContacts"][selected] then
+		-- 			addon.db["mailboxContacts"][selected] = nil
+		-- 			local refresh = {}
+		-- 			for key, rec in pairs(addon.db["mailboxContacts"]) do
+		-- 				local class = rec and rec.class
+		-- 				local col = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class or ""] or { r = 1, g = 1, b = 1 }
+		-- 				refresh[key] = string.format("|cff%02x%02x%02x%s|r", col.r * 255, col.g * 255, col.b * 255, key)
+		-- 			end
+		-- 			local nl, no = addon.functions.prepareListForDropdown(refresh)
+		-- 			drop:SetList(nl, no)
+		-- 			drop:SetValue(nil)
+		-- 			if addon.Mailbox and addon.Mailbox.RefreshList then addon.Mailbox:RefreshList() end
+		-- 		end
+		-- 	end)
+		-- 	sub:AddChild(btn)
+		-- end
+		-- if known then
+		-- 	g:ResumeLayout()
+		-- 	doLayout()
+		-- end
 	end
 
 	local function buildMoney()
