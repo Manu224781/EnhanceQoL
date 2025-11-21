@@ -131,9 +131,9 @@ local function addLootFrame(container, d)
 	-- 	groupRollGroup:AddChild(sliderScale)
 	-- end
 
-	-- local lootToastGroup = addon.functions.createContainer("InlineGroup", "List")
-	-- lootToastGroup:SetTitle(L["lootToastSectionTitle"])
-	-- wrapper:AddChild(lootToastGroup)
+	local lootToastGroup = addon.functions.createContainer("InlineGroup", "List")
+	lootToastGroup:SetTitle(L["lootToastSectionTitle"])
+	wrapper:AddChild(lootToastGroup)
 
 	-- local anchorToggle = addon.functions.createCheckboxAce(L["moveLootToast"], addon.db.enableLootToastAnchor, function(self, _, value)
 	-- 	addon.db.enableLootToastAnchor = value

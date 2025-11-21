@@ -125,6 +125,163 @@ local data = {
 
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cLoot, data)
+
+addon.functions.SettingsCreateHeadline(cLoot, L["dungeonJournalLootSpecIcons"])
+
+local data = {
+	{
+		var = "dungeonJournalLootSpecIcons",
+		text = L["dungeonJournalLootSpecIcons"],
+		desc = L["dungeonJournalLootSpecIconsDesc"],
+		func = function(value)
+			addon.db["dungeonJournalLootSpecIcons"] = value
+			if addon.DungeonJournalLootSpec and addon.DungeonJournalLootSpec.SetEnabled then addon.DungeonJournalLootSpec:SetEnabled(value) end
+		end,
+		children = {
+			{
+				list = {
+					[1] = L["dungeonJournalLootSpecAnchorTop"],
+					[2] = L["dungeonJournalLootSpecAnchorBottom"],
+				},
+				text = L["dungeonJournalLootSpecAnchor"],
+				get = function() return addon.db["dungeonJournalLootSpecAnchor"] end,
+				set = function(key)
+					addon.db["dungeonJournalLootSpecAnchor"] = tonumber(key) or 1
+					if addon.DungeonJournalLootSpec then addon.DungeonJournalLootSpec:Refresh() end
+				end,
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				parent = true,
+				default = 1,
+				var = "dungeonJournalLootSpecAnchor",
+				type = Settings.VarType.Number,
+				sType = "dropdown",
+			},
+			{
+				var = "dungeonJournalLootSpecOffsetX",
+				text = L["dungeonJournalLootSpecOffsetX"],
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				get = function() return addon.db and addon.db.dungeonJournalLootSpecOffsetX or 0 end,
+				set = function(value)
+					addon.db["dungeonJournalLootSpecOffsetX"] = value
+					if addon.DungeonJournalLootSpec then addon.DungeonJournalLootSpec:Refresh() end
+				end,
+				min = -200,
+				max = 200,
+				step = 1,
+				parent = true,
+				default = 0,
+				sType = "slider",
+			},
+			{
+				var = "dungeonJournalLootSpecOffsetY",
+				text = L["dungeonJournalLootSpecOffsetY"],
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				get = function() return addon.db and addon.db.dungeonJournalLootSpecOffsetY or 0 end,
+				set = function(value)
+					addon.db["dungeonJournalLootSpecOffsetY"] = value
+					if addon.DungeonJournalLootSpec then addon.DungeonJournalLootSpec:Refresh() end
+				end,
+				min = -200,
+				max = 200,
+				step = 1,
+				parent = true,
+				default = 0,
+				sType = "slider",
+			},
+			{
+				var = "dungeonJournalLootSpecSpacing",
+				text = L["dungeonJournalLootSpecSpacing"],
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				get = function() return addon.db and addon.db.dungeonJournalLootSpecSpacing or 0 end,
+				set = function(value)
+					addon.db["dungeonJournalLootSpecSpacing"] = value
+					if addon.DungeonJournalLootSpec then addon.DungeonJournalLootSpec:Refresh() end
+				end,
+				min = 0,
+				max = 40,
+				step = 1,
+				parent = true,
+				default = 0,
+				sType = "slider",
+			},
+			{
+				var = "dungeonJournalLootSpecScale",
+				text = L["dungeonJournalLootSpecScale"],
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				get = function() return addon.db and addon.db.dungeonJournalLootSpecScale or 0 end,
+				set = function(value)
+					addon.db["dungeonJournalLootSpecScale"] = value
+					if addon.DungeonJournalLootSpec then addon.DungeonJournalLootSpec:Refresh() end
+				end,
+				min = 0.5,
+				max = 2,
+				step = 0.05,
+				parent = true,
+				default = 0,
+				sType = "slider",
+			},
+			{
+				var = "dungeonJournalLootSpecIconPadding",
+				text = L["dungeonJournalLootSpecIconPadding"],
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				get = function() return addon.db and addon.db.dungeonJournalLootSpecIconPadding or 0 end,
+				set = function(value)
+					addon.db["dungeonJournalLootSpecIconPadding"] = value
+					if addon.DungeonJournalLootSpec then addon.DungeonJournalLootSpec:Refresh() end
+				end,
+				min = 0,
+				max = 0.2,
+				step = 0.01,
+				parent = true,
+				default = 0,
+				sType = "slider",
+			},
+			{
+
+				var = "dungeonJournalLootSpecShowAll",
+				text = L["dungeonJournalLootSpecShowAll"],
+				desc = L["dungeonJournalLootSpecShowAllDesc"],
+				func = function(v) addon.db["dungeonJournalLootSpecShowAll"] = v end,
+				parentCheck = function()
+					return addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"]
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting
+						and addon.SettingsLayout.elements["dungeonJournalLootSpecIcons"].setting:GetValue() == true
+				end,
+				parent = true,
+				default = false,
+				type = Settings.VarType.Boolean,
+				sType = "checkbox",
+			},
+		},
+	},
+}
+
+table.sort(data, function(a, b) return a.text < b.text end)
+addon.functions.SettingsCreateCheckboxes(cLoot, data)
 ----- REGION END
 
 function addon.functions.initLootFrame() end
