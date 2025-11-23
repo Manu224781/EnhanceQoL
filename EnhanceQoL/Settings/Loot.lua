@@ -267,6 +267,127 @@ for i = 3, 5 do
 	})
 end
 
+local function isLootToastFilterEnabled()
+	return addon.SettingsLayout.elements["enableLootToastFilter"]
+		and addon.SettingsLayout.elements["enableLootToastFilter"].setting
+		and addon.SettingsLayout.elements["enableLootToastFilter"].setting:GetValue() == true
+end
+
+addon.db.lootToastIncludeIDs = addon.db.lootToastIncludeIDs or {}
+
+local function addInclude(input, editBox)
+	local rawInput = strtrim(tostring(input or ""))
+	if rawInput == "" then
+		if editBox then editBox:SetText("") end
+		return
+	end
+
+	local id = tonumber(rawInput)
+	if not id then id = tonumber(string.match(rawInput, "item:(%d+)")) end
+	if not id then
+		print("|cffff0000Invalid input!|r")
+		if editBox then editBox:SetText("") end
+		return
+	end
+
+	local eItem
+	if type(rawInput) == "string" and rawInput:find("|Hitem:") then
+		eItem = Item:CreateFromItemLink(rawInput)
+	else
+		eItem = Item:CreateFromItemID(id)
+	end
+
+	if eItem and not eItem:IsItemEmpty() then
+		eItem:ContinueOnItemLoad(function()
+			local name = eItem:GetItemName()
+			local itemID = eItem:GetItemID()
+			if not name or not itemID then
+				print(L["Item id does not exist"])
+				if editBox then editBox:SetText("") end
+				return
+			end
+
+			if not addon.db.lootToastIncludeIDs[itemID] then
+				addon.db.lootToastIncludeIDs[itemID] = string.format("%s (%d)", name, itemID)
+				print(L["lootToastItemAdded"]:format(name, itemID))
+			end
+
+			if editBox then editBox:SetText("") end
+			Settings.NotifyUpdate("EQOL_lootToastIncludeRemove")
+		end)
+	else
+		print(L["Item id does not exist"])
+		if editBox then editBox:SetText("") end
+	end
+end
+
+local includeDialogKey = "EQOL_LOOT_INCLUDE_ADD"
+StaticPopupDialogs[includeDialogKey] = StaticPopupDialogs[includeDialogKey]
+	or {
+		text = L["Include"],
+		button1 = ACCEPT,
+		button2 = CANCEL,
+		hasEditBox = true,
+		editBoxWidth = 280,
+		enterClicksFirstButton = true,
+		timeout = 0,
+		whileDead = true,
+		hideOnEscape = true,
+		preferredIndex = 3,
+	}
+StaticPopupDialogs[includeDialogKey].OnShow = function(self)
+	local editBox = self.editBox or self:GetEditBox()
+	editBox:SetText("")
+	editBox:SetFocus()
+end
+StaticPopupDialogs[includeDialogKey].OnAccept = function(self)
+	local editBox = self.editBox or self:GetEditBox()
+	addInclude(editBox:GetText(), editBox)
+end
+StaticPopupDialogs[includeDialogKey].EditBoxOnEnterPressed = function(editBox)
+	local parent = editBox:GetParent()
+	if parent and parent.button1 then parent.button1:Click() end
+end
+
+local lootLayout = SettingsPanel:GetLayout(cLoot)
+local includeButton = CreateSettingsButtonInitializer("", L["Include"], function() StaticPopup_Show(includeDialogKey) end, L["includeInfoLoot"], true)
+includeButton:SetParentInitializer(addon.SettingsLayout.elements["enableLootToastFilter"].element, isLootToastFilterEnabled)
+lootLayout:AddInitializer(includeButton)
+
+local function buildIncludeDropdownList()
+	addon.db.lootToastIncludeIDs = addon.db.lootToastIncludeIDs or {}
+	local list = {}
+	list[""] = ""
+	for i, v in pairs(addon.db.lootToastIncludeIDs) do
+		local key = tostring(i)
+		list[key] = v
+	end
+	return list
+end
+
+addon.functions.SettingsCreateDropdown(cLoot, {
+	var = "lootToastIncludeRemove",
+	text = string.format("%s %s", REMOVE, L["Include"]),
+	listFunc = buildIncludeDropdownList,
+	get = function() return "" end,
+	set = function(key)
+		if not key or key == "" then return end
+		addon.db.lootToastIncludeIDs = addon.db.lootToastIncludeIDs or {}
+		local index = tonumber(key) or key
+		addon.db.lootToastIncludeIDs[index] = nil
+
+		local entry = addon.SettingsLayout.elements["lootToastIncludeRemove"]
+		if entry and entry.setting then entry.setting:SetValue("") end
+
+		Settings.NotifyUpdate("EQOL_lootToastIncludeRemove")
+	end,
+	parent = true,
+	element = addon.SettingsLayout.elements["enableLootToastFilter"].element,
+	parentCheck = isLootToastFilterEnabled,
+	default = "",
+	type = Settings.VarType.String,
+})
+
 addon.functions.SettingsCreateHeadline(cLoot, L["dungeonJournalLootSpecIcons"])
 
 data = {
