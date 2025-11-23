@@ -178,6 +178,7 @@ function addon.functions.SettingsCreateMultiDropdown(cat, cbData)
 		db = addon.db,
 	})
 	initializer:SetSetting(setting)
+	if cbData.parent then initializer:SetParentInitializer(cbData.element, cbData.parentCheck) end
 
 	local layout = SettingsPanel:GetLayout(cat)
 	layout:AddInitializer(initializer)
