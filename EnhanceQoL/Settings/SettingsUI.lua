@@ -23,6 +23,11 @@ hooksecurefunc(SettingsDropdownControlMixin, "Init", function(self)
 	if not setting or not setting.variable or not addon.variables.NewVersionTableEQOL[setting.variable] then return end
 	if self.NewFeature then self.NewFeature:SetShown(true) end
 end)
+hooksecurefunc(SettingsSliderControlMixin, "Init", function(self)
+	local setting = self.GetSetting and self:GetSetting()
+	if not setting or not setting.variable or not addon.variables.NewVersionTableEQOL[setting.variable] then return end
+	if self.NewFeature then self.NewFeature:SetShown(true) end
+end)
 
 function addon.functions.SettingsCreateCategory(parent, treeName, sort, newTagID)
 	if nil == parent then parent = addon.SettingsLayout.rootCategory end
