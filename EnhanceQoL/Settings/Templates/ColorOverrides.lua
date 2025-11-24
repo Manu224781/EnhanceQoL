@@ -73,6 +73,7 @@ function EQOL_ColorOverridesMixin:RefreshRows()
 
 	if self.container and self.container.MarkDirty then self.container:MarkDirty() end
 	self:RefreshAll()
+	self:EvaluateState() -- ensure fresh rows respect parent state immediately
 end
 
 function EQOL_ColorOverridesMixin:SetupRow(frame, entry)
