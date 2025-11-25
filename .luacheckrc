@@ -759,6 +759,7 @@ globals = {
 	"C_CurrencyInfo",
 	"C_CVar",
 	"C_EncounterJournal",
+	"EQOL_SoundDropdownMixin",
 	"C_EquipmentSet",
 	"C_EquipmentSet.GetEquipmentSetIDs",
 	"C_EquipmentSet.GetEquipmentSetInfo",
