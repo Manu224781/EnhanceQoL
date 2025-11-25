@@ -1,0 +1,538 @@
+local parentAddonName = "EnhanceQoL"
+local addonName, addon = ...
+
+if _G[parentAddonName] then
+	addon = _G[parentAddonName]
+else
+	error(parentAddonName .. " is not loaded")
+end
+
+local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Tooltip")
+
+local cTooltip = addon.functions.SettingsCreateCategory(nil, L["Tooltip"], nil, "Tooltip")
+addon.SettingsLayout.tooltipCategory = cTooltip
+addon.functions.SettingsCreateHeadline(cTooltip, L["Buff_Debuff"])
+
+local data = {
+	list = { [1] = L["TooltipOFF"], [2] = L["TooltipON"] },
+	text = L["TooltipBuffHideType"],
+	get = function() return addon.db.TooltipBuffHideType or 1 end,
+	set = function(key) addon.db.TooltipBuffHideType = key end,
+	default = 1,
+	var = "TooltipBuffHideType",
+	type = Settings.VarType.Number,
+}
+addon.functions.SettingsCreateDropdown(cTooltip, data)
+
+data = {
+	{
+		var = "TooltipBuffHideInCombat",
+		text = L["TooltipBuffHideInCombat"],
+		func = function(v) addon.db["TooltipBuffHideInCombat"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipBuffHideType"]
+				and addon.SettingsLayout.elements["TooltipBuffHideType"].setting
+				and addon.SettingsLayout.elements["TooltipBuffHideType"].setting:GetValue() == 2
+		end,
+		element = addon.SettingsLayout.elements["TooltipBuffHideType"].element,
+	},
+	{
+		var = "TooltipBuffHideInDungeon",
+		text = L["TooltipBuffHideInDungeon"],
+		func = function(v) addon.db["TooltipBuffHideInDungeon"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipBuffHideType"]
+				and addon.SettingsLayout.elements["TooltipBuffHideType"].setting
+				and addon.SettingsLayout.elements["TooltipBuffHideType"].setting:GetValue() == 2
+		end,
+		element = addon.SettingsLayout.elements["TooltipBuffHideType"].element,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+addon.functions.SettingsCreateHeadline(cTooltip, AUCTION_HOUSE_HEADER_ITEM)
+
+data = {
+	list = { [1] = L["TooltipOFF"], [2] = L["TooltipON"] },
+	text = L["TooltipItemHideType"],
+	get = function() return addon.db.TooltipItemHideType or 1 end,
+	set = function(key) addon.db.TooltipItemHideType = key end,
+	default = 1,
+	var = "TooltipItemHideType",
+	type = Settings.VarType.Number,
+}
+addon.functions.SettingsCreateDropdown(cTooltip, data)
+
+data = {
+	{
+		var = "TooltipItemHideInCombat",
+		text = L["TooltipItemHideInCombat"],
+		func = function(v) addon.db["TooltipItemHideInCombat"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipItemHideType"]
+				and addon.SettingsLayout.elements["TooltipItemHideType"].setting
+				and addon.SettingsLayout.elements["TooltipItemHideType"].setting:GetValue() == 2
+		end,
+		element = addon.SettingsLayout.elements["TooltipItemHideType"].element,
+	},
+	{
+		var = "TooltipItemHideInDungeon",
+		text = L["TooltipItemHideInDungeon"],
+		func = function(v) addon.db["TooltipItemHideInDungeon"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipItemHideType"]
+				and addon.SettingsLayout.elements["TooltipItemHideType"].setting
+				and addon.SettingsLayout.elements["TooltipItemHideType"].setting:GetValue() == 2
+		end,
+		element = addon.SettingsLayout.elements["TooltipItemHideType"].element,
+	},
+	{
+		var = "TooltipShowItemID",
+		text = L["TooltipShowItemID"],
+		func = function(v) addon.db["TooltipShowItemID"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+	{
+		var = "TooltipShowTempEnchant",
+		text = L["TooltipShowTempEnchant"],
+		desc = L["TooltipShowTempEnchantDesc"],
+		func = function(v) addon.db["TooltipShowTempEnchant"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+	{
+		var = "TooltipShowItemCount",
+		text = L["TooltipShowItemCount"],
+		func = function(v) addon.db["TooltipShowItemCount"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+	{
+		var = "TooltipShowSeperateItemCount",
+		text = L["TooltipShowSeperateItemCount"],
+		func = function(v) addon.db["TooltipShowSeperateItemCount"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+---- Spell
+
+addon.functions.SettingsCreateHeadline(cTooltip, STAT_CATEGORY_SPELL)
+
+data = {
+	list = { [1] = L["TooltipOFF"], [2] = L["TooltipON"] },
+	text = L["TooltipSpellHideType"],
+	get = function() return addon.db.TooltipSpellHideType or 1 end,
+	set = function(key) addon.db.TooltipSpellHideType = key end,
+	default = 1,
+	var = "TooltipSpellHideType",
+	type = Settings.VarType.Number,
+}
+addon.functions.SettingsCreateDropdown(cTooltip, data)
+
+data = {
+	{
+		var = "TooltipSpellHideInCombat",
+		text = L["TooltipSpellHideInCombat"],
+		func = function(v) addon.db["TooltipSpellHideInCombat"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipSpellHideType"]
+				and addon.SettingsLayout.elements["TooltipSpellHideType"].setting
+				and addon.SettingsLayout.elements["TooltipSpellHideType"].setting:GetValue() == 2
+		end,
+		element = addon.SettingsLayout.elements["TooltipSpellHideType"].element,
+	},
+	{
+		var = "TooltipSpellHideInDungeon",
+		text = L["TooltipSpellHideInDungeon"],
+		func = function(v) addon.db["TooltipSpellHideInDungeon"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipSpellHideType"]
+				and addon.SettingsLayout.elements["TooltipSpellHideType"].setting
+				and addon.SettingsLayout.elements["TooltipSpellHideType"].setting:GetValue() == 2
+		end,
+		element = addon.SettingsLayout.elements["TooltipSpellHideType"].element,
+	},
+	{
+		var = "TooltipShowSpellID",
+		text = L["TooltipShowSpellID"],
+		func = function(v) addon.db["TooltipShowSpellID"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+	{
+		var = "TooltipShowSpellIcon",
+		text = L["TooltipShowSpellIcon"],
+		func = function(v) addon.db["TooltipShowSpellIcon"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+-- Quest
+
+addon.functions.SettingsCreateHeadline(cTooltip, LOOT_JOURNAL_LEGENDARIES_SOURCE_QUEST)
+
+data = {
+	{
+		var = "TooltipShowQuestID",
+		text = L["TooltipShowQuestID"],
+		func = function(v) addon.db["TooltipShowQuestID"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+-- Unit
+
+addon.functions.SettingsCreateHeadline(cTooltip, GROUPMANAGER_UNIT_MARKER)
+
+data = {
+	list = { [1] = NONE, [2] = L["Enemies"], [3] = L["Friendly"], [4] = L["Both"] },
+	text = L["TooltipUnitHideType"],
+	get = function() return addon.db.TooltipUnitHideType or 1 end,
+	set = function(key) addon.db.TooltipUnitHideType = key end,
+	default = 1,
+	var = "TooltipUnitHideType",
+	type = Settings.VarType.Number,
+}
+addon.functions.SettingsCreateDropdown(cTooltip, data)
+
+data = {
+	{
+		var = "TooltipUnitHideInCombat",
+		text = L["TooltipUnitHideInCombat"],
+		func = function(v) addon.db["TooltipUnitHideInCombat"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipUnitHideType"]
+				and addon.SettingsLayout.elements["TooltipUnitHideType"].setting
+				and addon.SettingsLayout.elements["TooltipUnitHideType"].setting:GetValue() > 1
+		end,
+		element = addon.SettingsLayout.elements["TooltipUnitHideType"].element,
+	},
+	{
+		var = "TooltipUnitHideInDungeon",
+		text = L["TooltipUnitHideInDungeon"],
+		func = function(v) addon.db["TooltipUnitHideInDungeon"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+		parent = true,
+		parentCheck = function()
+			return addon.SettingsLayout.elements["TooltipUnitHideType"]
+				and addon.SettingsLayout.elements["TooltipUnitHideType"].setting
+				and addon.SettingsLayout.elements["TooltipUnitHideType"].setting:GetValue() > 1
+		end,
+		element = addon.SettingsLayout.elements["TooltipUnitHideType"].element,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+data = {
+	{
+		var = "TooltipUnitHideHealthBar",
+		text = L["TooltipUnitHideHealthBar"],
+		func = function(v) addon.db["TooltipUnitHideHealthBar"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+	{
+		var = "TooltipUnitHideRightClickInstruction",
+		text = L["TooltipUnitHideRightClickInstruction"]:format(UNIT_POPUP_RIGHT_CLICK),
+		func = function(v) addon.db["TooltipUnitHideRightClickInstruction"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+-- Player
+
+addon.functions.SettingsCreateHeadline(cTooltip, PLAYER)
+
+local function TooltipPlayerHasMythicDetails()
+	if addon.variables.isMidnight then return false end
+	return addon.db["TooltipShowMythicScore"] and true or false
+end
+
+local function TooltipPlayerHasInspectDetails()
+	if addon.variables.isMidnight then return false end
+	return (addon.db["TooltipUnitShowSpec"] or addon.db["TooltipUnitShowItemLevel"]) and true or false
+end
+
+local function BuildTooltipPlayerDetailOptions()
+	if addon.variables.isMidnight then
+		addon.db["TooltipShowMythicScore"] = false
+		addon.db["TooltipUnitShowSpec"] = false
+		addon.db["TooltipUnitShowItemLevel"] = false
+		return {
+			{ value = "classColor", text = L["TooltipShowClassColor"] },
+		}
+	end
+
+	return {
+		{ value = "mythic", text = L["TooltipShowMythicScore"]:format(DUNGEON_SCORE) },
+		{ value = "spec", text = L["TooltipUnitShowSpec"] },
+		{ value = "ilvl", text = L["TooltipUnitShowItemLevel"] },
+		{ value = "classColor", text = L["TooltipShowClassColor"] },
+	}
+end
+
+local function IsTooltipPlayerDetailSelected(key)
+	if not key then return false end
+	if key == "mythic" then return addon.db["TooltipShowMythicScore"] and true or false end
+	if key == "spec" then return (not addon.variables.isMidnight) and (addon.db["TooltipUnitShowSpec"] and true or false) end
+	if key == "ilvl" then return (not addon.variables.isMidnight) and (addon.db["TooltipUnitShowItemLevel"] and true or false) end
+	if key == "classColor" then return addon.db["TooltipShowClassColor"] and true or false end
+	return false
+end
+
+local function SetTooltipPlayerDetailSelected(key, shouldSelect)
+	if not key then return end
+	local enabled = shouldSelect and true or false
+	if addon.variables.isMidnight and key ~= "classColor" then enabled = false end
+
+	if key == "mythic" then
+		addon.db["TooltipShowMythicScore"] = enabled
+	elseif key == "spec" then
+		addon.db["TooltipUnitShowSpec"] = enabled
+	elseif key == "ilvl" then
+		addon.db["TooltipUnitShowItemLevel"] = enabled
+	elseif key == "classColor" then
+		addon.db["TooltipShowClassColor"] = enabled
+	else
+		return
+	end
+
+	if (key == "spec" or key == "ilvl") and addon.functions.UpdateInspectEventRegistration then addon.functions.UpdateInspectEventRegistration() end
+end
+
+local function BuildMythicScorePartsOptions()
+	return {
+		{ value = "score", text = DUNGEON_SCORE },
+		{ value = "best", text = L["BestMythic+run"] },
+		{ value = "dungeons", text = L["SeasonDungeons"] or "Season dungeons" },
+	}
+end
+
+local function IsMythicScorePartSelected(key)
+	local parts = addon.db["TooltipMythicScoreParts"] or {}
+	return parts[key] and true or false
+end
+
+local function SetMythicScorePartSelected(key, shouldSelect)
+	if not key then return end
+	addon.db["TooltipMythicScoreParts"] = addon.db["TooltipMythicScoreParts"] or { score = true, best = true, dungeons = true }
+	if shouldSelect then
+		addon.db["TooltipMythicScoreParts"][key] = true
+	else
+		addon.db["TooltipMythicScoreParts"][key] = nil
+	end
+end
+
+addon.functions.SettingsCreateMultiDropdown(cTooltip, {
+	var = "TooltipPlayerDetailsLabel",
+	text = L["TooltipPlayerDetailsLabel"],
+	options = BuildTooltipPlayerDetailOptions(),
+	optionfunc = BuildTooltipPlayerDetailOptions,
+	isSelectedFunc = IsTooltipPlayerDetailSelected,
+	setSelectedFunc = SetTooltipPlayerDetailSelected,
+})
+
+local playerDetailsElement = addon.SettingsLayout.elements["TooltipPlayerDetailsLabel"]
+local playerDetailsInitializer = playerDetailsElement and playerDetailsElement.initializer
+
+addon.functions.SettingsCreateCheckbox(cTooltip, {
+	var = "TooltipMythicScoreRequireModifier",
+	text = L["TooltipMythicScoreRequireModifier"]:format(DUNGEON_SCORE),
+	func = function(value) addon.db["TooltipMythicScoreRequireModifier"] = value and true or false end,
+	default = false,
+	parent = true,
+	element = playerDetailsInitializer,
+	parentCheck = TooltipPlayerHasMythicDetails,
+	notify = "TooltipPlayerDetailsLabel",
+})
+
+addon.functions.SettingsCreateCheckbox(cTooltip, {
+	var = "TooltipUnitInspectRequireModifier",
+	text = L["TooltipUnitInspectRequireModifier"],
+	func = function(value)
+		addon.db["TooltipUnitInspectRequireModifier"] = value and true or false
+		if addon.functions.UpdateInspectEventRegistration then addon.functions.UpdateInspectEventRegistration() end
+	end,
+	default = false,
+	parent = true,
+	element = playerDetailsInitializer,
+	parentCheck = TooltipPlayerHasInspectDetails,
+	notify = "TooltipPlayerDetailsLabel",
+})
+
+local modifierList = {
+	SHIFT = SHIFT_KEY_TEXT,
+	ALT = ALT_KEY_TEXT,
+	CTRL = CTRL_KEY_TEXT,
+}
+modifierList._order = { "SHIFT", "ALT", "CTRL" }
+
+addon.functions.SettingsCreateDropdown(cTooltip, {
+	var = "TooltipMythicScoreModifier",
+	text = MODIFIERS_COLON,
+	list = modifierList,
+	get = function() return addon.db["TooltipMythicScoreModifier"] or "SHIFT" end,
+	set = function(value) addon.db["TooltipMythicScoreModifier"] = value end,
+	default = "SHIFT",
+	parent = true,
+	element = playerDetailsInitializer,
+	parentCheck = function()
+		return (
+			addon.SettingsLayout.elements["TooltipUnitInspectRequireModifier"]
+				and addon.SettingsLayout.elements["TooltipUnitInspectRequireModifier"].setting
+				and addon.SettingsLayout.elements["TooltipUnitInspectRequireModifier"].setting:GetValue() == true
+				and (addon.db["TooltipUnitShowSpec"] or addon.db["TooltipUnitShowItemLevel"])
+			or addon.SettingsLayout.elements["TooltipMythicScoreRequireModifier"]
+				and addon.SettingsLayout.elements["TooltipMythicScoreRequireModifier"].setting
+				and addon.SettingsLayout.elements["TooltipMythicScoreRequireModifier"].setting:GetValue() == true
+				and addon.db["TooltipShowMythicScore"]
+		)
+	end,
+})
+
+addon.functions.SettingsCreateMultiDropdown(cTooltip, {
+	var = "TooltipMythicScoreParts",
+	text = L["MythicScorePartsLabel"] or "Mythic+ details to show",
+	options = BuildMythicScorePartsOptions(),
+	optionfunc = BuildMythicScorePartsOptions,
+	isSelectedFunc = IsMythicScorePartSelected,
+	setSelectedFunc = SetMythicScorePartSelected,
+	parent = true,
+	element = playerDetailsInitializer,
+	parentCheck = TooltipPlayerHasMythicDetails,
+})
+
+addon.functions.SettingsCreateHeadline(cTooltip, GENERAL)
+
+data = {
+	list = { [1] = DEFAULT, [2] = L["CursorCenter"], [3] = L["CursorLeft"], [4] = L["CursorRight"] },
+	text = L["TooltipAnchorType"],
+	get = function() return addon.db.TooltipAnchorType or 1 end,
+	set = function(key) addon.db.TooltipAnchorType = key end,
+	default = 1,
+	var = "TooltipAnchorType",
+	type = Settings.VarType.Number,
+}
+addon.functions.SettingsCreateDropdown(cTooltip, data)
+
+data = {
+	var = "TooltipAnchorOffsetX",
+	text = L["TooltipAnchorOffsetX"],
+	get = function() return addon.db and addon.db.TooltipAnchorOffsetX or 0 end,
+	set = function(v) addon.db["TooltipAnchorOffsetX"] = v end,
+	parentCheck = function()
+		return addon.SettingsLayout.elements["TooltipAnchorType"]
+			and addon.SettingsLayout.elements["TooltipAnchorType"].setting
+			and addon.SettingsLayout.elements["TooltipAnchorType"].setting:GetValue() > 2
+	end,
+	min = -300,
+	max = 300,
+	step = 1,
+	parent = true,
+	element = addon.SettingsLayout.elements["TooltipAnchorType"].element,
+	default = 0,
+}
+addon.functions.SettingsCreateSlider(cTooltip, data)
+
+data = {
+	var = "TooltipAnchorOffsetY",
+	text = L["TooltipAnchorOffsetY"],
+	get = function() return addon.db and addon.db.TooltipAnchorOffsetY or 0 end,
+	set = function(v) addon.db["TooltipAnchorOffsetY"] = v end,
+	parentCheck = function()
+		return addon.SettingsLayout.elements["TooltipAnchorType"]
+			and addon.SettingsLayout.elements["TooltipAnchorType"].setting
+			and addon.SettingsLayout.elements["TooltipAnchorType"].setting:GetValue() > 2
+	end,
+	min = -300,
+	max = 300,
+	step = 1,
+	parent = true,
+	element = addon.SettingsLayout.elements["TooltipAnchorType"].element,
+	default = 0,
+}
+addon.functions.SettingsCreateSlider(cTooltip, data)
+
+addon.functions.SettingsCreateHeadline(cTooltip, CURRENCY)
+data = {
+	{
+		var = "TooltipShowCurrencyAccountWide",
+		text = L["TooltipShowCurrencyAccountWide"],
+		func = function(v) addon.db["TooltipShowCurrencyAccountWide"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+	{
+		var = "TooltipShowCurrencyID",
+		text = L["TooltipShowCurrencyID"],
+		func = function(v) addon.db["TooltipShowCurrencyID"] = v end,
+		default = false,
+		type = Settings.VarType.Boolean,
+	},
+}
+table.sort(data, function(a, b) return a.text < b.text end)
+addon.functions.SettingsCreateCheckboxes(cTooltip, data)
+
+----- REGION END
+
+function addon.functions.initTooltip() end
+
+local eventHandlers = {}
+
+local function registerEvents(frame)
+	for event in pairs(eventHandlers) do
+		frame:RegisterEvent(event)
+	end
+end
+
+local function eventHandler(self, event, ...)
+	if eventHandlers[event] then eventHandlers[event](...) end
+end
+
+local frameLoad = CreateFrame("Frame")
+
+registerEvents(frameLoad)
+frameLoad:SetScript("OnEvent", eventHandler)

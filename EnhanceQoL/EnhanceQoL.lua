@@ -1441,7 +1441,7 @@ local function setCVarValue(cvarKey, newValue)
 	if newValue == nil then return end
 
 	newValue = tostring(newValue)
-	local currentValue = GetCVar(cvarKey)
+	local currentValue = C_CVar.GetCVar(cvarKey)
 	if currentValue ~= nil then currentValue = tostring(currentValue) end
 
 	if currentValue == newValue then return end
@@ -1453,7 +1453,7 @@ local function setCVarValue(cvarKey, newValue)
 	end
 
 	guard[cvarKey] = true
-	SetCVar(cvarKey, newValue)
+	C_CVar.SetCVar(cvarKey, newValue)
 end
 addon.functions.setCVarValue = setCVarValue
 
@@ -2832,6 +2832,7 @@ local function initUI()
 						or btnName == "MinimapMailFrame"
 						or btnName:match("^HandyNotesPin")
 						or btnName == addonName .. "_ButtonSinkMap"
+						or btnName == "ZygorGuidesViewerMapIcon"
 					)
 				then
 					if not addon.variables.bagButtonPoint[btnName] or not addon.variables.bagButtonPoint[btnName].point then
@@ -3201,7 +3202,6 @@ local function CreateUI()
 		children = {
 			{ value = "actionbar", text = L["VisibilityHubName"] or ACTIONBARS_LABEL },
 			{ value = "unitframe", text = UNITFRAME_LABEL },
-			{ value = "system", text = L["System"] },
 		},
 	})
 
@@ -3286,8 +3286,6 @@ local function CreateUI()
 		-- UI & Input
 		elseif group == "ui\001mouse" then
 			addon.Mouse.functions.treeCallback(container, "mouse")
-		elseif group == "ui\001tooltip" then
-			addon.Tooltip.functions.treeCallback(container, group:sub(4)) -- pass "tooltip..."
 		-- UF Plus
 		elseif string.match(group, "^ufplus") then
 			if addon.Aura and addon.Aura.UF and addon.Aura.UF.treeCallback then addon.Aura.UF.treeCallback(container, group) end
