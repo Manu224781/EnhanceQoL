@@ -160,12 +160,3 @@ local function eventHandler(self, event, arg1, arg2, arg3, arg4)
 end
 -- Setze den Event-Handler
 frameLoad:SetScript("OnEvent", eventHandler)
-
--- Place Drink Macro under Combat & Dungeons (legacy tree forwards to the new Settings panel)
-addon.functions.addToTree("combat", { value = "drink", text = L["Drinks & Food"] or "Drinks & Food" })
-
-function addon.Drinks.functions.treeCallback(_, _)
-	if addon.SettingsLayout and addon.SettingsLayout.drinkMacroCategory then
-		Settings.OpenToCategory(addon.SettingsLayout.drinkMacroCategory:GetID())
-	end
-end

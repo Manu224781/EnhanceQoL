@@ -3185,8 +3185,6 @@ local function CreateUI()
 			end
 		elseif string.match(group, "^vendor") then
 			addon.Vendor.functions.treeCallback(container, group)
-		elseif string.match(group, "^drink") then
-			addon.Drinks.functions.treeCallback(container, group)
 		elseif string.find(group, "mythicplus", 1, true) then
 			addon.MythicPlus.functions.treeCallback(container, group)
 		elseif string.match(group, "^aura") then
