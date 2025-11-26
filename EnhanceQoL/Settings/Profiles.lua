@@ -39,14 +39,14 @@ local data = {
 		return list
 	end,
 	text = L["ProfileUseGlobal"],
-	desc = L["ProfileUseGlobalDesc"],
-	get = function() return EnhanceQoLDB.profileDefaultFirstStart or EnhanceQoLDB.profileGlobal end,
-	set = function(value) EnhanceQoLDB.profileDefaultFirstStart = value end,
+	get = function() return EnhanceQoLDB.profileGlobal end,
+	set = function(value) EnhanceQoLDB.profileGlobal = value end,
 	default = "",
 	var = "profilefirststart",
 }
 
 addon.functions.SettingsCreateDropdown(cProfiles, data)
+addon.functions.SettingsCreateText(cProfiles, L["ProfileUseGlobalDesc"])
 
 data = {
 	var = "AddProfile",

@@ -3694,10 +3694,8 @@ local eventHandlers = {
 			-- check for global profile
 			if EnhanceQoLDB.profileGlobal then
 				defaultProfile = EnhanceQoLDB.profileGlobal
-				if not EnhanceQoLDB.profileDefaultFirstStart then EnhanceQoLDB.profileDefaultFirstStart = defaultProfile end
 			else
 				EnhanceQoLDB.profileGlobal = defaultProfile
-				EnhanceQoLDB.profileDefaultFirstStart = defaultProfile
 			end
 
 			if EnhanceQoLDB.profileKeys[UnitGUID("player")] then
@@ -3708,7 +3706,7 @@ local eventHandlers = {
 				EnhanceQoLDB.profileKeys[name .. " - " .. realm] = nil
 				defaultProfile = EnhanceQoLDB.profileKeys[UnitGUID("player")]
 			else
-				defaultProfile = EnhanceQoLDB.profileDefaultFirstStart
+				defaultProfile = EnhanceQoLDB.profileGlobal
 				EnhanceQoLDB.profileKeys[UnitGUID("player")] = defaultProfile
 			end
 
