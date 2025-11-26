@@ -10,20 +10,6 @@ local addonName, addon = ...
 local LDB = LibStub("LibDataBroker-1.1")
 local LDBIcon = LibStub("LibDBIcon-1.0")
 local AceGUI = LibStub("AceGUI-3.0")
-local AceDB = LibStub("AceDB-3.0")
-local AceConfig = LibStub("AceConfig-3.0")
-local AceConfigDlg = LibStub("AceConfigDialog-3.0")
-local AceDBOptions = LibStub("AceDBOptions-3.0")
-local defaults = {
-	profile = {
-		dataPanels = {},
-		cvarOverrides = {},
-		cvarPersistenceEnabled = false,
-		optionsFrameScale = 1,
-		editModeLayouts = {},
-		legionRemix = {},
-	},
-}
 
 addon.AceGUI = AceGUI
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL")
@@ -3146,11 +3132,6 @@ local function CreateUI()
 		},
 	})
 
-	-- Top: Profiles
-	table.insert(addon.treeGroupData, {
-		value = "profiles",
-		text = L["Profiles"],
-	})
 	addon.treeGroup:SetLayout("Fill")
 	addon.treeGroup:SetTree(addon.treeGroupData)
 	addon.treeGroup:SetCallback("OnGroupSelected", function(container, _, group)
