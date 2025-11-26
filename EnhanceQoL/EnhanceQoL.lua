@@ -10,20 +10,6 @@ local addonName, addon = ...
 local LDB = LibStub("LibDataBroker-1.1")
 local LDBIcon = LibStub("LibDBIcon-1.0")
 local AceGUI = LibStub("AceGUI-3.0")
-local AceDB = LibStub("AceDB-3.0")
-local AceConfig = LibStub("AceConfig-3.0")
-local AceConfigDlg = LibStub("AceConfigDialog-3.0")
-local AceDBOptions = LibStub("AceDBOptions-3.0")
-local defaults = {
-	profile = {
-		dataPanels = {},
-		cvarOverrides = {},
-		cvarPersistenceEnabled = false,
-		optionsFrameScale = 1,
-		editModeLayouts = {},
-		legionRemix = {},
-	},
-}
 
 addon.AceGUI = AceGUI
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL")
@@ -1792,9 +1778,9 @@ local function initLoot()
 	addon.functions.InitDBValue("enableLootToastAnchor", false)
 	addon.functions.InitDBValue("enableLootToastFilter", false)
 	addon.functions.InitDBValue("lootToastItemLevels", {
-		[Enum.ItemQuality.Rare] = 600,
-		[Enum.ItemQuality.Epic] = 600,
-		[Enum.ItemQuality.Legendary] = 600,
+		[Enum.ItemQuality.Rare] = 0,
+		[Enum.ItemQuality.Epic] = 0,
+		[Enum.ItemQuality.Legendary] = 0,
 	})
 	if addon.db.lootToastItemLevel then
 		local v = addon.db.lootToastItemLevel
@@ -3143,15 +3129,9 @@ local function CreateUI()
 		text = L["UIInput"],
 		children = {
 			{ value = "actionbar", text = L["VisibilityHubName"] or ACTIONBARS_LABEL },
-			{ value = "unitframe", text = UNITFRAME_LABEL },
 		},
 	})
 
-	-- Top: Profiles
-	table.insert(addon.treeGroupData, {
-		value = "profiles",
-		text = L["Profiles"],
-	})
 	addon.treeGroup:SetLayout("Fill")
 	addon.treeGroup:SetTree(addon.treeGroupData)
 	addon.treeGroup:SetCallback("OnGroupSelected", function(container, _, group)
@@ -3229,7 +3209,7 @@ local function CreateUI()
 
 			local sub = addon.functions.createContainer("SimpleGroup", "Flow")
 			scroll:AddChild(sub)
-			AceConfigDlg:Open("EQOL_Profiles", sub)
+			-- AceConfigDlg:Open("EQOL_Profiles", sub)
 			scroll:DoLayout()
 		-- Media & Sound wrappers
 		elseif string.sub(group, 1, string.len("media\001")) == "media\001" then
@@ -3514,6 +3494,7 @@ local function setAllHooks()
 	addon.functions.initUIInput()
 	addon.functions.initQuest()
 	addon.functions.initDataPanel()
+	addon.functions.initProfile()
 	initParty()
 	initActionBars()
 	initUI()
@@ -3677,19 +3658,43 @@ local eventHandlers = {
 	["ADDON_LOADED"] = function(arg1)
 		if arg1 == addonName then
 			local legacy = {}
+			EnhanceQoLDB = EnhanceQoLDB or {}
 			if EnhanceQoLDB and not EnhanceQoLDB.profiles then
 				for k, v in pairs(EnhanceQoLDB) do
 					legacy[k] = v
 				end
+				EnhanceQoLDB.profiles = {
+					["Default"] = {},
+				}
 			end
 
-			local dbObj = AceDB:New("EnhanceQoLDB", defaults, "Default")
+			local defaultProfile = "Default"
 
-			addon.dbObject = dbObj
-			addon.db = dbObj.profile
-			dbObj:RegisterCallback("OnProfileChanged", function() addon.variables.requireReload = true end)
-			dbObj:RegisterCallback("OnProfileCopied", function() addon.variables.requireReload = true end)
-			dbObj:RegisterCallback("OnProfileReset", function() addon.variables.requireReload = true end)
+			if not EnhanceQoLDB.profileKeys then EnhanceQoLDB.profileKeys = {} end
+			local name, realm = UnitName("player"), GetRealmName()
+
+			-- check for global profile
+			if EnhanceQoLDB.profileGlobal then
+				defaultProfile = EnhanceQoLDB.profileGlobal
+			else
+				EnhanceQoLDB.profileGlobal = defaultProfile
+			end
+
+			if EnhanceQoLDB.profileKeys[UnitGUID("player")] then
+				defaultProfile = EnhanceQoLDB.profileKeys[UnitGUID("player")]
+			elseif EnhanceQoLDB.profileKeys[name .. " - " .. realm] then
+				-- Legacy AceDB transform to new model
+				EnhanceQoLDB.profileKeys[UnitGUID("player")] = EnhanceQoLDB.profileKeys[name .. " - " .. realm]
+				EnhanceQoLDB.profileKeys[name .. " - " .. realm] = nil
+				defaultProfile = EnhanceQoLDB.profileKeys[UnitGUID("player")]
+			else
+				defaultProfile = EnhanceQoLDB.profileGlobal
+				EnhanceQoLDB.profileKeys[UnitGUID("player")] = defaultProfile
+			end
+
+			if not EnhanceQoLDB.profiles[defaultProfile] or type(EnhanceQoLDB.profiles[defaultProfile]) ~= "table" then EnhanceQoLDB.profiles[defaultProfile] = {} end
+
+			addon.db = EnhanceQoLDB.profiles[defaultProfile]
 
 			if next(legacy) then
 				for k, v in pairs(legacy) do
@@ -3697,8 +3702,6 @@ local eventHandlers = {
 					EnhanceQoLDB[k] = nil
 				end
 			end
-			local profilesPage = AceDBOptions:GetOptionsTable(addon.dbObject)
-			AceConfig:RegisterOptionsTable("EQOL_Profiles", profilesPage)
 
 			if addon.functions.initializePersistentCVars then addon.functions.initializePersistentCVars() end
 

@@ -406,7 +406,7 @@ L["hideRestingGlowDesc"] = "Removes the 'ZZZ' status texture and the resting glo
 L["Health Text"] = "Health Text"
 L["PlayerHealthText"] = "Player health text"
 L["TargetHealthText"] = "Target health text"
-L["HealthTextExplain"] = "%s follows Blizzard 'Status Text'. Any other mode shows your chosen format for Player, Target, and Boss frames."
+L["HealthTextExplain2"] = "%s follows Blizzard 'Status Text'.\nAny other mode shows your chosen format for Player, Target, and Boss frames."
 
 L["ActionbarVisibilityExplain"] = 'Set the action bar to "%s" in %s to use the options below. You can combine mouseover, in-combat, and out-of-combat visibility.'
 L["VisibilityHubName"] = "Visibility Hub"
@@ -494,8 +494,8 @@ L["gameMenuScale"] = "Game Menu scale"
 L["gameMenuScaleEnabled"] = "Enable Game Menu scaling"
 
 -- Unit Frames: Cast bars
-L["CastBars"] = "Cast Bars"
-L["castBarsToHide"] = "Cast bars to hide"
+L["CastBars2"] = "Castbars"
+L["castBarsToHide2"] = "Castbars to hide"
 L["castBar_player"] = "Player"
 L["castBar_target"] = "Target"
 L["castBar_focus"] = "Focus"
@@ -587,6 +587,15 @@ L["dungeonJournalLootSpecShowAll"] = "Show specs for every class"
 L["dungeonJournalLootSpecShowAllDesc"] = "Always show every specialization instead of limiting the list to your class."
 
 L["Profiles"] = "Profiles"
+L["ProfileActive"] = "Active profile"
+L["ProfileCopy"] = "Copy settings from profile"
+L["ProfileDelete"] = "Delete profile"
+L["ProfileDeleteDesc2"] = "You can only delete profiles not used by global or active"
+L["ProfileDeleteDesc"] = "Are you sure to delete profile \"%s\"?"
+L["ProfileName"] = "Add a new Profile"
+L["ProfileCopyDesc"] = "Are you sure to copy the settings of \"%s\" to your active profile?"
+L["ProfileUseGlobal"] = "Global profile"
+L["ProfileUseGlobalDesc"] = "Characters first load with this profile. You can always change your active profile"
 L["currentExpensionMythicPlusWarning"] = "For Mythic+ items from legacy dungeons, the results may be inaccurate."
 
 -- Map

@@ -4,7 +4,8 @@
 
 ### Important note
 
-Changing minimap Button behaviour 
+Changing minimap Button behaviour
+
 - Leftclick now opens the new option menu
 - Rightclick has an option to open the old Legacy Settings until everything is transfered
 
@@ -20,6 +21,7 @@ Starting to change stuff to blizzard options, for now only a small part is there
     - Vendors & Economy
     - Map & Navigation
       - Quest
+  - Profiles
   - Sound
   - SharedMedia
   - UI & Input
@@ -28,6 +30,7 @@ Starting to change stuff to blizzard options, for now only a small part is there
     - Mouse
     - System
     - Tooltip
+    - Unit Frames
 
 ### ✨ Added
 
@@ -41,6 +44,10 @@ Starting to change stuff to blizzard options, for now only a small part is there
 ### 🔄 Changed
 
 - _Show leader icon on raid style party frames_ now also shows leader and assist in raids
+
+### ❌ Removed
+
+- Old libraries
 
 ### 🐛 Fixed
 

@@ -213,6 +213,18 @@ function addon.functions.SettingsCreateMultiDropdown(cat, cbData)
 	initializer:SetSetting(setting)
 	if cbData.parent then initializer:SetParentInitializer(cbData.element, cbData.parentCheck) end
 
+	if cbData.searchtags == nil then
+		if cbData.text then initializer:AddSearchTags(cbData.text) end
+	elseif cbData.searchtags then
+		if type(cbData.searchtags) == "table" then
+			for _, tag in ipairs(cbData.searchtags) do
+				initializer:AddSearchTags(tag)
+			end
+		else
+			initializer:AddSearchTags(cbData.searchtags)
+		end
+	end
+
 	local layout = SettingsPanel:GetLayout(cat)
 	layout:AddInitializer(initializer)
 
