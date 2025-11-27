@@ -248,9 +248,8 @@ end
 local frameLoad = CreateFrame("Frame")
 local activeBuildFrame = CreateFrame("Frame", nil, UIParent)
 activeBuildFrame:SetSize(200, 20)
-activeBuildFrame:SetMovable(true)
-activeBuildFrame:EnableMouse(true)
-activeBuildFrame:RegisterForDrag("LeftButton")
+activeBuildFrame:SetMovable(false)
+activeBuildFrame:EnableMouse(false)
 activeBuildFrame.text = activeBuildFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 activeBuildFrame.text:SetPoint("CENTER")
 
@@ -259,23 +258,6 @@ local activeBuildEditModeRegistered = false
 local activeBuildRefreshInProgress = false
 local activeBuildApplyInProgress = false
 local activeBuildRegisterInProgress = false
-
-local function applyActiveBuildLock()
-	if addon.db["talentReminderActiveBuildLocked"] then
-		activeBuildFrame:SetScript("OnDragStart", nil)
-		activeBuildFrame:SetScript("OnDragStop", nil)
-	else
-		activeBuildFrame:SetScript("OnDragStart", activeBuildFrame.StartMoving)
-		activeBuildFrame:SetScript("OnDragStop", function(self)
-			self:StopMovingOrSizing()
-			local point, _, _, xOfs, yOfs = self:GetPoint()
-			addon.db["talentReminderActiveBuildPoint"] = point
-			addon.db["talentReminderActiveBuildX"] = xOfs
-			addon.db["talentReminderActiveBuildY"] = yOfs
-		end)
-	end
-end
-applyActiveBuildLock()
 
 local function buildActiveBuildLayoutSnapshot(layoutName)
 	local layout = EditMode and EditMode:GetLayoutData(ACTIVE_BUILD_EDITMODE_ID, layoutName)
@@ -313,6 +295,9 @@ local function applyActiveBuildLayoutData(data)
 	activeBuildFrame:ClearAllPoints()
 	activeBuildFrame:SetPoint(point, UIParent, relativePoint, x, y)
 	activeBuildFrame.text:SetFont(addon.variables.defaultFont, size, "OUTLINE")
+	local textWidth = activeBuildFrame.text:GetStringWidth() or 0
+	local textHeight = activeBuildFrame.text:GetStringHeight() or size
+	activeBuildFrame:SetSize(math.max(120, textWidth + 20), math.max(20, textHeight + 10))
 end
 
 local function refreshActiveBuildEditMode()
@@ -372,17 +357,6 @@ local function registerActiveBuildEditMode()
 				root:CreateCheckbox(L["talentReminderShowActiveBuildRaid"], function()
 					return addon.db["talentReminderActiveBuildShowOnly"] and addon.db["talentReminderActiveBuildShowOnly"][3] == true
 				end, function() toggle(3) end)
-			end,
-		}
-
-		settings[#settings + 1] = {
-			name = L["talentReminderShowActiveBuild"],
-			kind = settingType.Checkbox,
-			get = function() return addon.db["talentReminderShowActiveBuild"] end,
-			set = function(_, value)
-				addon.db["talentReminderShowActiveBuild"] = value
-				addon.MythicPlus.functions.updateActiveTalentText()
-				refreshActiveBuildEditMode()
 			end,
 		}
 	end
@@ -455,7 +429,6 @@ local function updateActiveTalentText()
 		else
 			activeBuildFrame.text:SetText(string.format(L["TalentbuildLabel"], L["Unknown"]))
 		end
-		applyActiveBuildLock()
 		activeBuildFrame:Show()
 	else
 		activeBuildFrame:Hide()
