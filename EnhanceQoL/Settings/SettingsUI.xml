@@ -15,4 +15,5 @@
 	<Script file='System.lua'/>
 	<Script file='UnitFrames.lua'/>
 	<Script file='Profiles.lua'/>
+	<Script file='UIOptions.lua'/>
 </Ui>

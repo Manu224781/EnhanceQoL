@@ -51,7 +51,6 @@ Settings\Templates\ColorOverrides.lua
 Settings\Templates\SoundDropdown.lua
 Settings\Templates\XMLTemplates.xml
 Settings\SettingsUI.xml
-Modules\UIOptions.lua
 Core\DataHub.lua
 Core\DataPanel.lua
 Core\MovementSpeedStat.lua

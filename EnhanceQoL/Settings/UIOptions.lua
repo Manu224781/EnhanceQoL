@@ -163,30 +163,41 @@ local function createLabelControls(category)
 		_order = { "NONE", "OUTLINE", "THICKOUTLINE", "MONOCHROMEOUTLINE" },
 	}
 
+	local macroOverride
 	local hideMacro = addon.functions.SettingsCreateCheckbox(category, {
 		var = "hideMacroNames",
 		text = L["hideMacroNames"],
 		desc = L["hideMacroNamesDesc"],
 		func = function(value)
 			addon.db["hideMacroNames"] = value and true or false
+			if value then
+				addon.db.actionBarMacroFontOverride = false
+				if macroOverride and macroOverride.setting then macroOverride.setting:SetValue(false) end
+			end
 			if ActionBarLabels and ActionBarLabels.RefreshAllMacroNameVisibility then ActionBarLabels.RefreshAllMacroNameVisibility() end
 		end,
 	})
 
-	local macroOverride = addon.functions.SettingsCreateCheckbox(category, {
+	macroOverride = addon.functions.SettingsCreateCheckbox(category, {
 		var = "actionBarMacroFontOverride",
 		text = L["actionBarMacroFontOverride"] or "Change macro font",
 		func = function(value)
+			if value then
+				addon.db["hideMacroNames"] = false
+				if hideMacro and hideMacro.setting then hideMacro.setting:SetValue(false) end
+			end
 			addon.db.actionBarMacroFontOverride = value and true or false
 			if ActionBarLabels and ActionBarLabels.RefreshAllMacroNameVisibility then ActionBarLabels.RefreshAllMacroNameVisibility() end
 			if ActionBarLabels and ActionBarLabels.RefreshAllHotkeyStyles then ActionBarLabels.RefreshAllHotkeyStyles() end
 		end,
-		parent = true,
-		element = hideMacro.element,
-		parentCheck = function() return hideMacro.setting and hideMacro.setting:GetValue() ~= true end,
 	})
 
-	local function macroParentCheck() return macroOverride.setting and macroOverride.setting:GetValue() == true and hideMacro.setting and hideMacro.setting:GetValue() ~= true end
+	local function macroParentCheck()
+		return macroOverride.setting
+			and macroOverride.setting:GetValue() == true
+			and hideMacro.setting
+			and hideMacro.setting:GetValue() ~= true
+	end
 
 	addon.functions.SettingsCreateDropdown(category, {
 		var = "actionBarMacroFontFace",
