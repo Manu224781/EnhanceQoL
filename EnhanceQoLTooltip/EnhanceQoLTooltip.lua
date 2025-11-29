@@ -9,8 +9,6 @@ end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Tooltip")
 
-local AceGUI = addon.AceGUI
-
 local frameLoad = CreateFrame("Frame")
 
 -- ==== Inspect cache (spec/ilvl/score) ====

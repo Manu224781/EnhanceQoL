@@ -63,6 +63,8 @@ function addon.functions.SettingsCreateCheckbox(cat, cbData)
 				addon.functions.SettingsCreateDropdown(cat, v)
 			elseif v.sType == "checkbox" then
 				addon.functions.SettingsCreateCheckbox(cat, v)
+			elseif v.sType == "multidropdown" then
+				addon.functions.SettingsCreateMultiDropdown(cat, v)
 			elseif v.sType == "slider" then
 				addon.functions.SettingsCreateSlider(cat, v)
 			elseif v.sType == "hint" then

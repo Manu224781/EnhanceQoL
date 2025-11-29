@@ -30,6 +30,7 @@ L["Toggle Anchor"] = "Toggle anchor"
 L["Save Anchor"] = "Save anchor"
 L["potionTrackerHeadline"] = "This enables you to track the CD of the combat potions of your party members as a moveable bar"
 L["potionTracker"] = "Enable potion cooldown tracker"
+L["potionTrackerMidnightWarning"] = "|cffff7e0aThis potion tracker will be removed in WoW Midnight.|r"
 L["potionTrackerUpwardsBar"] = "Grow upwards"
 L["potionTrackerClassColor"] = "Use class colors for bars"
 L["potionTrackerDisableRaid"] = "Disable potion tracker in raid"
@@ -41,6 +42,7 @@ L["HealingPotion"] = "Heal"
 L["potionTrackerHealingPotions"] = "Track health pot CD"
 L["potionTrackerOffhealing"] = "Track Offhealing CD usage"
 L["Bar Texture"] = "Bar Texture"
+L["autoMarkMidnightWarning"] = "|cffff7e0aThis auto marker will be removed in WoW Midnight.|r"
 
 -- Automark Frame
 L["AutoMark"] = "Auto marker"
@@ -50,7 +52,6 @@ L["autoMarkTankInDungeonMarker"] = "Tank marker"
 L["autoMarkHealerInDungeon"] = "Automatically mark the %s in dungeons"
 L["autoMarkHealerInDungeonMarker"] = "Healer marker"
 L["autoMarkTankExplanation"] = "It will mark the %s when he has no mark and only changes the mark, when you are either %s or %s"
-
 
 -- Teleports
 L["Teleports"] = "Teleports"
@@ -88,6 +89,7 @@ L["talentReminderSoundOnDifference"] = "Play a sound if talents differ from the 
 L["talentReminderUseCustomSound"] = "Use custom reminder sound"
 L["talentReminderCustomSound"] = "Reminder sound"
 L["talentReminderShowActiveBuild"] = "Show active talent build name"
+L["talentReminderHint"] = "Configure in %s"
 L["talentReminderLockActiveBuild"] = "Lock active build text"
 L["talentReminderShowActiveBuildDropdown"] = "Show text only in"
 L["talentReminderShowActiveBuildOutside"] = "Outside"

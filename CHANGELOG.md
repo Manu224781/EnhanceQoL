@@ -15,10 +15,12 @@ Starting to change stuff to blizzard options, for now only a small part is there
 
 - Options menus transformed
   - Combat & Dungeons
+    - Drink & Food
   - Items & Inventory
     - Container Action
     - Gear & Upgrade
     - Vendors & Economy
+      - Selling & Shopping
     - Map & Navigation
       - Quest
   - Profiles
@@ -31,6 +33,7 @@ Starting to change stuff to blizzard options, for now only a small part is there
     - System
     - Tooltip
     - Unit Frames
+    - Visibility Hub
 
 ### ✨ Added
 

@@ -9,8 +9,6 @@ end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Sound")
 
-local AceGUI = addon.AceGUI
-
 local function toggleSounds(sounds, state)
 	if type(sounds) == "table" then
 		for _, v in pairs(sounds) do

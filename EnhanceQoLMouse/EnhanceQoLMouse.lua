@@ -9,8 +9,6 @@ end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Mouse")
 
-local AceGUI = addon.AceGUI
-
 -- Hotpath locals & constants
 local GetCursorPosition = GetCursorPosition
 local TEX_MOUSE = "Interface\\AddOns\\" .. addonName .. "\\Icons\\Mouse.tga"

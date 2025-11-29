@@ -27,3 +27,4 @@ locales\[TextLocale].lua
 Autoscrap.lua
 EnhanceQoLVendor.lua
 CraftShopper.lua
+Settings_Vendor.lua

@@ -9,6 +9,325 @@ end
 if addon.variables.isMidnight then return end
 
 local cm = addon.CombatMeter
+local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_CombatMeter")
+local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+local TEXTURE_PATH = "Interface\\AddOns\\EnhanceQoLCombatMeter\\Texture\\"
+
+-- TODO remove Combat Meter settings when WoW Midnight launches
+if addon.SettingsLayout and addon.SettingsLayout.characterInspectCategory then
+	local cCM = addon.SettingsLayout.characterInspectCategory
+	addon.functions.SettingsCreateHeadline(cCM, L["Combat Meter"])
+	if L["combatMeterMidnightWarning"] then addon.functions.SettingsCreateText(cCM, L["combatMeterMidnightWarning"]) end
+
+	local cmEnable = addon.functions.SettingsCreateCheckbox(cCM, {
+		var = "combatMeterEnabled",
+		text = L["Enabled"],
+		func = function(v)
+			addon.db["combatMeterEnabled"] = v
+			if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.toggle then addon.CombatMeter.functions.toggle(v) end
+		end,
+	})
+	local function cmEnabled() return cmEnable and cmEnable.setting and cmEnable.setting:GetValue() == true end
+
+	local function refreshBars()
+		if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+	end
+
+	addon.functions.SettingsCreateCheckbox(cCM, {
+		var = "combatMeterAlwaysShow",
+		text = L["Always Show"],
+		func = function(v)
+			addon.db["combatMeterAlwaysShow"] = v
+			refreshBars()
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	addon.functions.SettingsCreateCheckbox(cCM, {
+		var = "combatMeterResetOnChallengeStart",
+		text = L["Reset on Challenge Start"],
+		func = function(v)
+			addon.db["combatMeterResetOnChallengeStart"] = v
+			if addon.db["combatMeterEnabled"] and addon.CombatMeter and addon.CombatMeter.frame then
+				if v then
+					addon.CombatMeter.frame:RegisterEvent("CHALLENGE_MODE_START")
+				else
+					addon.CombatMeter.frame:UnregisterEvent("CHALLENGE_MODE_START")
+				end
+			end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	addon.functions.SettingsCreateSlider(cCM, {
+		var = "combatMeterUpdateRate",
+		text = L["Update Rate"],
+		min = 0.05,
+		max = 1,
+		step = 0.05,
+		default = addon.db["combatMeterUpdateRate"] or 0.2,
+		get = function() return addon.db["combatMeterUpdateRate"] or 0.2 end,
+		set = function(val)
+			addon.db["combatMeterUpdateRate"] = val
+			if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.setUpdateRate then addon.CombatMeter.functions.setUpdateRate(val) end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	addon.functions.SettingsCreateSlider(cCM, {
+		var = "combatMeterFontSize",
+		text = FONT_SIZE,
+		min = 8,
+		max = 32,
+		step = 1,
+		default = addon.db["combatMeterFontSize"] or 12,
+		get = function() return addon.db["combatMeterFontSize"] or 12 end,
+		set = function(val)
+			addon.db["combatMeterFontSize"] = val
+			if addon.CombatMeter and addon.CombatMeter.functions and addon.CombatMeter.functions.setFontSize then addon.CombatMeter.functions.setFontSize(val) end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	addon.functions.SettingsCreateSlider(cCM, {
+		var = "combatMeterNameLength",
+		text = L["Name Length"],
+		min = 1,
+		max = 20,
+		step = 1,
+		default = addon.db["combatMeterNameLength"] or 12,
+		get = function() return addon.db["combatMeterNameLength"] or 12 end,
+		set = function(val)
+			addon.db["combatMeterNameLength"] = val
+			refreshBars()
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	local prePull = addon.functions.SettingsCreateCheckbox(cCM, {
+		var = "combatMeterPrePullCapture",
+		text = L["Pre-Pull Capture"],
+		func = function(v) addon.db["combatMeterPrePullCapture"] = v end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+	local function prePullEnabled()
+		return prePull and prePull.setting and prePull.setting:GetValue() == true and cmEnabled()
+	end
+
+	addon.functions.SettingsCreateSlider(cCM, {
+		var = "combatMeterPrePullWindow",
+		text = L["Window (sec)"],
+		min = 1,
+		max = 10,
+		step = 1,
+		default = addon.db["combatMeterPrePullWindow"] or 4,
+		get = function() return addon.db["combatMeterPrePullWindow"] or 4 end,
+		set = function(val) addon.db["combatMeterPrePullWindow"] = val end,
+		parent = true,
+		element = prePull.element,
+		parentCheck = prePullEnabled,
+	})
+
+	local function buildBarTextureOptions()
+		local all = {
+			["Interface\\Buttons\\WHITE8x8"] = L["Flat (white, tintable)"],
+			["Interface\\Tooltips\\UI-Tooltip-Background"] = L["Dark Flat (Tooltip bg)"],
+			[TEXTURE_PATH .. "eqol_base_flat_8x8.tga"] = L["EQoL: Flat (AddOn)"],
+		}
+		if LSM and LSM.HashTable then
+			for name, path in pairs(LSM:HashTable("statusbar") or {}) do
+				if type(path) == "string" and path ~= "" then all[path] = tostring(name) end
+			end
+		end
+		local sorted, order = addon.functions.prepareListForDropdown(all)
+		sorted._order = order
+		return sorted
+	end
+
+	addon.functions.SettingsCreateDropdown(cCM, {
+		var = "combatMeterBarTexture",
+		text = L["Bar Texture"],
+		default = TEXTURE_PATH .. "eqol_base_flat_8x8.tga",
+		listFunc = buildBarTextureOptions,
+		get = function()
+			local list = buildBarTextureOptions()
+			local cur = addon.db["combatMeterBarTexture"] or (TEXTURE_PATH .. "eqol_base_flat_8x8.tga")
+			if not list[cur] then cur = TEXTURE_PATH .. "eqol_base_flat_8x8.tga" end
+			return cur
+		end,
+		set = function(key)
+			addon.db["combatMeterBarTexture"] = key
+			if addon.CombatMeter.functions.applyBarTextures then addon.CombatMeter.functions.applyBarTextures() end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	local overlayTextures = {
+		[TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga"] = L["Gradient"],
+		[TEXTURE_PATH .. "eqol_overlay_vidro_512x64.tga"] = L["Gloss/Vidro"],
+		[TEXTURE_PATH .. "eqol_overlay_stripes_512x64.tga"] = L["Stripes"],
+		[TEXTURE_PATH .. "eqol_overlay_noise_512x64.tga"] = L["Noise"],
+	}
+	local overlayOrder = {
+		TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga",
+		TEXTURE_PATH .. "eqol_overlay_vidro_512x64.tga",
+		TEXTURE_PATH .. "eqol_overlay_stripes_512x64.tga",
+		TEXTURE_PATH .. "eqol_overlay_noise_512x64.tga",
+	}
+	local defaultBlendByTexture = {
+		[TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga"] = "ADD",
+		[TEXTURE_PATH .. "eqol_overlay_vidro_512x64.tga"] = "ADD",
+		[TEXTURE_PATH .. "eqol_overlay_stripes_512x64.tga"] = "MOD",
+		[TEXTURE_PATH .. "eqol_overlay_noise_512x64.tga"] = "BLEND",
+	}
+	local blendOptions = {
+		ADD = "ADD",
+		MOD = "MOD",
+		BLEND = "BLEND",
+	}
+	local blendOrder = { "ADD", "MOD", "BLEND" }
+
+	local overlayEnable = addon.functions.SettingsCreateCheckbox(cCM, {
+		var = "combatMeterUseOverlay",
+		text = L["Use Overlay"],
+		func = function(v)
+			addon.db["combatMeterUseOverlay"] = v
+			if addon.CombatMeter.functions.applyBarTextures then addon.CombatMeter.functions.applyBarTextures() end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+	local function overlayEnabled()
+		return overlayEnable and overlayEnable.setting and overlayEnable.setting:GetValue() == true and cmEnabled()
+	end
+
+	addon.functions.SettingsCreateDropdown(cCM, {
+		var = "combatMeterOverlayTexture",
+		text = L["Overlay Texture"],
+		list = overlayTextures,
+		default = TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga",
+		get = function()
+			local cur = addon.db["combatMeterOverlayTexture"] or (TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga")
+			if not overlayTextures[cur] then cur = TEXTURE_PATH .. "eqol_overlay_gradient_512x64.tga" end
+			return cur
+		end,
+		set = function(key)
+			addon.db["combatMeterOverlayTexture"] = key
+			addon.db["combatMeterOverlayBlend"] = defaultBlendByTexture[key] or addon.db["combatMeterOverlayBlend"]
+			if addon.CombatMeter.functions.applyBarTextures then addon.CombatMeter.functions.applyBarTextures() end
+		end,
+		parent = true,
+		element = overlayEnable.element,
+		parentCheck = overlayEnabled,
+		listOrder = overlayOrder,
+	})
+
+	addon.functions.SettingsCreateDropdown(cCM, {
+		var = "combatMeterOverlayBlend",
+		text = L["Overlay Blend Mode"],
+		list = blendOptions,
+		default = "ADD",
+		get = function() return addon.db["combatMeterOverlayBlend"] or "ADD" end,
+		set = function(key)
+			addon.db["combatMeterOverlayBlend"] = key
+			if addon.CombatMeter.functions.applyBarTextures then addon.CombatMeter.functions.applyBarTextures() end
+		end,
+		parent = true,
+		element = overlayEnable.element,
+		parentCheck = overlayEnabled,
+		listOrder = blendOrder,
+	})
+
+	addon.functions.SettingsCreateSlider(cCM, {
+		var = "combatMeterOverlayAlpha",
+		text = L["Overlay Opacity"],
+		min = 1,
+		max = 100,
+		step = 1,
+		default = math.floor(((addon.db["combatMeterOverlayAlpha"] or 0.28) * 100) + 0.5),
+		get = function() return math.floor(((addon.db["combatMeterOverlayAlpha"] or 0.28) * 100) + 0.5) end,
+		set = function(val)
+			addon.db["combatMeterOverlayAlpha"] = (val or 0) / 100
+			if addon.CombatMeter.functions.applyBarTextures then addon.CombatMeter.functions.applyBarTextures() end
+		end,
+		parent = true,
+		element = overlayEnable.element,
+		parentCheck = overlayEnabled,
+	})
+
+	addon.functions.SettingsCreateCheckbox(cCM, {
+		var = "combatMeterRoundedCorners",
+		text = L["Rounded Corners"],
+		func = function(v)
+			addon.db["combatMeterRoundedCorners"] = v
+			if addon.CombatMeter.functions.applyBarTextures then addon.CombatMeter.functions.applyBarTextures() end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+	})
+
+	local metricNames = {
+		dps = L["DPS"],
+		damageOverall = L["Damage Overall"],
+		healingPerFight = L["Healing Per Fight"],
+		healingOverall = L["Healing Overall"],
+		interrupts = INTERRUPTS,
+		interruptsOverall = INTERRUPTS .. L[" Overall"],
+	}
+	local metricOrder = { "damageOverall", "healingOverall", "interruptsOverall", "dps", "healingPerFight", "interrupts" }
+
+	addon.functions.SettingsCreateDropdown(cCM, {
+		var = "combatMeterAddGroup",
+		text = L["Add Group"],
+		list = metricNames,
+		default = "",
+		get = function() return "" end,
+		set = function(value)
+			if not value or value == "" then return end
+			local newId = "cmg" .. tostring(math.floor(GetTime() * 1000)) .. tostring(math.random(1000, 9999))
+			local barWidth = 210
+			local barHeight = 25
+			local frameWidth = barWidth + barHeight + 2
+			local screenW, screenH = UIParent:GetWidth(), UIParent:GetHeight()
+			local x = (screenW - frameWidth) / 2
+			local y = -((screenH - barHeight) / 2)
+			addon.db["combatMeterGroups"] = addon.db["combatMeterGroups"] or {}
+			table.insert(addon.db["combatMeterGroups"], {
+				id = newId,
+				type = value,
+				point = "TOPLEFT",
+				x = x,
+				y = y,
+				barWidth = barWidth,
+				barHeight = barHeight,
+				maxBars = 8,
+				alwaysShowSelf = false,
+			})
+			if addon.CombatMeter.functions.rebuildGroups then addon.CombatMeter.functions.rebuildGroups() end
+		end,
+		parent = true,
+		element = cmEnable.element,
+		parentCheck = cmEnabled,
+		listOrder = metricOrder,
+	})
+end
+
 local band = bit.band
 local bor = bit.bor
 local CLEU = CombatLogGetCurrentEventInfo

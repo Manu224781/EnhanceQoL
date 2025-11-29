@@ -10,6 +10,8 @@ if addon.variables.isMidnight then return end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_CombatMeter")
 local LSM = LibStub and LibStub("LibSharedMedia-3.0", true)
+local EditMode = addon.EditMode
+local SettingType = EditMode and EditMode.lib and EditMode.lib.SettingType
 
 local config = addon.db
 local TEXTURE_PATH = "Interface\\AddOns\\EnhanceQoLCombatMeter\\Texture\\"
@@ -279,7 +281,186 @@ local function OpenMetricMenu(owner, frame)
 		addButtons(perFightMetrics)
 	end)
 end
+
+local function normalizeNumber(value, key, fallback)
+	if type(value) == "number" then return value end
+	if type(value) == "table" then
+		if key and value[key] ~= nil then return normalizeNumber(value[key], nil, fallback) end
+		if value.value ~= nil then return normalizeNumber(value.value, nil, fallback) end
+		if value.minValue ~= nil then return normalizeNumber(value.minValue, nil, fallback) end
+	end
+	return fallback
+end
+
+local pendingEditModeRebuild = false
+
+local function ensureGroupId(cfg)
+	if cfg.id then return cfg.id end
+	cfg.id = "cmg" .. tostring(math.floor(GetTime() * 1000)) .. tostring(math.random(1000, 9999))
+	return cfg.id
+end
+
+local function removeGroupById(id)
+	if not id or not config or not config["combatMeterGroups"] then return end
+	for idx, entry in ipairs(config["combatMeterGroups"]) do
+		if entry.id == id then
+			table.remove(config["combatMeterGroups"], idx)
+			return true
+		end
+	end
+	return false
+end
+
+local function registerGroupEditMode(frame)
+	if not EditMode or not EditMode.RegisterFrame then return end
+	local cfg = frame.groupConfig
+	if not cfg then return end
+	local gid = ensureGroupId(cfg)
+	local editId = "combatmeter:" .. tostring(gid)
+	frame.editModeId = editId
+
+	local defaults = {
+		point = cfg.point or "TOPLEFT",
+		relativePoint = cfg.relativePoint or cfg.point or "TOPLEFT",
+		x = cfg.x or 0,
+		y = cfg.y or 0,
+		barWidth = normalizeNumber(cfg.barWidth, nil, DEFAULT_BAR_WIDTH),
+		barHeight = normalizeNumber(cfg.barHeight, nil, DEFAULT_BAR_HEIGHT),
+		maxBars = normalizeNumber(cfg.maxBars, nil, DEFAULT_MAX_BARS),
+		alwaysShowSelf = cfg.alwaysShowSelf or false,
+	}
+
+	local settings
+	if SettingType then
+		settings = {
+			{
+				name = L["Bar Width"],
+				kind = SettingType.Slider,
+				field = "barWidth",
+				default = defaults.barWidth,
+				minValue = 50,
+				maxValue = 1000,
+				valueStep = 1,
+			},
+			{
+				name = L["Bar Height"],
+				kind = SettingType.Slider,
+				field = "barHeight",
+				default = defaults.barHeight,
+				minValue = 10,
+				maxValue = 100,
+				valueStep = 1,
+			},
+			{
+				name = L["Max Bars"],
+				kind = SettingType.Slider,
+				field = "maxBars",
+				default = defaults.maxBars,
+				minValue = 1,
+				maxValue = 40,
+				valueStep = 1,
+				onValueChanged = function(_, _, value)
+					local num = normalizeNumber(value, "maxBars", cfg.maxBars or DEFAULT_MAX_BARS)
+					cfg.maxBars = num
+					frame:SetHeight((cfg.barHeight or DEFAULT_BAR_HEIGHT) * num + 16)
+				end,
+			},
+			{
+				name = L["Always Show Self"],
+				kind = SettingType.Checkbox,
+				field = "alwaysShowSelf",
+				default = defaults.alwaysShowSelf,
+				onValueChanged = function(_, _, value)
+					cfg.alwaysShowSelf = not not value
+					if addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+					pendingEditModeRebuild = true
+				end,
+			},
+		}
+	end
+
+	local buttons = {
+		{
+			text = L["Remove"],
+			click = function()
+				if EditMode and EditMode.UnregisterFrame then EditMode:UnregisterFrame(editId) end
+				removeGroupById(gid)
+				-- Hide immediately; rebuild after Edit Mode exit to avoid transient clones
+				frame:Hide()
+				if EditMode and EditMode:IsInEditMode() then
+					pendingEditModeRebuild = true
+				elseif addon.CombatMeter.functions.rebuildGroups then
+					addon.CombatMeter.functions.rebuildGroups()
+				end
+			end,
+		},
+	}
+
+	frame._registeringEditMode = true
+	EditMode:RegisterFrame(editId, {
+		frame = frame,
+		title = metricNames[cfg.type] or L["Combat Meter"],
+		layoutDefaults = defaults,
+		showOutsideEditMode = true,
+		isEnabled = function()
+			if EditMode and EditMode:IsInEditMode() then return true end
+			return addon.db["combatMeterEnabled"]
+		end,
+		onApply = function(_, _, data)
+			if not data then
+				frame._registeringEditMode = false
+				return
+			end
+			cfg.point = data.point or cfg.point
+			cfg.relativePoint = data.relativePoint or data.point or cfg.point
+			cfg.x = data.x or cfg.x
+			cfg.y = data.y or cfg.y
+			cfg.barWidth = normalizeNumber(data.barWidth, "barWidth", cfg.barWidth or DEFAULT_BAR_WIDTH)
+			cfg.barHeight = normalizeNumber(data.barHeight, "barHeight", cfg.barHeight or DEFAULT_BAR_HEIGHT)
+			cfg.maxBars = normalizeNumber(data.maxBars, "maxBars", cfg.maxBars or DEFAULT_MAX_BARS)
+			cfg.alwaysShowSelf = data.alwaysShowSelf or false
+			if frame._registeringEditMode then
+				frame._registeringEditMode = false
+				return
+			end
+			-- Apply live size updates in Edit Mode without full rebuild; rebuild on exit to persist config.
+			frame:SetWidth((cfg.barWidth or DEFAULT_BAR_WIDTH) + (cfg.barHeight or DEFAULT_BAR_HEIGHT) + 2)
+			frame:SetHeight((cfg.barHeight or DEFAULT_BAR_HEIGHT) * (cfg.maxBars or DEFAULT_MAX_BARS) + 16)
+			if addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+			pendingEditModeRebuild = true
+		end,
+		onPositionChanged = function(_, _, data)
+			if not data then return end
+			cfg.point = data.point or cfg.point
+			cfg.relativePoint = data.relativePoint or data.point or cfg.point
+			cfg.x = data.x or cfg.x
+			cfg.y = data.y or cfg.y
+		end,
+		onEnter = function()
+			frame:Show()
+			-- ensure height matches current max bars while editing
+			frame:SetHeight((cfg.barHeight or DEFAULT_BAR_HEIGHT) * (cfg.maxBars or DEFAULT_MAX_BARS) + 16)
+			if addon.CombatMeter.functions.UpdateBars then addon.CombatMeter.functions.UpdateBars() end
+		end,
+		onExit = function()
+			if not addon.db["combatMeterEnabled"] then frame:Hide() end
+			-- Post-process after a short delay to avoid duplicate/ghost frames
+			C_Timer.After(0, function()
+				if pendingEditModeRebuild and addon.CombatMeter.functions.rebuildGroups then
+					pendingEditModeRebuild = false
+					addon.CombatMeter.functions.rebuildGroups()
+				else
+					if frame.HideOutline then frame:HideOutline() end
+				end
+			end)
+		end,
+		settings = settings,
+		buttons = buttons,
+	})
+end
+
 local function createGroupFrame(groupConfig)
+	ensureGroupId(groupConfig)
 	local barHeight = groupConfig.barHeight or DEFAULT_BAR_HEIGHT
 	local barWidth = groupConfig.barWidth or DEFAULT_BAR_WIDTH
 	local frameWidth = barWidth + barHeight + 2
@@ -288,7 +469,7 @@ local function createGroupFrame(groupConfig)
 	frame:SetSize(frameWidth, barHeight)
 	frame._h = barHeight
 	frame:SetMovable(true)
-	frame:EnableMouse(true)
+	frame:EnableMouse(false)
 	frame:SetClampedToScreen(true)
 	frame:Hide()
 	frame.bars = {}
@@ -303,56 +484,15 @@ local function createGroupFrame(groupConfig)
 	dragHandle:SetPoint("TOPRIGHT")
 	dragHandle:EnableMouse(true)
 	dragHandle:RegisterForDrag("LeftButton")
-	-- Drag outline (ghost border showing the maximum footprint based on Max Bars)
-	local dragOutline = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-	dragOutline:EnableMouse(false)
-	dragOutline:SetFrameStrata("TOOLTIP")
-	dragOutline:SetBackdrop({
-		bgFile = "Interface\\Buttons\\WHITE8x8",
-		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-		edgeSize = 12,
-		insets = { left = 3, right = 3, top = 3, bottom = 3 },
-	})
-	dragOutline:SetBackdropColor(1, 1, 1, 0.04)
-	dragOutline:SetBackdropBorderColor(1, 0.82, 0, 0.9) -- golden-ish
-	dragOutline:Hide()
-
-	local function refreshDragOutline()
-		local maxBars = groupConfig.maxBars or DEFAULT_MAX_BARS
-		local maxHeight = 16 + maxBars * barHeight
-		dragOutline:ClearAllPoints()
-		dragOutline:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
-		dragOutline:SetSize(frameWidth, maxHeight)
-	end
-
-	function frame:ShowOutline()
-		refreshDragOutline()
-		dragOutline:Show()
-	end
-
-	function frame:HideOutline() dragOutline:Hide() end
+	function frame:ShowOutline() end
+	function frame:HideOutline() end
 
 	local function restorePosition()
 		frame:ClearAllPoints()
 		frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", groupConfig.x or 0, groupConfig.y or 0)
 	end
-	dragHandle:SetScript("OnDragStart", function(self)
-		local parent = self:GetParent()
-		addon.CombatMeter.functions.showOutlinesAll()
-		parent:StartMoving()
-	end)
-
-	dragHandle:SetScript("OnDragStop", function(self)
-		local parent = self:GetParent()
-		parent:StopMovingOrSizing()
-		addon.CombatMeter.functions.hideOutlinesAll()
-		local left = parent:GetLeft() or 0
-		local top = parent:GetTop() or 0
-		groupConfig.x = left
-		groupConfig.y = top - UIParent:GetHeight()
-		groupConfig.point = "TOPLEFT"
-		restorePosition()
-	end)
+	dragHandle:SetScript("OnDragStart", nil)
+	dragHandle:SetScript("OnDragStop", nil)
 
 	local resetButton = CreateFrame("Button", nil, dragHandle)
 	resetButton:SetSize(16, 16)
@@ -455,6 +595,7 @@ local function createGroupFrame(groupConfig)
 	frame.dragHandle = dragHandle
 
 	restorePosition()
+	registerGroupEditMode(frame)
 
 	local function getBar(index)
 		local bar = frame.bars[index]
@@ -1138,10 +1279,12 @@ end
 local function rebuildGroups()
 	updateColumnWidths(config["combatMeterFontSize"])
 	for _, frame in ipairs(groupFrames) do
+		if EditMode and EditMode.UnregisterFrame and frame.editModeId then EditMode:UnregisterFrame(frame.editModeId) end
 		frame:Hide()
 	end
 	wipe(groupFrames)
 	for _, cfg in ipairs(config["combatMeterGroups"]) do
+		ensureGroupId(cfg)
 		if not cfg.barWidth then cfg.barWidth = DEFAULT_BAR_WIDTH end
 		if not cfg.barHeight then cfg.barHeight = DEFAULT_BAR_HEIGHT end
 		if not cfg.maxBars then cfg.maxBars = DEFAULT_MAX_BARS end

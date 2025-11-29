@@ -1,7 +1,6 @@
 local addonName, addon = ...
 
 local L = addon.L
-local AceGUI = addon.AceGUI
 local math = math
 local UnitClass = UnitClass
 
