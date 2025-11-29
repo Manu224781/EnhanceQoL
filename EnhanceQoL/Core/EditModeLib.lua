@@ -201,6 +201,7 @@ function sliderMixin:OnSliderValueChanged(value)
 		self.currentValue = value
 		if self.Input and self.Input:IsShown() then
 			self.Input:SetText(tostring(value))
+			if self.Slider.RightText then self.Slider.RightText:Hide() end
 		end
 		internal:RefreshSettings()
 	end
