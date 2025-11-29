@@ -37,10 +37,10 @@ libs\LibDeflate\lib.xml
 libs\LibSharedMedia-3.0\lib.xml
 libs\AceSerializer-3.0\AceSerializer-3.0.xml
 libs\AceComm-3.0\AceComm-3.0.xml
-libs\LibEditMode\embed.xml
 Bindings\Slider.xml
 Sounds\sounds.lua
 General\functions.lua
+Core\EditModeLib.lua
 Core\EditMode.lua
 Events\LegionRemixPhaseData.lua
 Events\LegionRemix.lua

@@ -3,7 +3,7 @@ local addonName, addon = ...
 addon.EditMode = addon.EditMode or {}
 local EditMode = addon.EditMode
 
-local LibEditMode = LibStub("LibEditMode", true)
+local LibEditMode = addon.EditModeLib
 
 local DEFAULT_LAYOUT = "_Global"
 
@@ -30,7 +30,6 @@ EditMode.lib = LibEditMode
 EditMode.activeLayout = EditMode.activeLayout
 
 function EditMode:IsAvailable()
-	if not self.lib then self.lib = LibStub("LibEditMode", true) end
 	return self.lib ~= nil
 end
 
