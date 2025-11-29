@@ -258,12 +258,19 @@ local function registerEditModeBars()
 					kind = settingType.Dropdown,
 					field = "fontFace",
 					generator = function(_, root)
+						local currentPath
+						do
+							local c = curSpecCfg()
+							currentPath = (c and c.fontFace) or cfg.fontFace or addon.variables.defaultFont
+						end
+						local seen = {}
 						if not LibStub then return end
 						local media = LibStub("LibSharedMedia-3.0", true)
 						if not media then return end
 						local hash = media:HashTable("font") or {}
 						for _, name in ipairs(media:List("font") or {}) do
 							local path = hash[name] or name
+							seen[path] = name
 							root:CreateRadio(name, function()
 								local c = curSpecCfg()
 								return (c and c.fontFace) == path
@@ -274,10 +281,22 @@ local function registerEditModeBars()
 								queueRefresh()
 							end)
 						end
+						if currentPath and not seen[currentPath] then
+							local label = tostring(currentPath)
+							root:CreateRadio(label, function()
+								local c = curSpecCfg()
+								return (c and c.fontFace) == currentPath
+							end, function()
+								local c = curSpecCfg()
+								if not c then return end
+								c.fontFace = currentPath
+								queueRefresh()
+							end)
+						end
 					end,
 					get = function()
 						local c = curSpecCfg()
-						return c and c.fontFace or addon.variables.defaultFont
+						return (c and c.fontFace) or cfg.fontFace or addon.variables.defaultFont
 					end,
 					set = function(_, value)
 						local c = curSpecCfg()
