@@ -197,8 +197,8 @@ local function registerEditModeBars()
 					name = L["Text X Offset"] or "Text Offset X",
 					kind = settingType.Slider,
 					field = "textOffsetX",
-					minValue = -100,
-					maxValue = 100,
+					minValue = -500,
+					maxValue = 500,
 					valueStep = 1,
 					get = function()
 						local c = curSpecCfg()
@@ -219,8 +219,8 @@ local function registerEditModeBars()
 					name = L["Text Y Offset"] or "Text Offset Y",
 					kind = settingType.Slider,
 					field = "textOffsetY",
-					minValue = -100,
-					maxValue = 100,
+					minValue = -500,
+					maxValue = 500,
 					valueStep = 1,
 					get = function()
 						local c = curSpecCfg()
@@ -238,18 +238,85 @@ local function registerEditModeBars()
 				}
 
 				settingsList[#settingsList + 1] = {
-					name = L["Bar color"] or "Bar color",
-					kind = EditMode.lib.SettingType.Color,
-					field = "color",
-					default = cfg and cfg.color or { r = 1, g = 1, b = 1, a = 1 },
+					name = L["Font"] or FONT,
+					kind = settingType.Dropdown,
+					field = "fontFace",
+					generator = function(_, root)
+						if LibStub and LibStub("LibSharedMedia-3.0", true) then
+							local media = LibStub("LibSharedMedia-3.0")
+							for _, name in ipairs(media:List("font") or {}) do
+								root:CreateRadio(name, function()
+									local c = curSpecCfg()
+									return (c and c.fontFace) == name
+								end, function()
+									local c = curSpecCfg()
+									if not c then return end
+									c.fontFace = name
+									queueRefresh()
+								end)
+							end
+						end
+					end,
 					get = function()
 						local c = curSpecCfg()
-						return c and c.color or (cfg and cfg.color) or { 1, 1, 1, 1 }
+						return c and c.fontFace
 					end,
 					set = function(_, value)
 						local c = curSpecCfg()
 						if not c then return end
-						c.color = value
+						c.fontFace = value
+						queueRefresh()
+					end,
+				}
+
+				local outlineOptions = {
+					{ key = "NONE", label = NONE },
+					{ key = "OUTLINE", label = "Outline" },
+					{ key = "THICKOUTLINE", label = "Thick Outline" },
+					{ key = "MONOCHROMEOUTLINE", label = "Mono Outline" },
+				}
+				settingsList[#settingsList + 1] = {
+					name = L["Outline"],
+					kind = settingType.Dropdown,
+					field = "fontOutline",
+					generator = function(_, root)
+						for _, entry in ipairs(outlineOptions) do
+							root:CreateRadio(entry.label, function()
+								local c = curSpecCfg()
+								return (c and c.fontOutline) == entry.key
+							end, function()
+								local c = curSpecCfg()
+								if not c then return end
+								c.fontOutline = entry.key
+								queueRefresh()
+							end)
+						end
+					end,
+					get = function()
+						local c = curSpecCfg()
+						return c and c.fontOutline
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.fontOutline = value
+						queueRefresh()
+					end,
+				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Font color"] or FONT_COLOR,
+					kind = EditMode.lib.SettingType.Color,
+					field = "fontColor",
+					default = cfg and cfg.fontColor or { r = 1, g = 1, b = 1, a = 1 },
+					get = function()
+						local c = curSpecCfg()
+						return c and c.fontColor or (cfg and cfg.fontColor) or { 1, 1, 1, 1 }
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.fontColor = value
 						queueRefresh()
 					end,
 					hasOpacity = true,
