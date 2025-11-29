@@ -478,15 +478,15 @@ local function registerEditModeBars()
 					hasOpacity = true,
 				}
 
-				local listTex, orderTex = addon.Aura.functions.getStatusbarDropdownLists and addon.Aura.functions.getStatusbarDropdownLists(true)
-				if not listTex or not orderTex then
-					listTex, orderTex = { DEFAULT = DEFAULT }, { "DEFAULT" }
-				end
 				settingsList[#settingsList + 1] = {
 					name = L["Bar Texture"] or "Bar Texture",
 					kind = settingType.Dropdown,
 					field = "barTexture",
 					generator = function(_, root)
+						local listTex, orderTex = addon.Aura.functions.getStatusbarDropdownLists(true)
+						if not listTex or not orderTex then
+							listTex, orderTex = { DEFAULT = DEFAULT }, { "DEFAULT" }
+						end
 						if not listTex or not orderTex then return end
 						for _, key in ipairs(orderTex) do
 							local label = listTex[key] or key
