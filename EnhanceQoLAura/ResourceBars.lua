@@ -59,6 +59,7 @@ local updateHealthBar
 local updatePowerBar
 local updateBarSeparators
 local forceColorUpdate
+local ensureEditModeRegistration
 local lastBarSelectionPerSpec = {}
 local lastSpecCopySelection = {}
 local lastProfileShareScope = {}
@@ -925,6 +926,10 @@ local function applyBehaviorSelection(cfg, selection, pType, specIndex)
 	end
 
 	return dimensionsChanged
+end
+
+local function ensureEditModeRegistration()
+	if ResourceBars and ResourceBars.RegisterEditModeFrames and not ResourceBars._editModeRegistered then ResourceBars.RegisterEditModeFrames() end
 end
 
 local function Snap(bar, off)
@@ -3624,19 +3629,15 @@ function layoutRunes(bar)
 	end
 end
 
-local function createPowerBar(type, anchor)
-	-- Reuse existing bar if present; avoid destroying frames to preserve anchors
-	local bar = powerbar[type] or _G["EQOL" .. type .. "Bar"]
-	local isNew = false
-	if not bar then
-		bar = CreateFrame("StatusBar", "EQOL" .. type .. "Bar", UIParent, "BackdropTemplate")
-		isNew = true
-	end
-	-- Ensure a valid parent when reusing frames after disable
-	if bar:GetParent() ~= UIParent then bar:SetParent(UIParent) end
+	local function createPowerBar(type, anchor)
+		-- Reuse existing bar if present; avoid destroying frames to preserve anchors
+		local bar = powerbar[type] or _G["EQOL" .. type .. "Bar"]
+		if not bar then bar = CreateFrame("StatusBar", "EQOL" .. type .. "Bar", UIParent, "BackdropTemplate") end
+		-- Ensure a valid parent when reusing frames after disable
+		if bar:GetParent() ~= UIParent then bar:SetParent(UIParent) end
 
-	local settings = getBarSettings(type)
-	local w = max(MIN_RESOURCE_BAR_WIDTH, (settings and settings.width) or DEFAULT_POWER_WIDTH)
+		local settings = getBarSettings(type)
+		local w = max(MIN_RESOURCE_BAR_WIDTH, (settings and settings.width) or DEFAULT_POWER_WIDTH)
 	local h = settings and settings.height or DEFAULT_POWER_HEIGHT
 	bar._cfg = settings
 	bar._rbType = type
@@ -3649,17 +3650,16 @@ local function createPowerBar(type, anchor)
 		bar:SetStatusBarTexture(resolveTexture(cfg2))
 		configureSpecialTexture(bar, type, cfg2)
 	end
-	bar:SetClampedToScreen(true)
-	local stackSpacing = DEFAULT_STACK_SPACING
+		bar:SetClampedToScreen(true)
+		local stackSpacing = DEFAULT_STACK_SPACING
 
-	-- Anchor handling: during spec/trait refresh we suppress inter-bar anchoring
-	local a = getAnchor(type, addon.variables.unitSpec)
-	local allowMove = true
-	if ResourceBars._suspendAnchors then
-		bar:ClearAllPoints()
-		bar:SetPoint("TOPLEFT", UIParent, "TOPLEFT", a.x or 0, a.y or 0)
-	else
-		if a.point then
+		-- Anchor handling: during spec/trait refresh we suppress inter-bar anchoring
+		local a = getAnchor(type, addon.variables.unitSpec)
+		if ResourceBars._suspendAnchors then
+			bar:ClearAllPoints()
+			bar:SetPoint("TOPLEFT", UIParent, "TOPLEFT", a.x or 0, a.y or 0)
+		else
+			if a.point then
 			if
 				a.autoSpacing
 				or (a.autoSpacing == nil and isEQOLFrameName(a.relativeFrame) and (a.point or "TOPLEFT") == "TOPLEFT" and (a.relativePoint or "BOTTOMLEFT") == "BOTTOMLEFT" and (a.x or 0) == 0)
@@ -3681,7 +3681,6 @@ local function createPowerBar(type, anchor)
 				a.autoSpacing = nil
 				rel = UIParent
 			end
-			if rel and rel.GetName and rel:GetName() ~= "UIParent" then allowMove = false end
 			bar:ClearAllPoints()
 			bar:SetPoint(a.point, rel or UIParent, a.relativePoint or a.point, a.x or 0, a.y or 0)
 		elseif anchor then
@@ -4248,7 +4247,7 @@ function ResourceBars.EnableResourceBars()
 	end
 	if ResourceBars and ResourceBars.SyncRelativeFrameWidths then ResourceBars.SyncRelativeFrameWidths() end
 	if addon and addon.Aura and addon.Aura.ResourceBars and addon.Aura.ResourceBars.UpdateRuneEventRegistration then addon.Aura.ResourceBars.UpdateRuneEventRegistration() end
-	if ResourceBars.RegisterEditModeFrames and not ResourceBars._editModeRegistered then ResourceBars.RegisterEditModeFrames() end
+	if ensureEditModeRegistration then ensureEditModeRegistration() end
 end
 
 function ResourceBars.DisableResourceBars()

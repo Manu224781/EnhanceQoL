@@ -13,6 +13,8 @@ local EditMode = addon.EditMode
 local ResourceBars = addon.Aura and addon.Aura.ResourceBars
 if not ResourceBars then return end
 
+local MIN_RESOURCE_BAR_WIDTH = (ResourceBars and ResourceBars.MIN_RESOURCE_BAR_WIDTH) or 50
+
 local specSettingVars = {}
 
 local function toColorComponents(c, fallback)
@@ -665,7 +667,7 @@ local function registerEditModeBars()
 				}
 
 				settingsList[#settingsList + 1] = {
-					name = L["Font"] or FONT,
+					name = L["Font"] or "Font",
 					kind = settingType.DropdownColor,
 					field = "fontFace",
 					generator = function(_, root)
@@ -770,106 +772,6 @@ local function registerEditModeBars()
 				}
 
 				settingsList[#settingsList + 1] = {
-					name = "Colortest",
-					kind = settingType.Collapsible,
-					id = "Colortest",
-					defaultCollapsed = true,
-				}
-
-				settingsList[#settingsList + 1] = {
-					name = L["Custom bar color"] or "Custom bar color",
-					kind = settingType.CheckboxColor,
-					field = "useBarColor",
-					default = false,
-					get = function()
-						local c = curSpecCfg()
-						return c and c.useBarColor == true
-					end,
-					set = function(_, value)
-						local c = curSpecCfg()
-						if not c then return end
-						c.useBarColor = value and true or false
-						if c.useBarColor and c.useClassColor then c.useClassColor = false end
-						queueRefresh()
-						addon.EditModeLib.internal:RefreshSettings()
-					end,
-					colorDefault = toUIColor(cfg and cfg.barColor, { 1, 1, 1, 1 }),
-					colorGet = function()
-						local c = curSpecCfg()
-						local col = (c and c.barColor) or (cfg and cfg.barColor) or { 1, 1, 1, 1 }
-						local r, g, b, a = toColorComponents(col, { 1, 1, 1, 1 })
-						return { r = r, g = g, b = b, a = a }
-					end,
-					colorSet = function(_, value)
-						local c = curSpecCfg()
-						if not c then return end
-						c.barColor = toColorArray(value, { 1, 1, 1, 1 })
-						queueRefresh()
-					end,
-					isShown = function()
-						local c = curSpecCfg()
-						return not (c and c.useClassColor == true)
-					end,
-					hasOpacity = true,
-					parentId = "Colortest",
-				}
-
-				settingsList[#settingsList + 1] = {
-					name = L["Use class color"] or "Use class color",
-					kind = settingType.Checkbox,
-					field = "useClassColor",
-					get = function()
-						local c = curSpecCfg()
-						return c and c.useClassColor == true
-					end,
-					set = function(_, value)
-						local c = curSpecCfg()
-						if not c then return end
-						c.useClassColor = value and true or false
-						if c.useClassColor and c.useBarColor then c.useBarColor = false end
-						queueRefresh()
-						addon.EditModeLib.internal:RefreshSettings()
-					end,
-					isEnabled = function()
-						local c = curSpecCfg()
-						return not (c and c.useBarColor == true)
-					end,
-					default = false,
-					parentId = "Colortest",
-				}
-
-				settingsList[#settingsList + 1] = {
-					name = L["Use max color"] or "Use max color",
-					kind = settingType.CheckboxColor,
-					field = "useMaxColor",
-					default = false,
-					get = function()
-						local c = curSpecCfg()
-						return c and c.useMaxColor == true
-					end,
-					set = function(_, value)
-						local c = curSpecCfg()
-						if not c then return end
-						c.useMaxColor = value and true or false
-						queueRefresh()
-					end,
-					colorDefault = toUIColor(cfg and cfg.maxColor, { 0, 1, 0, 1 }),
-					colorGet = function()
-						local c = curSpecCfg()
-						local col = (c and c.maxColor) or (cfg and cfg.maxColor) or { 0, 1, 0, 1 }
-						local r, g, b, a = toColorComponents(col, { 0, 1, 0, 1 })
-						return { r = r, g = g, b = b, a = a }
-					end,
-					colorSet = function(_, value)
-						local c = curSpecCfg()
-						if not c then return end
-						c.maxColor = toColorArray(value, { 0, 1, 0, 1 })
-						queueRefresh()
-					end,
-					hasOpacity = true,
-				}
-
-				settingsList[#settingsList + 1] = {
 					name = L["Bar Texture"] or "Bar Texture",
 					kind = settingType.Dropdown,
 					field = "barTexture",
@@ -962,6 +864,7 @@ local function registerEditModeBars()
 						field = "behavior",
 						default = currentBehaviorSelection(),
 						values = behaviorValues,
+						hideSummary = true,
 						isSelected = function(_, value)
 							local selection = currentBehaviorSelection()
 							return selection[value] == true
@@ -970,6 +873,175 @@ local function registerEditModeBars()
 					}
 				end
 			end
+
+			-- Separator controls (eligible bars only)
+			if ResourceBars.separatorEligible and ResourceBars.separatorEligible[barType] then
+				settingsList[#settingsList + 1] = {
+					name = L["Show separator"] or "Show separator",
+					kind = settingType.Checkbox,
+					field = "showSeparator",
+					get = function()
+						local c = curSpecCfg()
+						return c and c.showSeparator == true
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.showSeparator = value and true or false
+						queueRefresh()
+					end,
+					default = cfg and cfg.showSeparator == true,
+				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Separator Color"] or "Separator Color",
+					kind = settingType.Color,
+					field = "separatorColor",
+					get = function()
+						local c = curSpecCfg()
+						local col = (c and c.separatorColor) or (cfg and cfg.separatorColor) or SEP_DEFAULT
+						local r, g, b, a = toColorComponents(col, SEP_DEFAULT)
+						return { r = r, g = g, b = b, a = a }
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.separatorColor = toColorArray(value, SEP_DEFAULT)
+						queueRefresh()
+					end,
+					default = toUIColor(cfg and cfg.separatorColor, SEP_DEFAULT),
+					isEnabled = function()
+						local c = curSpecCfg()
+						return c and c.showSeparator == true
+					end,
+				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Separator thickness"] or "Separator thickness",
+					kind = settingType.Slider,
+					field = "separatorThickness",
+					minValue = 1,
+					maxValue = 10,
+					valueStep = 1,
+					get = function()
+						local c = curSpecCfg()
+						return (c and c.separatorThickness) or SEPARATOR_THICKNESS
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.separatorThickness = value or SEPARATOR_THICKNESS
+						queueRefresh()
+					end,
+					default = (cfg and cfg.separatorThickness) or SEPARATOR_THICKNESS,
+					isEnabled = function()
+						local c = curSpecCfg()
+						return c and c.showSeparator == true
+					end,
+				}
+			end
+
+			settingsList[#settingsList + 1] = {
+				name = COLOR,
+				kind = settingType.Collapsible,
+				id = "colorsetting",
+				defaultCollapsed = true,
+			}
+
+			settingsList[#settingsList + 1] = {
+				name = L["Custom bar color"] or "Custom bar color",
+				kind = settingType.CheckboxColor,
+				field = "useBarColor",
+				default = false,
+				get = function()
+					local c = curSpecCfg()
+					return c and c.useBarColor == true
+				end,
+				set = function(_, value)
+					local c = curSpecCfg()
+					if not c then return end
+					c.useBarColor = value and true or false
+					if c.useBarColor and c.useClassColor then c.useClassColor = false end
+					queueRefresh()
+					addon.EditModeLib.internal:RefreshSettings()
+				end,
+				colorDefault = toUIColor(cfg and cfg.barColor, { 1, 1, 1, 1 }),
+				colorGet = function()
+					local c = curSpecCfg()
+					local col = (c and c.barColor) or (cfg and cfg.barColor) or { 1, 1, 1, 1 }
+					local r, g, b, a = toColorComponents(col, { 1, 1, 1, 1 })
+					return { r = r, g = g, b = b, a = a }
+				end,
+				colorSet = function(_, value)
+					local c = curSpecCfg()
+					if not c then return end
+					c.barColor = toColorArray(value, { 1, 1, 1, 1 })
+					queueRefresh()
+				end,
+				isEnabled = function()
+					local c = curSpecCfg()
+					return not (c and c.useClassColor == true)
+				end,
+				hasOpacity = true,
+				parentId = "colorsetting",
+			}
+
+			settingsList[#settingsList + 1] = {
+				name = L["Use class color"] or "Use class color",
+				kind = settingType.Checkbox,
+				field = "useClassColor",
+				get = function()
+					local c = curSpecCfg()
+					return c and c.useClassColor == true
+				end,
+				set = function(_, value)
+					local c = curSpecCfg()
+					if not c then return end
+					c.useClassColor = value and true or false
+					if c.useClassColor and c.useBarColor then c.useBarColor = false end
+					queueRefresh()
+					addon.EditModeLib.internal:RefreshSettings()
+				end,
+				isEnabled = function()
+					local c = curSpecCfg()
+					return not (c and c.useBarColor == true)
+				end,
+				hasOpacity = true,
+				default = false,
+				parentId = "colorsetting",
+			}
+
+			settingsList[#settingsList + 1] = {
+				name = L["Use max color"] or "Use max color",
+				kind = settingType.CheckboxColor,
+				field = "useMaxColor",
+				default = false,
+				get = function()
+					local c = curSpecCfg()
+					return c and c.useMaxColor == true
+				end,
+				set = function(_, value)
+					local c = curSpecCfg()
+					if not c then return end
+					c.useMaxColor = value and true or false
+					queueRefresh()
+				end,
+				colorDefault = toUIColor(cfg and cfg.maxColor, { 0, 1, 0, 1 }),
+				colorGet = function()
+					local c = curSpecCfg()
+					local col = (c and c.maxColor) or (cfg and cfg.maxColor) or { 0, 1, 0, 1 }
+					local r, g, b, a = toColorComponents(col, { 0, 1, 0, 1 })
+					return { r = r, g = g, b = b, a = a }
+				end,
+				colorSet = function(_, value)
+					local c = curSpecCfg()
+					if not c then return end
+					c.maxColor = toColorArray(value, { 0, 1, 0, 1 })
+					queueRefresh()
+				end,
+				hasOpacity = true,
+				parentId = "colorsetting",
+			}
 
 			do -- Backdrop
 				local function backdropEnabled()
@@ -1190,9 +1262,6 @@ local function registerEditModeBars()
 				}
 			end
 		end
-
-		local frameId = "resourceBar_" .. idSuffix
-		local titleLabel = (barType == "HEALTH") and HEALTH or (_G["POWER_TYPE_" .. barType] or _G[barType] or barType)
 
 		EditMode:RegisterFrame(frameId, {
 			frame = frame,
@@ -1432,10 +1501,14 @@ local function buildSettings()
 
 		addon.functions.SettingsCreateButton(cat, {
 			var = "resourceBarsExport",
-			text = L["Export"] or EXPORT,
+			text = L["Export"] or "Export",
 			func = function()
+				local code
+				local reason
 				local scopeKey = getScope() or "ALL"
-				local code, reason = ResourceBars.ExportProfile and ResourceBars.ExportProfile(scopeKey)
+				if ResourceBars and ResourceBars.ExportProfile then
+					code, reason = ResourceBars.ExportProfile(scopeKey)
+				end
 				if not code then
 					local msg = ResourceBars.ExportErrorMessage and ResourceBars.ExportErrorMessage(reason) or (L["ExportProfileFailed"] or "Export failed.")
 					print("|cff00ff98Enhance QoL|r: " .. tostring(msg))
@@ -1465,7 +1538,7 @@ local function buildSettings()
 
 		addon.functions.SettingsCreateButton(cat, {
 			var = "resourceBarsImport",
-			text = L["Import"] or IMPORT,
+			text = L["Import"] or "Import",
 			func = function()
 				StaticPopupDialogs["EQOL_RESOURCEBAR_IMPORT_SETTINGS"] = StaticPopupDialogs["EQOL_RESOURCEBAR_IMPORT_SETTINGS"]
 					or {
