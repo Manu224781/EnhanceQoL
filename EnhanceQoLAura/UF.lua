@@ -756,6 +756,38 @@ local function layoutTexts(bar, leftFS, rightFS, cfg, width)
 	end
 end
 
+local function setFrameLevelAbove(child, parent, offset)
+	if not child or not parent then return end
+	child:SetFrameStrata(parent:GetFrameStrata())
+	child:SetFrameLevel((parent:GetFrameLevel() or 0) + (offset or 1))
+end
+
+local function syncTextFrameLevels(st)
+	if not st then return end
+	setFrameLevelAbove(st.healthTextLayer, st.health)
+	setFrameLevelAbove(st.powerTextLayer, st.power)
+	setFrameLevelAbove(st.statusTextLayer, st.status)
+end
+
+local function hookTextFrameLevels(st)
+	if not st then return end
+	st._textLevelHooks = st._textLevelHooks or {}
+	local function hookFrame(frame)
+		if not frame or st._textLevelHooks[frame] then return end
+		st._textLevelHooks[frame] = true
+		if hooksecurefunc then
+			hooksecurefunc(frame, "SetFrameLevel", function() syncTextFrameLevels(st) end)
+			hooksecurefunc(frame, "SetFrameStrata", function() syncTextFrameLevels(st) end)
+		end
+	end
+	hookFrame(st.frame)
+	hookFrame(st.barGroup)
+	hookFrame(st.health)
+	hookFrame(st.power)
+	hookFrame(st.status)
+	syncTextFrameLevels(st)
+end
+
 local function updateStatus(cfg, unit)
 	local st = states[unit]
 	if not st or not st.status then return end
@@ -864,6 +896,7 @@ local function layoutFrame(cfg, unit)
 		st.auraContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", 0, -5)
 		st.auraContainer:SetWidth(width + borderInset * 2)
 	end
+	syncTextFrameLevels(st)
 end
 
 local function ensureFrames(unit)
@@ -889,12 +922,19 @@ local function ensureFrames(unit)
 	st.power = _G[info.powerName] or CreateFrame("StatusBar", info.powerName, st.barGroup, "BackdropTemplate")
 	st.absorb = CreateFrame("StatusBar", info.healthName .. "Absorb", st.health, "BackdropTemplate")
 
-	st.healthTextLeft = st.health:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	st.healthTextRight = st.health:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	st.powerTextLeft = st.power:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	st.powerTextRight = st.power:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	st.nameText = st.status:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	st.levelText = st.status:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	st.healthTextLayer = st.healthTextLayer or CreateFrame("Frame", nil, st.health)
+	st.healthTextLayer:SetAllPoints(st.health)
+	st.powerTextLayer = st.powerTextLayer or CreateFrame("Frame", nil, st.power)
+	st.powerTextLayer:SetAllPoints(st.power)
+	st.statusTextLayer = st.statusTextLayer or CreateFrame("Frame", nil, st.status)
+	st.statusTextLayer:SetAllPoints(st.status)
+
+	st.healthTextLeft = st.healthTextLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	st.healthTextRight = st.healthTextLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	st.powerTextLeft = st.powerTextLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	st.powerTextRight = st.powerTextLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	st.nameText = st.statusTextLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	st.levelText = st.statusTextLayer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 
 	if unit == "target" then
 		st.auraContainer = CreateFrame("Frame", nil, st.frame)
@@ -920,6 +960,7 @@ local function ensureFrames(unit)
 		cfg.anchor.x = x
 		cfg.anchor.y = y
 	end)
+	hookTextFrameLevels(st)
 end
 
 local function applyBars(cfg, unit)
@@ -947,6 +988,7 @@ local function applyBars(cfg, unit)
 	applyFont(st.powerTextRight, pcfg.font, pcfg.fontSize or 14)
 	applyFont(st.nameText, cfg.status.font, cfg.status.fontSize or 14, cfg.status.fontOutline)
 	applyFont(st.levelText, cfg.status.font, cfg.status.fontSize or 14, cfg.status.fontOutline)
+	syncTextFrameLevels(st)
 end
 
 local function updateNameAndLevel(cfg, unit)
