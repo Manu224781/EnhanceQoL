@@ -3,7 +3,7 @@ local addonName, addon = ...
 addon.EditMode = addon.EditMode or {}
 local EditMode = addon.EditMode
 
-local LibEditMode = (LibStub and LibStub("LibEQOLEditMode-1.0", true))
+local LibEditMode = LibStub("LibEQOLEditMode-1.0")
 
 local DEFAULT_LAYOUT = "_Global"
 
@@ -248,13 +248,8 @@ function EditMode:_applyVisibility(entry, layoutName, enabled, forceImmediate)
 	if frame then
 		local shouldShow = false
 		if enabled then
-			if entry.showOutsideEditMode then
-				shouldShow = true
-			elseif inEditMode and not inCombat then
-				shouldShow = true
-			end
-		else
-			if entry.showOutsideEditMode and not inEditMode then shouldShow = true end
+			if entry.showOutsideEditMode then shouldShow = true end
+			if inEditMode and not inCombat then shouldShow = true end
 		end
 		self:_setFrameShown(entry, shouldShow, forceImmediate)
 	end
@@ -460,6 +455,8 @@ function EditMode:RegisterFrame(id, opts)
 	if self:IsAvailable() then
 		self:_registerCallbacks()
 
+		local sReset = true
+		if opts.showReset == false then sReset = false end
 		local defaultPosition = {
 			point = self:GetValue(id, "point") or defaults.point,
 			x = self:GetValue(id, "x") or defaults.x,

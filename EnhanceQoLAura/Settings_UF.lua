@@ -131,13 +131,22 @@ local function refreshSettingsUI()
 	if lib and lib.internal and lib.internal.RefreshSettingValues then lib.internal:RefreshSettingValues() end
 end
 
+local function hideFrameReset(frame)
+	local lib = addon.EditModeLib
+	if frame and lib and lib.SetFrameSettingsResetVisible then lib:SetFrameSettingsResetVisible(frame, false) end
+end
+
 local function fontOptions()
 	local list = {}
+	local defaultPath = defaultFontPath()
 	if not LSM then return list end
 	local hash = LSM:HashTable("font") or {}
+	local hasDefault = false
 	for name, path in pairs(hash) do
 		if type(path) == "string" and path ~= "" then list[#list + 1] = { value = path, label = tostring(name) } end
+		if path == defaultPath then hasDefault = true end
 	end
+	if defaultPath and not hasDefault then list[#list + 1] = { value = defaultPath, label = L["Default"] or "Default" } end
 	table.sort(list, function(a, b) return tostring(a.label) < tostring(b.label) end)
 	return list
 end
@@ -327,22 +336,13 @@ local function buildUnitSettings(unit)
 	end, def.healthHeight or 24, "health", true)
 
 	local healthDef = def.health or {}
-	list[#list + 1] = checkbox(L["UFUseClassColor"] or "Use class color", function() return getValue(unit, { "health", "useClassColor" }, healthDef.useClassColor ~= false) ~= false end, function(val)
-		setValue(unit, { "health", "useClassColor" }, val and true or false)
-		refreshSelf()
-		refreshSettingsUI()
-	end, healthDef.useClassColor ~= false, "health")
 
-	list[#list + 1] = checkbox(L["UFUseClassColor"] or "Use class color", function()
-		return getValue(unit, { "health", "useClassColor" }, healthDef.useClassColor == true) == true
-	end, function(val)
+	list[#list + 1] = checkbox(L["UFUseClassColor"] or "Use class color", function() return getValue(unit, { "health", "useClassColor" }, healthDef.useClassColor == true) == true end, function(val)
 		setValue(unit, { "health", "useClassColor" }, val and true or false)
 		if val then setValue(unit, { "health", "useCustomColor" }, false) end
 		refreshSelf()
 		refreshSettingsUI()
-	end, healthDef.useClassColor == true, "health", function()
-		return getValue(unit, { "health", "useCustomColor" }, healthDef.useCustomColor == true) ~= true
-	end)
+	end, healthDef.useClassColor == true, "health", function() return getValue(unit, { "health", "useCustomColor" }, healthDef.useCustomColor == true) ~= true end)
 
 	list[#list + 1] = checkboxColor({
 		name = L["UFHealthColor"] or "Custom health color",
@@ -911,8 +911,9 @@ local function registerUnitFrame(unit, info)
 		settings = settingsList,
 		showOutsideEditMode = true,
 		collapseExclusive = true,
+		showReset = false,
 	})
-	if addon.EditModeLib and addon.EditModeLib.SetFrameResetVisible then addon.EditModeLib:SetFrameResetVisible(frame, false) end
+	hideFrameReset(frame)
 end
 
 if not UF.EditModeRegistered then
