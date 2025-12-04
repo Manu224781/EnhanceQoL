@@ -1111,6 +1111,7 @@ local function registerEditModeBars()
 						if sf.TREANT == nil then sf.TREANT = false end
 						if sf.STAG == nil then sf.STAG = false end
 					else
+						local specInfo = currentSpecInfo()
 						local isSecondaryMana = barType == "MANA" and specInfo and specInfo.MAIN ~= "MANA"
 						local isSecondaryEnergy = barType == "ENERGY" and specInfo and specInfo.MAIN ~= "ENERGY"
 						if isSecondaryMana then

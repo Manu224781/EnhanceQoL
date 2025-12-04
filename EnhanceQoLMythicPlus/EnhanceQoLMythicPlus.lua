@@ -228,7 +228,7 @@ local function setBRInfo(info)
 		if issecretvalue and issecretvalue(current) then
 			brButton.cooldownFrame:SetCooldown(info.cooldownStartTime, info.cooldownDuration, info.chargeModRate)
 			brButton.cooldownFrame.startTime = info.cooldownStartTime
-			brButton.cooldownFrame.charges = current
+			brButton.cooldownFrame.charges = C_StringUtil.TruncateWhenZero(current)
 
 			-- TODO actually no way to do saturation stuff in m+/raid in midnight
 			-- if current > 0 then

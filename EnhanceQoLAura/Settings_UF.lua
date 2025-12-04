@@ -1171,6 +1171,12 @@ local function buildUnitSettings(unit)
 	if unit == "target" then
 		list[#list + 1] = { name = L["Auras"] or "Auras", kind = settingType.Collapsible, id = "auras", defaultCollapsed = true }
 		local auraDef = def.auraIcons or { size = 24, padding = 2, max = 16, showCooldown = true }
+		local function debuffAnchorValue()
+			return getValue(unit, { "auraIcons", "debuffAnchor" }, getValue(unit, { "auraIcons", "anchor" }, auraDef.debuffAnchor or auraDef.anchor or "BOTTOM"))
+		end
+		local function debuffOffsetYDefault()
+			return (debuffAnchorValue() == "TOP" and 5 or -5)
+		end
 
 		list[#list + 1] = slider(L["Aura size"] or "Aura size", 12, 48, 1, function() return getValue(unit, { "auraIcons", "size" }, auraDef.size or 24) end, function(val)
 			setValue(unit, { "auraIcons", "size" }, val or auraDef.size or 24)
@@ -1214,6 +1220,20 @@ local function buildUnitSettings(unit)
 			refresh()
 		end, auraDef.anchor or "BOTTOM", "auras")
 
+		list[#list + 1] = checkbox(L["UFSeparateDebuffAnchor"] or "Separate debuff anchor", function()
+			return getValue(unit, { "auraIcons", "separateDebuffAnchor" }, auraDef.separateDebuffAnchor == true)
+		end, function(val)
+			setValue(unit, { "auraIcons", "separateDebuffAnchor" }, val and true or false)
+			refresh()
+		end, auraDef.separateDebuffAnchor == true, "auras")
+
+		list[#list + 1] = radioDropdown(L["UFDebuffAnchor"] or "Debuff anchor", anchorOpts, function()
+			return debuffAnchorValue()
+		end, function(val)
+			setValue(unit, { "auraIcons", "debuffAnchor" }, val or nil)
+			refresh()
+		end, auraDef.debuffAnchor or auraDef.anchor or "BOTTOM", "auras")
+
 		list[#list + 1] = slider(
 			L["Aura Offset X"] or "Aura Offset X",
 			-200,
@@ -1240,6 +1260,43 @@ local function buildUnitSettings(unit)
 				refresh()
 			end,
 			(auraDef.offset and auraDef.offset.y) or (auraDef.anchor == "TOP" and 5 or -5),
+			"auras",
+			true
+		)
+
+		list[#list + 1] = slider(
+			L["Debuff Offset X"] or "Debuff Offset X",
+			-200,
+			200,
+			1,
+			function() return getValue(unit, { "auraIcons", "debuffOffset", "x" }, (auraDef.debuffOffset and auraDef.debuffOffset.x) or (auraDef.offset and auraDef.offset.x) or 0) end,
+			function(val)
+				setValue(unit, { "auraIcons", "debuffOffset", "x" }, val or 0)
+				refresh()
+			end,
+			(auraDef.debuffOffset and auraDef.debuffOffset.x) or (auraDef.offset and auraDef.offset.x) or 0,
+			"auras",
+			true
+		)
+
+		list[#list + 1] = slider(
+			L["Debuff Offset Y"] or "Debuff Offset Y",
+			-200,
+			200,
+			1,
+			function()
+				return getValue(
+					unit,
+					{ "auraIcons", "debuffOffset", "y" },
+					(auraDef.debuffOffset and auraDef.debuffOffset.y)
+						or debuffOffsetYDefault()
+				)
+			end,
+			function(val)
+				setValue(unit, { "auraIcons", "debuffOffset", "y" }, val or 0)
+				refresh()
+			end,
+			(auraDef.debuffOffset and auraDef.debuffOffset.y) or debuffOffsetYDefault(),
 			"auras",
 			true
 		)

@@ -184,7 +184,19 @@ local defaults = {
 	},
 	target = {
 		enabled = false,
-		auraIcons = { size = 24, padding = 2, max = 16, showCooldown = true, showTooltip = true, hidePermanentAuras = false, anchor = "BOTTOM", offset = { x = 0, y = -5 } },
+		auraIcons = {
+			size = 24,
+			padding = 2,
+			max = 16,
+			showCooldown = true,
+			showTooltip = true,
+			hidePermanentAuras = false,
+			anchor = "BOTTOM",
+			offset = { x = 0, y = -5 },
+			separateDebuffAnchor = false,
+			debuffAnchor = nil, -- falls back to anchor
+			debuffOffset = nil, -- falls back to offset
+		},
 		cast = {
 			enabled = true,
 			width = 220,
@@ -313,19 +325,27 @@ local function isPermanentAura(aura)
 	if not aura then return false end
 	local duration = aura.duration
 	local expiration = aura.expirationTime
+
+	if C_StringUtil then
+		local checkNr = C_StringUtil.TruncateWhenZero(duration)
+		if issecretvalue and issecretvalue(checkNr) then
+			return false
+		else
+			return true
+		end
+	end
+	if issecretvalue and issecretvalue(duration) then return false end
 	if duration and duration > 0 then return false end
 	if expiration and expiration > 0 then return false end
 	return true
 end
 
-local function ensureAuraButton(index, ac)
-	local st = states.target
-	if not st or not st.auraContainer then return nil end
-	local icons = st.auraButtons or {}
-	st.auraButtons = icons
+local function ensureAuraButton(container, icons, index, ac)
+	if not container then return nil end
+	icons = icons or {}
 	local btn = icons[index]
 	if not btn then
-		btn = CreateFrame("Button", nil, st.auraContainer)
+		btn = CreateFrame("Button", nil, container, "BackdropTemplate")
 		btn:SetSize(ac.size, ac.size)
 		btn.icon = btn:CreateTexture(nil, "ARTWORK")
 		btn.icon:SetAllPoints(btn)
@@ -337,6 +357,9 @@ local function ensureAuraButton(index, ac)
 
 		btn.count = overlay:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 		btn.count:SetPoint("BOTTOMRIGHT", overlay, "BOTTOMRIGHT", -2, 2)
+		btn.border = btn:CreateTexture(nil, "OVERLAY")
+		btn.border:SetAllPoints(btn)
+		btn.border:SetTexCoord(0.296875, 0.5703125, 0, 0.515625) -- debuff overlay segment
 		btn.cd:SetReverse(true)
 		btn.cd:SetDrawEdge(true)
 		btn.cd:SetDrawSwipe(true)
@@ -357,56 +380,65 @@ local function ensureAuraButton(index, ac)
 	else
 		btn:SetSize(ac.size, ac.size)
 	end
-	return btn
+	return btn, icons
 end
 
-local function applyAuraToButton(btn, aura, ac)
+local function applyAuraToButton(btn, aura, ac, isDebuff)
 	if not btn or not aura then return end
 	btn.spellId = aura.spellId
 	btn._showTooltip = ac.showTooltip ~= false
 	btn.icon:SetTexture(aura.icon or "")
 	btn.cd:Clear()
 	if issecretvalue and issecretvalue(aura.duration) then
-		btn.cd:SetCooldown(GetTime(), C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID("target", aura.auraInstanceID), aura.timeMod)
+		btn.cd:SetCooldownFromExpirationTime(aura.expirationTime, aura.duration, aura.timeMod)
 	elseif aura.duration and aura.duration > 0 and aura.expirationTime then
 		btn.cd:SetCooldown(aura.expirationTime - aura.duration, aura.duration, aura.timeMod)
 	end
 	btn.cd:SetHideCountdownNumbers(ac.showCooldown == false)
 	if issecretvalue and issecretvalue(aura.applications) or aura.applications and aura.applications > 1 then
-		btn.count:SetText(aura.applications)
+		local appStacks = aura.applications
+		if C_StringUtil then appStacks = C_StringUtil.TruncateWhenZero(appStacks) end
+		btn.count:SetText(appStacks)
 		btn.count:Show()
 	else
 		btn.count:SetText("")
 		btn.count:Hide()
 	end
+	if btn.border then
+		if isDebuff then
+			btn.border:SetTexture("Interface\\Buttons\\UI-Debuff-Overlays")
+			btn.border:SetVertexColor(1, 0.25, 0.25, 1)
+			btn.border:Show()
+		else
+			btn.border:SetTexture(nil)
+			btn.border:Hide()
+		end
+	end
 	btn:Show()
 end
 
-local function anchorAuraButton(btn, index, ac, perRow, st)
-	if not btn or not st then return end
+local function anchorAuraButton(btn, container, index, ac, perRow, anchor)
+	if not btn or not container then return end
 	local row = math.floor((index - 1) / perRow)
 	local col = (index - 1) % perRow
 	btn:ClearAllPoints()
-	local anchor = ac.anchor or "BOTTOM"
 	if anchor == "TOP" then
-		btn:SetPoint("BOTTOMLEFT", st.auraContainer, "BOTTOMLEFT", col * (ac.size + ac.padding), row * (ac.size + ac.padding))
+		btn:SetPoint("BOTTOMLEFT", container, "BOTTOMLEFT", col * (ac.size + ac.padding), row * (ac.size + ac.padding))
 	else
-		btn:SetPoint("TOPLEFT", st.auraContainer, "TOPLEFT", col * (ac.size + ac.padding), -row * (ac.size + ac.padding))
+		btn:SetPoint("TOPLEFT", container, "TOPLEFT", col * (ac.size + ac.padding), -row * (ac.size + ac.padding))
 	end
 end
 
-local function updateAuraContainerSize(shown, ac, perRow, st)
-	if not st then return end
+local function updateAuraContainerSize(container, shown, ac, perRow)
+	if not container then return end
 	local rows = math.ceil(shown / perRow)
-	st.auraContainer:SetHeight(rows > 0 and (rows * (ac.size + ac.padding) - ac.padding) or 0.001)
-	st.auraContainer:SetShown(shown > 0)
+	container:SetHeight(rows > 0 and (rows * (ac.size + ac.padding) - ac.padding) or 0.001)
+	container:SetShown(shown > 0)
 end
 
 local function updateTargetAuraIcons(startIndex)
 	local st = states.target
 	if not st or not st.auraContainer or not st.frame then return end
-	local icons = st.auraButtons or {}
-	st.auraButtons = icons
 	local cfg = ensureDB("target")
 	local ac = cfg.auraIcons or defaults.target.auraIcons or { size = 24, padding = 2, max = 16, showCooldown = true }
 	ac.size = ac.size or 24
@@ -417,33 +449,106 @@ local function updateTargetAuraIcons(startIndex)
 
 	local width = st.frame:GetWidth() or 0
 	local perRow = math.max(1, math.floor((width + ac.padding) / (ac.size + ac.padding)))
-	local shown = math.min(#targetAuraOrder, ac.max)
-	local startIdx = startIndex or 1
-	if startIdx < 1 then startIdx = 1 end
+	local useSeparateDebuffs = ac.separateDebuffAnchor == true
+	if useSeparateDebuffs and not st.debuffContainer then useSeparateDebuffs = false end
 
-	local i = startIdx
-	while i <= shown do
+	-- Combined layout (default, backward compatible)
+	if not useSeparateDebuffs then
+		local icons = st.auraButtons or {}
+		st.auraButtons = icons
+		local shown = math.min(#targetAuraOrder, ac.max)
+		local startIdx = startIndex or 1
+		if startIdx < 1 then startIdx = 1 end
+		local i = startIdx
+		while i <= shown do
+			local auraId = targetAuraOrder[i]
+			local aura = auraId and targetAuras[auraId]
+			if not aura then
+				table.remove(targetAuraOrder, i)
+				targetAuraIndexById[auraId] = nil
+				reindexTargetAuraOrder(i)
+				shown = math.min(#targetAuraOrder, ac.max)
+			else
+				local btn
+				btn, st.auraButtons = ensureAuraButton(st.auraContainer, st.auraButtons, i, ac)
+				applyAuraToButton(btn, aura, ac, aura.isHarmful == true)
+				anchorAuraButton(btn, st.auraContainer, i, ac, perRow, ac.anchor or "BOTTOM")
+				targetAuraIndexById[auraId] = i
+				i = i + 1
+			end
+		end
+		for idx = shown + 1, #(st.auraButtons or {}) do
+			if st.auraButtons[idx] then st.auraButtons[idx]:Hide() end
+		end
+		if st.debuffButtons then
+			for idx = 1, #st.debuffButtons do
+				if st.debuffButtons[idx] then st.debuffButtons[idx]:Hide() end
+			end
+		end
+		if st.debuffContainer then
+			st.debuffContainer:SetHeight(0.001)
+			st.debuffContainer:SetShown(false)
+		end
+		updateAuraContainerSize(st.auraContainer, shown, ac, perRow)
+		return
+	end
+
+	-- Separate buff/debuff anchors
+	local buffButtons = st.auraButtons or {}
+	local debuffButtons = st.debuffButtons or {}
+	local buffCount = 0
+	local debuffCount = 0
+	local shownTotal = 0
+	local debAnchor = ac.debuffAnchor or ac.anchor or "BOTTOM"
+	local perRowDebuff = perRow
+	local i = 1
+	while i <= #targetAuraOrder do
 		local auraId = targetAuraOrder[i]
 		local aura = auraId and targetAuras[auraId]
 		if not aura then
 			table.remove(targetAuraOrder, i)
 			targetAuraIndexById[auraId] = nil
 			reindexTargetAuraOrder(i)
-			shown = math.min(#targetAuraOrder, ac.max)
 		else
-			local btn = ensureAuraButton(i, ac)
-			applyAuraToButton(btn, aura, ac)
-			anchorAuraButton(btn, i, ac, perRow, st)
+			local isDebuff
+			if issecretvalue and issecretvalue(aura.isHarmful) then
+				isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID("target", aura.auraInstanceID, "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY")
+			else
+				isDebuff = aura.isHarmful == true
+			end
+			if shownTotal < ac.max then
+				shownTotal = shownTotal + 1
+				if isDebuff then
+					debuffCount = debuffCount + 1
+					local btn
+					btn, debuffButtons = ensureAuraButton(st.debuffContainer, debuffButtons, debuffCount, ac)
+					applyAuraToButton(btn, aura, ac, true)
+					anchorAuraButton(btn, st.debuffContainer, debuffCount, ac, perRowDebuff, debAnchor)
+				else
+					buffCount = buffCount + 1
+					local btn
+					btn, buffButtons = ensureAuraButton(st.auraContainer, buffButtons, buffCount, ac)
+					applyAuraToButton(btn, aura, ac, false)
+					anchorAuraButton(btn, st.auraContainer, buffCount, ac, perRow, ac.anchor or "BOTTOM")
+				end
+			end
 			targetAuraIndexById[auraId] = i
 			i = i + 1
 		end
 	end
 
-	for idx = shown + 1, #icons do
-		if icons[idx] then icons[idx]:Hide() end
+	st.auraButtons = buffButtons
+	st.debuffButtons = debuffButtons
+
+	for idx = buffCount + 1, #buffButtons do
+		if buffButtons[idx] then buffButtons[idx]:Hide() end
+	end
+	for idx = debuffCount + 1, #debuffButtons do
+		if debuffButtons[idx] then debuffButtons[idx]:Hide() end
 	end
 
-	updateAuraContainerSize(shown, ac, perRow, st)
+	updateAuraContainerSize(st.auraContainer, math.min(buffCount, ac.max), ac, perRow)
+	updateAuraContainerSize(st.debuffContainer, math.min(debuffCount, ac.max), ac, perRowDebuff)
 end
 
 local function fullScanTargetAuras()
@@ -682,7 +787,19 @@ do
 	targetDefaults.enabled = false
 	targetDefaults.anchor = targetDefaults.anchor and CopyTable(targetDefaults.anchor) or { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 0, y = -200 }
 	targetDefaults.anchor.x = (targetDefaults.anchor.x or 0) + 260
-	targetDefaults.auraIcons = { size = 24, padding = 2, max = 16, showCooldown = true, showTooltip = true, hidePermanentAuras = false, anchor = "BOTTOM", offset = { x = 0, y = -5 } }
+	targetDefaults.auraIcons = {
+		size = 24,
+		padding = 2,
+		max = 16,
+		showCooldown = true,
+		showTooltip = true,
+		hidePermanentAuras = false,
+		anchor = "BOTTOM",
+		offset = { x = 0, y = -5 },
+		separateDebuffAnchor = false,
+		debuffAnchor = nil,
+		debuffOffset = nil,
+	}
 	defaults.target = targetDefaults
 
 	local totDefaults = CopyTable(targetDefaults)
@@ -1313,6 +1430,29 @@ local function layoutFrame(cfg, unit)
 			st.auraContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", ax, ay)
 		end
 		st.auraContainer:SetWidth(width + borderInset * 2)
+
+		if st.debuffContainer then
+			st.debuffContainer:ClearAllPoints()
+			local useSeparateDebuffs = acfg.separateDebuffAnchor == true
+			local dax = (acfg.debuffOffset and acfg.debuffOffset.x) or ax
+			local day = (acfg.debuffOffset and acfg.debuffOffset.y)
+			local danchor = acfg.debuffAnchor or anchor
+			if day == nil then day = (danchor == "TOP" and 5 or -5) end
+			if useSeparateDebuffs then
+				if danchor == "TOP" then
+					st.debuffContainer:SetPoint("BOTTOMLEFT", st.barGroup, "TOPLEFT", dax, day)
+				else
+					st.debuffContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", dax, day)
+				end
+				st.debuffContainer:SetWidth(width + borderInset * 2)
+			else
+				-- If not separating, keep the debuff container collapsed
+				st.debuffContainer:SetPoint("TOPLEFT", st.auraContainer, "TOPLEFT", 0, 0)
+				st.debuffContainer:SetWidth(0.001)
+				st.debuffContainer:SetHeight(0.001)
+				st.debuffContainer:Hide()
+			end
+		end
 	end
 	syncTextFrameLevels(st)
 end
@@ -1382,7 +1522,9 @@ local function ensureFrames(unit)
 
 	if unit == "target" then
 		st.auraContainer = CreateFrame("Frame", nil, st.frame)
+		st.debuffContainer = CreateFrame("Frame", nil, st.frame)
 		st.auraButtons = {}
+		st.debuffButtons = {}
 	end
 
 	st.frame:SetMovable(true)
