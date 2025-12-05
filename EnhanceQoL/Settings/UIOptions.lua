@@ -10,6 +10,7 @@ local UpdateActionBarMouseover = addon.functions.UpdateActionBarMouseover or fun
 local UpdateUnitFrameMouseover = addon.functions.UpdateUnitFrameMouseover or function() end
 local RefreshAllActionBarAnchors = addon.functions.RefreshAllActionBarAnchors or function() end
 local GetVisibilityRuleMetadata = addon.functions.GetVisibilityRuleMetadata or function() return {} end
+local HasFrameVisibilityOverride = addon.functions.HasFrameVisibilityOverride or function() return false end
 
 local ACTION_BAR_FRAME_NAMES = constants.ACTION_BAR_FRAME_NAMES or {}
 local ACTION_BAR_ANCHOR_ORDER = constants.ACTION_BAR_ANCHOR_ORDER or {}
@@ -35,6 +36,12 @@ local function collectRuleOptions(kind)
 end
 
 local ACTIONBAR_RULE_OPTIONS = collectRuleOptions("actionbar")
+local function notifyFrameRuleLocked(label)
+	local base = L["visibilityRule_lockedByUF"] or "Visibility is controlled by Enhanced Unit Frames. Disable them to change this setting."
+	if label and label ~= "" then base = base .. " (" .. tostring(label) .. ")" end
+	print("|cff00ff98Enhance QoL|r: " .. base)
+end
+
 local function buildFontDropdown()
 	local map = {
 		[addon.variables.defaultFont] = L["actionBarFontDefault"] or "Blizzard Font",
@@ -168,8 +175,7 @@ local function createButtonAppearanceControls(category)
 	addon.functions.SettingsCreateCheckbox(category, {
 		var = "actionBarHideAssistedRotation",
 		text = L["actionBarHideAssistedRotation"] or "Hide assisted rotation overlay",
-		desc = L["actionBarHideAssistedRotationDesc"]
-			or "Hide the Assisted Combat Rotation glow/overlay that Blizzard adds to the action button.",
+		desc = L["actionBarHideAssistedRotationDesc"] or "Hide the Assisted Combat Rotation glow/overlay that Blizzard adds to the action button.",
 		func = function(value)
 			addon.db.actionBarHideAssistedRotation = value and true or false
 			if addon.functions.UpdateAssistedCombatFrameHiding then addon.functions.UpdateAssistedCombatFrameHiding() end
@@ -446,6 +452,10 @@ end
 
 local function setFrameRule(info, key, shouldSelect)
 	if not info or not info.var then return end
+	if HasFrameVisibilityOverride(info.var) then
+		notifyFrameRuleLocked(info.text or info.name or info.var)
+		return
+	end
 	local working = addon.db[info.var]
 	if type(working) ~= "table" then working = {} end
 
@@ -493,7 +503,7 @@ local function createFrameCategory()
 		if info.var and info.name then
 			local options = getFrameRuleOptions(info)
 			if #options > 0 then
-				addon.functions.SettingsCreateMultiDropdown(category, {
+				local init = addon.functions.SettingsCreateMultiDropdown(category, {
 					var = info.var .. "_visibility",
 					text = info.text or info.name or info.var,
 					options = options,
@@ -502,6 +512,20 @@ local function createFrameCategory()
 						return cfg and cfg[key] == true
 					end,
 					setSelectedFunc = function(key, shouldSelect) setFrameRule(info, key, shouldSelect) end,
+					isEnabled = function()
+						if not addon.Aura then return true end
+
+						local db = addon.db.ufFrames
+						if not db then return true end
+
+						if info.name == "PlayerFrame" and db.player and db.player.enabled then
+							return false
+						elseif info.name == "TargetFrame" and db.target and db.target.enabled then
+							return false
+						end
+
+						return true
+					end,
 				})
 			end
 		end

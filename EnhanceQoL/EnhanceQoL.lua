@@ -491,6 +491,9 @@ end
 addon.constants.FRAME_VISIBILITY_KEYS = FRAME_VISIBILITY_KEYS
 addon.constants.ACTIONBAR_VISIBILITY_KEYS = ACTIONBAR_VISIBILITY_KEYS
 
+addon.variables = addon.variables or {}
+addon.variables.frameVisibilityOverrides = addon.variables.frameVisibilityOverrides or {}
+
 local function copyVisibilityFlags(source, allowedKeys)
 	if type(source) ~= "table" then return nil end
 	local result
@@ -503,9 +506,18 @@ local function copyVisibilityFlags(source, allowedKeys)
 	return result
 end
 
-local function NormalizeUnitFrameVisibilityConfig(varName, incoming)
+local function NormalizeUnitFrameVisibilityConfig(varName, incoming, opts)
 	local source = incoming
-	if source == nil and addon.db then source = addon.db[varName] end
+	local skipSave = opts and opts.skipSave
+	local ignoreOverride = opts and opts.ignoreOverride
+	if source == nil then
+		if not ignoreOverride and addon.variables.frameVisibilityOverrides and addon.variables.frameVisibilityOverrides[varName] then
+			source = addon.variables.frameVisibilityOverrides[varName]
+			skipSave = true
+		elseif addon.db then
+			source = addon.db[varName]
+		end
+	end
 	local config
 
 	if type(source) == "table" then
@@ -524,10 +536,30 @@ local function NormalizeUnitFrameVisibilityConfig(varName, incoming)
 
 	if config and not next(config) then config = nil end
 
-	if addon.db and varName then addon.db[varName] = config end
+	if not skipSave and addon.db and varName then addon.db[varName] = config end
 	return config
 end
 addon.functions.NormalizeUnitFrameVisibilityConfig = NormalizeUnitFrameVisibilityConfig
+
+local function SetFrameVisibilityOverride(varName, config)
+	if not varName then return nil end
+	addon.variables.frameVisibilityOverrides = addon.variables.frameVisibilityOverrides or {}
+	if config == nil then
+		addon.variables.frameVisibilityOverrides[varName] = nil
+		return nil
+	end
+	local normalized = NormalizeUnitFrameVisibilityConfig(varName, config, { skipSave = true, ignoreOverride = true })
+	addon.variables.frameVisibilityOverrides[varName] = normalized
+	return normalized
+end
+addon.functions.SetFrameVisibilityOverride = SetFrameVisibilityOverride
+
+local function HasFrameVisibilityOverride(varName)
+	return varName ~= nil
+		and addon.variables.frameVisibilityOverrides ~= nil
+		and addon.variables.frameVisibilityOverrides[varName] ~= nil
+end
+addon.functions.HasFrameVisibilityOverride = HasFrameVisibilityOverride
 
 local function MigrateLegacyVisibilityFlag(oldKey, targetVar)
 	if not addon.db or addon.db[oldKey] == nil then return end

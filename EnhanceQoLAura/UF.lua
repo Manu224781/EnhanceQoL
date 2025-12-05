@@ -62,6 +62,8 @@ local floor = math.floor
 local max = math.max
 local abs = math.abs
 local wipe = wipe or (table and table.wipe)
+local SetFrameVisibilityOverride = addon.functions and addon.functions.SetFrameVisibilityOverride
+local HasFrameVisibilityOverride = addon.functions and addon.functions.HasFrameVisibilityOverride
 
 local shouldShowSampleCast
 local setSampleCast
@@ -243,6 +245,7 @@ local blizzardPlayerHooked = false
 local blizzardTargetHooked = false
 local castOnUpdateHandlers = {}
 local originalFrameRules = {}
+local NIL_VISIBILITY_SENTINEL = {}
 local totTicker
 local editModeHooked
 
@@ -678,13 +681,30 @@ local function applyFrameRuleOverride(frameName, enabled)
 	addon.db = addon.db or {}
 	local key = info.var
 	if enabled then
-		if originalFrameRules[key] == nil then originalFrameRules[key] = addon.db[key] end
-		NormalizeUnitFrameVisibilityConfig(key, { ALWAYS_HIDDEN = true })
-	else
-		if originalFrameRules[key] ~= nil then
-			addon.db[key] = originalFrameRules[key]
-			originalFrameRules[key] = nil
+		if originalFrameRules[key] == nil then
+			local cur = addon.db[key]
+			if cur == nil then
+				originalFrameRules[key] = NIL_VISIBILITY_SENTINEL
+			else
+				originalFrameRules[key] = cur
+			end
+		end
+		if SetFrameVisibilityOverride then
+			SetFrameVisibilityOverride(key, { ALWAYS_HIDDEN = true })
 		else
+			NormalizeUnitFrameVisibilityConfig(key, { ALWAYS_HIDDEN = true })
+		end
+	else
+		if SetFrameVisibilityOverride then SetFrameVisibilityOverride(key, nil) end
+		if originalFrameRules[key] ~= nil then
+			local prev = originalFrameRules[key]
+			if prev == NIL_VISIBILITY_SENTINEL then
+				addon.db[key] = nil
+			else
+				addon.db[key] = prev
+			end
+			originalFrameRules[key] = nil
+		elseif not HasFrameVisibilityOverride or not HasFrameVisibilityOverride(key) then
 			NormalizeUnitFrameVisibilityConfig(key, nil)
 		end
 	end
