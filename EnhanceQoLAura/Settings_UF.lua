@@ -528,57 +528,59 @@ local function buildUnitSettings(unit)
 		colorDefault = { r = 0, g = 0, b = 0, a = 0.6 },
 	})
 
-	list[#list + 1] = { name = L["AbsorbBar"] or "Absorb Bar", kind = settingType.Collapsible, id = "absorb", defaultCollapsed = true }
-	local absorbColorDef = healthDef.absorbColor or { 0.85, 0.95, 1, 0.7 }
+	if unit ~= "pet" then
+		list[#list + 1] = { name = L["AbsorbBar"] or "Absorb Bar", kind = settingType.Collapsible, id = "absorb", defaultCollapsed = true }
+		local absorbColorDef = healthDef.absorbColor or { 0.85, 0.95, 1, 0.7 }
 
-	list[#list + 1] = checkboxColor({
-		name = L["Use custom absorb color"] or "Use custom absorb color",
-		parentId = "absorb",
-		defaultChecked = healthDef.absorbUseCustomColor == true,
-		isChecked = function() return getValue(unit, { "health", "absorbUseCustomColor" }, healthDef.absorbUseCustomColor == true) == true end,
-		onChecked = function(val)
-			debounced(unit .. "_absorbCustomColorToggle", function()
-				setValue(unit, { "health", "absorbUseCustomColor" }, val and true or false)
-				if val and not getValue(unit, { "health", "absorbColor" }) then setValue(unit, { "health", "absorbColor" }, absorbColorDef) end
+		list[#list + 1] = checkboxColor({
+			name = L["Use custom absorb color"] or "Use custom absorb color",
+			parentId = "absorb",
+			defaultChecked = healthDef.absorbUseCustomColor == true,
+			isChecked = function() return getValue(unit, { "health", "absorbUseCustomColor" }, healthDef.absorbUseCustomColor == true) == true end,
+			onChecked = function(val)
+				debounced(unit .. "_absorbCustomColorToggle", function()
+					setValue(unit, { "health", "absorbUseCustomColor" }, val and true or false)
+					if val and not getValue(unit, { "health", "absorbColor" }) then setValue(unit, { "health", "absorbColor" }, absorbColorDef) end
+					refresh()
+					refreshSettingsUI()
+				end)
+			end,
+			getColor = function() return toRGBA(getValue(unit, { "health", "absorbColor" }, absorbColorDef), absorbColorDef) end,
+			onColor = function(color)
+				setColor(unit, { "health", "absorbColor" }, color.r, color.g, color.b, color.a)
+				setValue(unit, { "health", "absorbUseCustomColor" }, true)
 				refresh()
-				refreshSettingsUI()
-			end)
-		end,
-		getColor = function() return toRGBA(getValue(unit, { "health", "absorbColor" }, absorbColorDef), absorbColorDef) end,
-		onColor = function(color)
-			setColor(unit, { "health", "absorbColor" }, color.r, color.g, color.b, color.a)
-			setValue(unit, { "health", "absorbUseCustomColor" }, true)
+			end,
+			colorDefault = {
+				r = absorbColorDef[1] or 0.85,
+				g = absorbColorDef[2] or 0.95,
+				b = absorbColorDef[3] or 1,
+				a = absorbColorDef[4] or 0.7,
+			},
+		})
+
+		list[#list + 1] = checkbox(L["Use absorb glow"] or "Use absorb glow", function() return getValue(unit, { "health", "useAbsorbGlow" }, healthDef.useAbsorbGlow ~= false) ~= false end, function(val)
+			setValue(unit, { "health", "useAbsorbGlow" }, val and true or false)
 			refresh()
-		end,
-		colorDefault = {
-			r = absorbColorDef[1] or 0.85,
-			g = absorbColorDef[2] or 0.95,
-			b = absorbColorDef[3] or 1,
-			a = absorbColorDef[4] or 0.7,
-		},
-	})
+		end, healthDef.useAbsorbGlow ~= false, "absorb")
 
-	list[#list + 1] = checkbox(L["Use absorb glow"] or "Use absorb glow", function() return getValue(unit, { "health", "useAbsorbGlow" }, healthDef.useAbsorbGlow ~= false) ~= false end, function(val)
-		setValue(unit, { "health", "useAbsorbGlow" }, val and true or false)
-		refresh()
-	end, healthDef.useAbsorbGlow ~= false, "absorb")
-
-	list[#list + 1] = checkbox(L["Show sample absorb"] or "Show sample absorb", function() return sampleAbsorb[unit] == true end, function(val)
-		sampleAbsorb[unit] = val and true or false
-		refresh()
-	end, false, "absorb")
-
-	list[#list + 1] = radioDropdown(
-		L["Absorb texture"] or "Absorb texture",
-		textureOpts,
-		function() return getValue(unit, { "health", "absorbTexture" }, healthDef.absorbTexture or healthDef.texture or "SOLID") end,
-		function(val)
-			setValue(unit, { "health", "absorbTexture" }, val)
+		list[#list + 1] = checkbox(L["Show sample absorb"] or "Show sample absorb", function() return sampleAbsorb[unit] == true end, function(val)
+			sampleAbsorb[unit] = val and true or false
 			refresh()
-		end,
-		healthDef.absorbTexture or healthDef.texture or "SOLID",
-		"absorb"
-	)
+		end, false, "absorb")
+
+		list[#list + 1] = radioDropdown(
+			L["Absorb texture"] or "Absorb texture",
+			textureOpts,
+			function() return getValue(unit, { "health", "absorbTexture" }, healthDef.absorbTexture or healthDef.texture or "SOLID") end,
+			function(val)
+				setValue(unit, { "health", "absorbTexture" }, val)
+				refresh()
+			end,
+			healthDef.absorbTexture or healthDef.texture or "SOLID",
+			"absorb"
+		)
+	end
 
 	list[#list + 1] = { name = L["PowerBar"] or "Power Bar", kind = settingType.Collapsible, id = "power", defaultCollapsed = true }
 	local powerDef = def.power or {}
@@ -1419,6 +1421,7 @@ if not UF.EditModeRegistered then
 		player = { frameName = "EQOLUFPlayerFrame", frameId = "EQOL_UF_Player", title = L["UFPlayerFrame"] or PLAYER },
 		target = { frameName = "EQOLUFTargetFrame", frameId = "EQOL_UF_Target", title = L["UFTargetFrame"] or TARGET },
 		targettarget = { frameName = "EQOLUFToTFrame", frameId = "EQOL_UF_ToT", title = L["UFToTFrame"] or "Target of Target" },
+		pet = { frameName = "EQOLUFPetFrame", frameId = "EQOL_UF_Pet", title = L["UFPetFrame"] or PET },
 	}
 	for unit, info in pairs(frames) do
 		registerUnitFrame(unit, info)
@@ -1460,4 +1463,5 @@ if addon.functions and addon.functions.SettingsCreateCategory then
 	addToggle("player", L["UFPlayerEnable"] or "Enable custom player frame", "ufEnablePlayer")
 	addToggle("target", L["UFTargetEnable"] or "Enable custom target frame", "ufEnableTarget")
 	addToggle("targettarget", L["UFToTEnable"] or "Enable target-of-target frame", "ufEnableToT")
+	addToggle("pet", L["UFPetEnable"] or "Enable pet frame", "ufEnablePet")
 end
