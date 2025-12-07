@@ -16,17 +16,22 @@ addon.variables.ufSampleAbsorb = addon.variables.ufSampleAbsorb or {}
 local sampleAbsorb = addon.variables.ufSampleAbsorb
 addon.variables.ufSampleCast = addon.variables.ufSampleCast or {}
 local sampleCast = addon.variables.ufSampleCast
+local maxBossFrames = MAX_BOSS_FRAMES or 5
 
 local hiddenParent = CreateFrame("Frame", nil, UIParent)
 hiddenParent:SetAllPoints()
 hiddenParent:Hide()
 
+local throttleHook
 local function DisableBossFrames()
 	hooksecurefunc(BossTargetFrameContainer, "SetParent", function(self, parent)
 		if InCombatLockdown() then return end
-		if parent ~= hiddenParent then self:SetParent(hiddenParent) end
+		if parent ~= hiddenParent and not throttleHook then
+			throttleHook = true
+			C_Timer.After(0.2, function() self:SetParent(hiddenParent) end)
+		end
 	end)
-	for i = 1, MAX_BOSS_FRAMES do
+	for i = 1, (MAX_BOSS_FRAMES or maxBossFrames or 5) do
 		if _G["Boss" .. i .. "TargetFrame"] then _G["Boss" .. i .. "TargetFrame"]:SetAlpha(0) end
 	end
 end
@@ -119,6 +124,7 @@ local function getFont(path)
 	if path and path ~= "" then return path end
 	return addon.variables and addon.variables.defaultFont or (LSM and LSM:Fetch("font", LSM.DefaultMedia.font)) or STANDARD_TEXT_FONT
 end
+local function isBossUnit(unit) return unit and unit:match("^boss%d+$") end
 local UNITS = {
 	player = {
 		unit = "player",
@@ -162,6 +168,17 @@ local UNITS = {
 		disableAbsorb = true,
 	},
 }
+for i = 1, maxBossFrames do
+	local unit = "boss" .. i
+	UNITS[unit] = {
+		unit = unit,
+		frameName = "EQOLUFBoss" .. i .. "Frame",
+		healthName = "EQOLUFBoss" .. i .. "Health",
+		powerName = "EQOLUFBoss" .. i .. "Power",
+		statusName = "EQOLUFBoss" .. i .. "Status",
+		disableAbsorb = true,
+	}
+end
 
 local defaults = {
 	player = {
@@ -292,8 +309,16 @@ local originalFrameRules = {}
 local NIL_VISIBILITY_SENTINEL = {}
 local totTicker
 local editModeHooked
+local bossContainer
+local bossLayoutDirty
+local bossHidePending
+local bossShowPending
+local bossInitPending
 
-local function defaultsFor(unit) return defaults[unit] or defaults.player or {} end
+local function defaultsFor(unit)
+	if isBossUnit(unit) then return defaults.boss or defaults.target or defaults.player or {} end
+	return defaults[unit] or defaults.player or {}
+end
 
 local function resetTargetAuras()
 	for k in pairs(targetAuras) do
@@ -311,9 +336,19 @@ local function ensureDB(unit)
 	addon.db = addon.db or {}
 	addon.db.ufFrames = addon.db.ufFrames or {}
 	local db = addon.db.ufFrames
-	db[unit] = db[unit] or {}
-	local udb = db[unit]
-	local def = defaults[unit] or defaults.player or {}
+	local key = unit
+	if isBossUnit(unit) then key = "boss" end
+	if key == "boss" and not db[key] then
+		for i = 1, maxBossFrames do
+			if db["boss" .. i] then
+				db[key] = db["boss" .. i]
+				break
+			end
+		end
+	end
+	db[key] = db[key] or {}
+	local udb = db[key]
+	local def = defaultsFor(unit)
 	for k, v in pairs(def) do
 		if udb[k] == nil then
 			if type(v) == "table" then
@@ -328,6 +363,48 @@ local function ensureDB(unit)
 		end
 	end
 	return udb
+end
+
+local function anchorBossContainer(cfg)
+	if not bossContainer then return end
+	if InCombatLockdown() then
+		bossLayoutDirty = true
+		return
+	end
+	cfg = cfg or ensureDB("boss")
+	local def = defaultsFor("boss")
+	local anchor = (cfg and cfg.anchor) or (def and def.anchor) or { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 0, y = 0 }
+	bossContainer:ClearAllPoints()
+	bossContainer:SetPoint(anchor.point or "CENTER", _G[anchor.relativeTo] or UIParent, anchor.relativePoint or anchor.point or "CENTER", anchor.x or 0, anchor.y or 0)
+end
+
+local function ensureBossContainer()
+	if bossContainer then return bossContainer end
+	bossContainer = CreateFrame("Frame", "EQOLUFBossContainer", UIParent, "BackdropTemplate")
+	bossContainer:SetSize(220, 200)
+	bossContainer:SetClampedToScreen(true)
+	bossContainer:SetMovable(true)
+	bossContainer:EnableMouse(true)
+	bossContainer:RegisterForDrag("LeftButton")
+	bossContainer:SetScript("OnDragStart", function(self)
+		if InCombatLockdown() then return end
+		if IsShiftKeyDown() then self:StartMoving() end
+	end)
+	bossContainer:SetScript("OnDragStop", function(self)
+		if InCombatLockdown() then return end
+		self:StopMovingOrSizing()
+		local point, rel, relPoint, x, y = self:GetPoint(1)
+		local cfg = ensureDB("boss")
+		cfg.anchor = cfg.anchor or {}
+		cfg.anchor.point = point
+		cfg.anchor.relativeTo = (rel and rel.GetName and rel:GetName()) or "UIParent"
+		cfg.anchor.relativePoint = relPoint
+		cfg.anchor.x = x
+		cfg.anchor.y = y
+	end)
+	bossContainer:Hide()
+	anchorBossContainer()
+	return bossContainer
 end
 
 local function cacheTargetAura(aura)
@@ -700,6 +777,8 @@ local function applyVisibilityDriver(unit, enabled)
 		cond = "[@focus,exists] show; hide"
 	elseif unit == PET_UNIT then
 		cond = "[@pet,exists] show; hide"
+	elseif isBossUnit(unit) then
+		cond = ("[@%s,exists] show; hide"):format(unit)
 	end
 	if cond == st._visibilityCond then return end
 	if not cond then
@@ -901,6 +980,24 @@ do
 	petDefaults.health.showSampleAbsorb = false
 	if petDefaults.status and petDefaults.status.combatIndicator then petDefaults.status.combatIndicator.enabled = false end
 	defaults.pet = petDefaults
+
+	local bossDefaults = CopyTable(defaults.target)
+	bossDefaults.enabled = false
+	bossDefaults.anchor = { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 400, y = 200 }
+	bossDefaults.width = 220
+	bossDefaults.healthHeight = 20
+	bossDefaults.powerHeight = 10
+	bossDefaults.statusHeight = 16
+	bossDefaults.barGap = 0
+	bossDefaults.spacing = 4
+	bossDefaults.growth = "DOWN"
+	bossDefaults.health.useClassColor = false
+	bossDefaults.health.useCustomColor = false
+	bossDefaults.health.useAbsorbGlow = false
+	bossDefaults.health.showSampleAbsorb = false
+	bossDefaults.health.absorbUseCustomColor = false
+	if bossDefaults.status then bossDefaults.status.nameColorMode = "CUSTOM" end
+	defaults.boss = bossDefaults
 end
 
 local function setBackdrop(frame, borderCfg)
@@ -1444,7 +1541,7 @@ local function updateStatus(cfg, unit)
 	local st = states[unit]
 	if not st or not st.status then return end
 	local scfg = cfg.status or {}
-	local def = defaults[unit] or defaults.player or {}
+	local def = defaultsFor(unit)
 	local defStatus = def.status or {}
 	local ciCfg = scfg.combatIndicator or defStatus.combatIndicator or {}
 	local showName = scfg.enabled ~= false
@@ -1490,7 +1587,7 @@ end
 local function layoutFrame(cfg, unit)
 	local st = states[unit]
 	if not st or not st.frame then return end
-	local def = defaults[unit] or defaults.player or {}
+	local def = defaultsFor(unit)
 	local scfg = cfg.status or {}
 	local defStatus = def.status or {}
 	local ciCfg = scfg.combatIndicator or defStatus.combatIndicator or {}
@@ -1530,9 +1627,15 @@ local function layoutFrame(cfg, unit)
 	st.power:ClearAllPoints()
 
 	local anchor = cfg.anchor or def.anchor or defaults.player.anchor
-	local rel = (anchor and _G[anchor.relativeTo]) or UIParent
-	st.frame:ClearAllPoints()
-	st.frame:SetPoint(anchor.point or "CENTER", rel or UIParent, anchor.relativePoint or anchor.point or "CENTER", anchor.x or 0, anchor.y or 0)
+	if isBossUnit(unit) then
+		local container = ensureBossContainer() or UIParent
+		if st.frame.SetParent then st.frame:SetParent(container) end
+		if st.frame:GetNumPoints() == 0 then st.frame:SetPoint("TOPLEFT", container, "TOPLEFT", 0, 0) end
+	else
+		local rel = (anchor and _G[anchor.relativeTo]) or UIParent
+		st.frame:ClearAllPoints()
+		st.frame:SetPoint(anchor.point or "CENTER", rel or UIParent, anchor.relativePoint or anchor.point or "CENTER", anchor.x or 0, anchor.y or 0)
+	end
 
 	local y = 0
 	if statusHeight > 0 then
@@ -1613,7 +1716,10 @@ local function ensureFrames(unit)
 	local st = states[unit]
 	addon.variables.states = states
 	if st.frame then return end
-	st.frame = _G[info.frameName] or CreateFrame("Button", info.frameName, UIParent, "BackdropTemplate,SecureUnitButtonTemplate")
+	local parent = UIParent
+	if isBossUnit(unit) then parent = ensureBossContainer() or UIParent end
+	st.frame = _G[info.frameName] or CreateFrame("Button", info.frameName, parent, "BackdropTemplate,SecureUnitButtonTemplate")
+	if st.frame.SetParent then st.frame:SetParent(parent) end
 	st.frame:SetAttribute("unit", info.unit)
 	st.frame:SetAttribute("type1", "target")
 	st.frame:SetAttribute("type2", "togglemenu")
@@ -1686,14 +1792,16 @@ local function ensureFrames(unit)
 	st.frame:SetMovable(true)
 	st.frame:EnableMouse(true)
 	st.frame:RegisterForDrag("LeftButton")
+	local dragFrame = isBossUnit(unit) and ensureBossContainer() or st.frame
 	st.frame:SetScript("OnDragStart", function(self)
 		if InCombatLockdown() then return end
-		if IsShiftKeyDown() then self:StartMoving() end
+		if isBossUnit(unit) and addon.EditModeLib and addon.EditModeLib:IsInEditMode() then return end
+		if IsShiftKeyDown() and dragFrame then dragFrame:StartMoving() end
 	end)
 	st.frame:SetScript("OnDragStop", function(self)
 		if InCombatLockdown() then return end
-		self:StopMovingOrSizing()
-		local point, rel, relPoint, x, y = self:GetPoint(1)
+		if dragFrame then dragFrame:StopMovingOrSizing() end
+		local point, rel, relPoint, x, y = (dragFrame or self):GetPoint(1)
 		local cfg = ensureDB(unit)
 		cfg.anchor = cfg.anchor or {}
 		cfg.anchor.point = point
@@ -1701,6 +1809,7 @@ local function ensureFrames(unit)
 		cfg.anchor.relativePoint = relPoint
 		cfg.anchor.x = x
 		cfg.anchor.y = y
+		if isBossUnit(unit) then anchorBossContainer(cfg) end
 	end)
 	hookTextFrameLevels(st)
 end
@@ -1870,6 +1979,202 @@ local function applyConfig(unit)
 	if unit == TARGET_UNIT and states[unit] and states[unit].auraContainer then updateTargetAuraIcons(1) end
 end
 
+local function layoutBossFrames(cfg)
+	if not bossContainer then return end
+	if InCombatLockdown() then
+		bossLayoutDirty = true
+		return
+	end
+	bossLayoutDirty = false
+	cfg = cfg or ensureDB("boss")
+	anchorBossContainer(cfg)
+	local def = defaultsFor("boss")
+	local spacing = cfg.spacing
+	if spacing == nil and def then spacing = def.spacing end
+	if spacing == nil then spacing = 4 end
+	local growth = (cfg.growth or (def and def.growth) or "DOWN"):upper()
+	local last
+	local shown = 0
+	local maxWidth = 0
+	local frameHeight = 0
+	for i = 1, maxBossFrames do
+		local unit = "boss" .. i
+		local st = states[unit]
+		if st and st.frame then
+			st.frame:ClearAllPoints()
+			if not last then
+				st.frame:SetPoint("TOPLEFT", bossContainer, "TOPLEFT", 0, 0)
+			else
+				if growth == "UP" then
+					st.frame:SetPoint("BOTTOMLEFT", last.frame, "TOPLEFT", 0, spacing)
+				else
+					st.frame:SetPoint("TOPLEFT", last.frame, "BOTTOMLEFT", 0, -spacing)
+				end
+			end
+			last = st
+			shown = shown + 1
+			maxWidth = math.max(maxWidth, st.frame:GetWidth() or 0)
+			frameHeight = st.frame:GetHeight() or frameHeight
+		end
+	end
+	if shown > 0 then
+		local totalHeight = frameHeight * shown + spacing * (shown - 1)
+		bossContainer:SetHeight(totalHeight)
+		bossContainer:SetWidth(maxWidth)
+	else
+		local defWidth = (cfg and cfg.width) or (def and def.width) or MIN_WIDTH
+		bossContainer:SetWidth(defWidth)
+		bossContainer:SetHeight(0.001)
+	end
+end
+
+local function hideBossFrames(forceHide)
+	for i = 1, maxBossFrames do
+		local st = states["boss" .. i]
+		if st and st.frame then applyVisibilityDriver("boss" .. i, false) end
+	end
+	bossLayoutDirty = false
+	if addon.EditModeLib and addon.EditModeLib:IsInEditMode() and ensureDB("boss").enabled and not forceHide then
+		-- Keep container visible in edit mode for positioning
+		if bossContainer then
+			bossContainer:SetHeight(0.001)
+			bossContainer:Show()
+		end
+		return
+	end
+	if InCombatLockdown() then
+		bossHidePending = true
+		bossShowPending = nil
+		return
+	end
+	bossHidePending = nil
+	bossShowPending = nil
+	if bossContainer then
+		if forceHide or not ensureDB("boss").enabled then
+			bossContainer:Hide()
+		else
+			bossContainer:SetHeight(0.001)
+			bossContainer:Show()
+		end
+	end
+end
+
+local function applyBossEditSample(idx, cfg)
+	cfg = cfg or ensureDB("boss")
+	local unit = "boss" .. idx
+	local st = states[unit]
+	if not st or not st.frame then return end
+	local def = defaultsFor("boss")
+	local hc = cfg.health or def.health or {}
+	local pcfg = cfg.power or def.power or {}
+
+	local cur = UnitHealth("player") or 1
+	local maxv = UnitHealthMax("player") or cur or 1
+	st.health:SetMinMaxValues(0, maxv)
+	st.health:SetValue(cur)
+	local color = hc.color or (def.health and def.health.color) or { 0, 0.8, 0, 1 }
+	st.health:SetStatusBarColor(color[1] or 0, color[2] or 0.8, color[3] or 0, color[4] or 1)
+	if st.healthTextLeft then st.healthTextLeft:SetText(formatText(hc.textLeft or "PERCENT", cur, maxv, hc.useShortNumbers ~= false)) end
+	if st.healthTextRight then st.healthTextRight:SetText(formatText(hc.textRight or "CURMAX", cur, maxv, hc.useShortNumbers ~= false)) end
+
+	local powerEnabled = pcfg.enabled ~= false
+	if st.power then
+		if powerEnabled then
+			local enumId, token = getMainPower("player")
+			local pCur = UnitPower("player", enumId or 0) or 0
+			local pMax = UnitPowerMax("player", enumId or 0) or 0
+			st.power:SetMinMaxValues(0, pMax > 0 and pMax or 1)
+			st.power:SetValue(pCur)
+			local pr, pg, pb, pa
+			if pcfg.useCustomColor and pcfg.color then
+				pr, pg, pb, pa = pcfg.color[1], pcfg.color[2], pcfg.color[3], pcfg.color[4] or 1
+			else
+				pr, pg, pb, pa = getPowerColor(token)
+			end
+			st.power:SetStatusBarColor(pr or 0.1, pg or 0.45, pb or 1, pa or 1)
+			if st.powerTextLeft then st.powerTextLeft:SetText(formatText(pcfg.textLeft or "PERCENT", pCur, pMax, pcfg.useShortNumbers ~= false)) end
+			if st.powerTextRight then st.powerTextRight:SetText(formatText(pcfg.textRight or "CURMAX", pCur, pMax, pcfg.useShortNumbers ~= false)) end
+			st.power:Show()
+		else
+			st.power:SetValue(0)
+			if st.powerTextLeft then st.powerTextLeft:SetText("") end
+			if st.powerTextRight then st.powerTextRight:SetText("") end
+			st.power:Hide()
+		end
+	end
+	if st.nameText then st.nameText:SetText((L["UFBossFrame"] or "Boss Frame") .. " " .. idx) end
+	if st.levelText then
+		st.levelText:SetText("??")
+		st.levelText:Show()
+	end
+end
+
+local function updateBossFrames(force)
+	local cfg = ensureDB("boss")
+	if not cfg.enabled then
+		hideBossFrames()
+		return
+	end
+	if not bossContainer then ensureBossContainer() end
+	DisableBossFrames()
+	local any
+	local inEdit = addon.EditModeLib and addon.EditModeLib:IsInEditMode()
+	for i = 1, maxBossFrames do
+		local unit = "boss" .. i
+		if not InCombatLockdown() and (force or not states[unit] or not states[unit].frame or inEdit) then applyConfig(unit) end
+		local st = states[unit]
+		if st then st.cfg = cfg end
+		if st and st.frame then
+			if not InCombatLockdown() then
+				if inEdit then
+					if UnregisterStateDriver then UnregisterStateDriver(st.frame, "visibility") end
+					st.frame:SetAttribute("state-visibility", nil)
+					if st.frame.SetAttribute then st.frame:SetAttribute("unit", "player") end
+					st.frame:Show()
+				else
+					if st.frame.SetAttribute then st.frame:SetAttribute("unit", unit) end
+					applyVisibilityDriver(unit, cfg.enabled)
+				end
+			elseif not inEdit then
+				bossInitPending = true
+			end
+			if UnitExists(unit) or inEdit then
+				any = true
+				if st.barGroup then st.barGroup:Show() end
+				if st.status then st.status:Show() end
+				if inEdit then
+					applyBossEditSample(i, cfg)
+				else
+					updateNameAndLevel(cfg, unit)
+					updateHealth(cfg, unit)
+					updatePower(cfg, unit)
+				end
+			end
+		end
+	end
+	anchorBossContainer(cfg)
+	if not any and not inEdit then
+		if not InCombatLockdown() then
+			if bossContainer then bossContainer:Hide() end
+			bossHidePending = nil
+			bossShowPending = nil
+		else
+			bossHidePending = true
+			bossShowPending = nil
+		end
+		return
+	end
+	layoutBossFrames(cfg)
+	if not InCombatLockdown() then
+		if bossContainer then bossContainer:Show() end
+		bossShowPending = nil
+		bossHidePending = nil
+	else
+		bossShowPending = true
+		bossHidePending = nil
+	end
+end
+
 local unitEvents = {
 	"UNIT_HEALTH",
 	"UNIT_MAXHEALTH",
@@ -1904,6 +2209,9 @@ local generalEvents = {
 	"PLAYER_REGEN_ENABLED",
 	"UNIT_PET",
 	"PLAYER_FOCUS_CHANGED",
+	"INSTANCE_ENCOUNTER_ENGAGE_UNIT",
+	"ENCOUNTER_START",
+	"ENCOUNTER_END",
 }
 
 local eventFrame
@@ -1914,17 +2222,39 @@ local function anyUFEnabled()
 	local tt = ensureDB(TARGET_TARGET_UNIT).enabled
 	local pet = ensureDB(PET_UNIT).enabled
 	local focus = ensureDB(FOCUS_UNIT).enabled
-	return p or t or tt or pet or focus
+	local boss = ensureDB("boss").enabled
+	return p or t or tt or pet or focus or boss
+end
+
+local function ensureBossFramesReady(cfg)
+	cfg = cfg or ensureDB("boss")
+	if not cfg.enabled then return end
+	if InCombatLockdown() then
+		bossInitPending = true
+		return
+	end
+	for i = 1, maxBossFrames do
+		local unit = "boss" .. i
+		applyConfig(unit)
+		if addon.EditModeLib and addon.EditModeLib:IsInEditMode() then
+			local st = states[unit]
+			if st and st.frame then
+				if UnregisterStateDriver then UnregisterStateDriver(st.frame, "visibility") end
+				st.frame:SetAttribute("state-visibility", nil)
+				st.frame:Show()
+			end
+		else
+			applyVisibilityDriver(unit, cfg.enabled)
+		end
+	end
+	if bossContainer then bossContainer:Show() end
+	bossInitPending = nil
 end
 
 local function isBossFrameSettingEnabled()
-	if not addon.db or not addon.db.ufFrames then return false end
-	if not MAX_BOSS_FRAMES then return false end
-	for i = 1, MAX_BOSS_FRAMES do
-		local cfg = addon.db.ufFrames["boss" .. i]
-		if cfg and cfg.enabled then return true end
-	end
-	return false
+	if not maxBossFrames or maxBossFrames <= 0 then return false end
+	local cfg = ensureDB("boss")
+	return cfg and cfg.enabled == true
 end
 
 local allowedEventUnit = {
@@ -1934,6 +2264,9 @@ local allowedEventUnit = {
 	["focus"] = true,
 	["pet"] = true,
 }
+for i = 1, maxBossFrames do
+	allowedEventUnit["boss" .. i] = true
+end
 
 local function stopToTTicker()
 	if totTicker and totTicker.Cancel then totTicker:Cancel() end
@@ -2052,12 +2385,13 @@ local function updateFocusFrame(cfg, forceApply)
 end
 
 local function onEvent(self, event, unit, arg1)
-	if unitEventsMap[event] and unit and not allowedEventUnit[unit] then return end
+	if unitEventsMap[event] and unit and not (allowedEventUnit[unit] or isBossUnit(unit)) then return end
 	local playerCfg = (states[PLAYER_UNIT] and states[PLAYER_UNIT].cfg) or ensureDB("player")
 	local targetCfg = (states[TARGET_UNIT] and states[TARGET_UNIT].cfg) or ensureDB("target")
 	local totCfg = (states[TARGET_TARGET_UNIT] and states[TARGET_TARGET_UNIT].cfg) or ensureDB(TARGET_TARGET_UNIT)
 	local petCfg = (states[PET_UNIT] and states[PET_UNIT].cfg) or ensureDB(PET_UNIT)
 	local focusCfg = (states[FOCUS_UNIT] and states[FOCUS_UNIT].cfg) or ensureDB(FOCUS_UNIT)
+	local bossCfg = ensureDB("boss")
 	if event == "PLAYER_ENTERING_WORLD" then
 		refreshMainPower(PLAYER_UNIT)
 		applyConfig("player")
@@ -2066,6 +2400,11 @@ local function onEvent(self, event, unit, arg1)
 		if focusCfg.enabled then updateFocusFrame(focusCfg, true) end
 		if petCfg.enabled then applyConfig(PET_UNIT) end
 		updateCombatIndicator(playerCfg)
+		if bossCfg.enabled then
+			updateBossFrames(true)
+		else
+			hideBossFrames()
+		end
 	elseif event == "PLAYER_DEAD" then
 		if states.player and states.player.health then states.player.health:SetValue(0) end
 		updateHealth(playerCfg, "player")
@@ -2076,6 +2415,12 @@ local function onEvent(self, event, unit, arg1)
 		updateCombatIndicator(playerCfg)
 	elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
 		updateCombatIndicator(playerCfg)
+		if event == "PLAYER_REGEN_ENABLED" then
+			if bossLayoutDirty then layoutBossFrames() end
+			if bossHidePending then hideBossFrames(true) end
+			if bossShowPending or bossInitPending then updateBossFrames(true) end
+			bossLayoutDirty, bossHidePending, bossShowPending, bossInitPending = nil, nil, nil, nil
+		end
 	elseif event == "PLAYER_TARGET_CHANGED" then
 		local unitToken = TARGET_UNIT
 		local st = states[unitToken]
@@ -2186,11 +2531,13 @@ local function onEvent(self, event, unit, arg1)
 		if unit == PLAYER_UNIT then updateHealth(playerCfg, "player") end
 		if unit == "target" then updateHealth(targetCfg, "target") end
 		if unit == PET_UNIT then updateHealth(petCfg, PET_UNIT) end
+		if bossCfg.enabled and isBossUnit(unit) then updateHealth(bossCfg, unit) end
 	elseif event == "UNIT_MAXPOWER" then
 		if unit == PLAYER_UNIT then updatePower(playerCfg, "player") end
 		if unit == "target" then updatePower(targetCfg, "target") end
 		if unit == PET_UNIT then updatePower(petCfg, PET_UNIT) end
 		if unit == FOCUS_UNIT then updatePower(focusCfg, FOCUS_UNIT) end
+		if bossCfg.enabled and isBossUnit(unit) then updatePower(bossCfg, unit) end
 	elseif event == "UNIT_DISPLAYPOWER" then
 		if unit == PLAYER_UNIT then
 			refreshMainPower(unit)
@@ -2233,22 +2580,35 @@ local function onEvent(self, event, unit, arg1)
 				st.power:Hide()
 			end
 			updatePower(petCfg, PET_UNIT)
+		elseif bossCfg.enabled and isBossUnit(unit) then
+			local st = states[unit]
+			local pcfg = bossCfg.power or {}
+			if st and st.power and pcfg.enabled ~= false then
+				local _, powerToken = getMainPower(unit)
+				configureSpecialTexture(st.power, powerToken, (bossCfg.power or {}).texture, bossCfg.power)
+			elseif st and st.power then
+				st.power:Hide()
+			end
+			updatePower(bossCfg, unit)
 		end
 	elseif event == "UNIT_POWER_UPDATE" and not FREQUENT[arg1] then
 		if unit == PLAYER_UNIT then updatePower(playerCfg, "player") end
 		if unit == "target" then updatePower(targetCfg, "target") end
 		if unit == PET_UNIT then updatePower(petCfg, PET_UNIT) end
 		if unit == FOCUS_UNIT then updatePower(focusCfg, FOCUS_UNIT) end
+		if bossCfg.enabled and isBossUnit(unit) then updatePower(bossCfg, unit) end
 	elseif event == "UNIT_POWER_FREQUENT" and FREQUENT[arg1] then
 		if unit == PLAYER_UNIT then updatePower(playerCfg, "player") end
 		if unit == "target" then updatePower(targetCfg, "target") end
 		if unit == PET_UNIT then updatePower(petCfg, PET_UNIT) end
 		if unit == FOCUS_UNIT then updatePower(focusCfg, FOCUS_UNIT) end
+		if bossCfg.enabled and isBossUnit(unit) then updatePower(bossCfg, unit) end
 	elseif event == "UNIT_NAME_UPDATE" or event == "PLAYER_LEVEL_UP" then
 		if unit == PLAYER_UNIT or event == "PLAYER_LEVEL_UP" then updateNameAndLevel(playerCfg, "player") end
 		if unit == "target" then updateNameAndLevel(targetCfg, "target") end
 		if unit == FOCUS_UNIT then updateNameAndLevel(focusCfg, FOCUS_UNIT) end
 		if unit == PET_UNIT then updateNameAndLevel(petCfg, PET_UNIT) end
+		if bossCfg.enabled and isBossUnit(unit) then updateNameAndLevel(bossCfg, unit) end
 	elseif event == "UNIT_TARGET" and unit == TARGET_UNIT then
 		if totCfg.enabled then updateTargetTargetFrame(totCfg) end
 	elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
@@ -2263,6 +2623,12 @@ local function onEvent(self, event, unit, arg1)
 			stopCast(FOCUS_UNIT)
 			if shouldShowSampleCast(unit) then setSampleCast(unit) end
 		end
+	elseif event == "INSTANCE_ENCOUNTER_ENGAGE_UNIT" then
+		updateBossFrames(true)
+	elseif event == "ENCOUNTER_START" then
+		updateBossFrames(true)
+	elseif event == "ENCOUNTER_END" then
+		hideBossFrames()
 	elseif event == "UNIT_PET" and unit == "player" then
 		if petCfg.enabled then
 			applyConfig(PET_UNIT)
@@ -2277,6 +2643,7 @@ end
 
 local function ensureEventHandling()
 	if not anyUFEnabled() then
+		hideBossFrames()
 		if eventFrame and eventFrame.UnregisterAllEvents then eventFrame:UnregisterAllEvents() end
 		if eventFrame then eventFrame:SetScript("OnEvent", nil) end
 		eventFrame = nil
@@ -2291,10 +2658,20 @@ local function ensureEventHandling()
 		eventFrame:RegisterEvent(evt)
 	end
 	eventFrame:SetScript("OnEvent", onEvent)
-	if not editModeHooked and EditModeManagerFrame then
+	if not editModeHooked then
 		editModeHooked = true
-		EditModeManagerFrame:HookScript("OnShow", function() updateCombatIndicator(states[PLAYER_UNIT] and states[PLAYER_UNIT].cfg or ensureDB(PLAYER_UNIT)) end)
-		EditModeManagerFrame:HookScript("OnHide", function() updateCombatIndicator(states[PLAYER_UNIT] and states[PLAYER_UNIT].cfg or ensureDB(PLAYER_UNIT)) end)
+
+		addon.EditModeLib:RegisterCallback("enter", function()
+			updateCombatIndicator(states[PLAYER_UNIT] and states[PLAYER_UNIT].cfg or ensureDB(PLAYER_UNIT))
+			ensureBossFramesReady(ensureDB("boss"))
+			updateBossFrames(true)
+		end)
+
+		addon.EditModeLib:RegisterCallback("exit", function()
+			updateCombatIndicator(states[PLAYER_UNIT] and states[PLAYER_UNIT].cfg or ensureDB(PLAYER_UNIT))
+			hideBossFrames(true)
+			if ensureDB("boss").enabled then updateBossFrames(true) end
+		end)
 	end
 end
 
@@ -2308,6 +2685,11 @@ function UF.Enable()
 	if totCfg.enabled then updateTargetTargetFrame(totCfg, true) end
 	if ensureDB(FOCUS_UNIT).enabled then updateFocusFrame(ensureDB(FOCUS_UNIT), true) end
 	if ensureDB(PET_UNIT).enabled then applyConfig(PET_UNIT) end
+	local bossCfg = ensureDB("boss")
+	if bossCfg.enabled then
+		ensureBossFramesReady(bossCfg)
+		updateBossFrames(true)
+	end
 	-- hideBlizzardPlayerFrame()
 	-- hideBlizzardTargetFrame()
 end
@@ -2324,9 +2706,13 @@ function UF.Disable()
 end
 
 function UF.Refresh()
-	if isBossFrameSettingEnabled() then DisableBossFrames() end
+	local bossCfg = ensureDB("boss")
+	if bossCfg.enabled then DisableBossFrames() end
 	ensureEventHandling()
-	if not anyUFEnabled() then return end
+	if not anyUFEnabled() then
+		hideBossFrames()
+		return
+	end
 	applyConfig("player")
 	applyConfig("target")
 	if ensureDB(FOCUS_UNIT).enabled then updateFocusFrame(ensureDB(FOCUS_UNIT), true) end
@@ -2338,6 +2724,12 @@ function UF.Refresh()
 	local totCfg = ensureDB(TARGET_TARGET_UNIT)
 	updateTargetTargetFrame(totCfg, true)
 	if ensureDB(PET_UNIT).enabled then applyConfig(PET_UNIT) end
+	if bossCfg.enabled then
+		ensureBossFramesReady(bossCfg)
+		updateBossFrames(true)
+	else
+		hideBossFrames()
+	end
 end
 
 function UF.RefreshUnit(unit)
@@ -2358,6 +2750,8 @@ function UF.RefreshUnit(unit)
 		updateFocusFrame(ensureDB(FOCUS_UNIT), true)
 	elseif unit == PET_UNIT then
 		applyConfig(PET_UNIT)
+	elseif isBossUnit(unit) then
+		updateBossFrames(true)
 	else
 		applyConfig(PLAYER_UNIT)
 	end
@@ -2390,15 +2784,22 @@ if not addon.Aura.UFInitialized then
 		ensureEventHandling()
 		updateFocusFrame(fcfg, true)
 	end
+	local bcfg = ensureDB("boss")
+	if bcfg.enabled then
+		ensureEventHandling()
+		ensureBossFramesReady(bcfg)
+		updateBossFrames(true)
+	end
 end
 if isBossFrameSettingEnabled() then DisableBossFrames() end
 
 UF.targetAuras = targetAuras
 UF.defaults = defaults
-UF.GetDefaults = function(unit) return defaults[unit] or defaults.player end
+UF.GetDefaults = function(unit) return defaultsFor(unit) end
 UF.EnsureDB = ensureDB
 UF.GetConfig = ensureDB
 UF.EnsureFrames = ensureFrames
 UF.StopEventsIfInactive = function() ensureEventHandling() end
+UF.UpdateBossFrames = updateBossFrames
+UF.HideBossFrames = hideBossFrames
 UF.FullScanTargetAuras = fullScanTargetAuras
-return UF
