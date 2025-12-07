@@ -1006,6 +1006,7 @@ globals = {
 	"C_Heirloom.PlayerHasHeirloom",
 	"C_Heirloom.SetClassAndSpecFilters",
 	"C_Heirloom.SetCollectedHeirloomFilter",
+	"EnumPowerType",
 	"C_Heirloom.SetHeirloomSourceFilter",
 	"C_Heirloom.SetSearch",
 	"C_Heirloom.SetUncollectedHeirloomFilter",
