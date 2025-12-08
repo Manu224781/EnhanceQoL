@@ -2977,9 +2977,10 @@ function ResourceBars.ApplyVisibilityPreference(context)
 		local cfg = resolveBarConfigForFrame(pType, frame)
 		local enabled = cfg and cfg.enabled == true
 		if enabled then
-			if editModeActive and addon.variables.unitClass == "DRUID" then
+			if editModeActive then
 				applyVisibilityDriverToFrame(frame, "show")
 				frame._rbDruidFormDriver = nil
+				driverActiveNow = true
 			else
 				local expr, hasDruidRule = buildVisibilityDriverForBar(cfg)
 				if expr then driverActiveNow = true end

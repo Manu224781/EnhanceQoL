@@ -1618,6 +1618,8 @@ if addon.functions and addon.functions.SettingsCreateCategory then
 				end
 				if UF.StopEventsIfInactive then UF.StopEventsIfInactive() end
 				refreshEditModeFrame(unit)
+				addon.variables.requireReload = true
+				if addon.functions and addon.functions.checkReloadFrame then addon.functions.checkReloadFrame() end
 			end,
 		})
 		return def.enabled or false
@@ -1648,6 +1650,8 @@ if addon.functions and addon.functions.SettingsCreateCategory then
 			if UF.Refresh then UF.Refresh() end
 			if UF.StopEventsIfInactive then UF.StopEventsIfInactive() end
 			refreshEditModeFrame("boss")
+			addon.variables.requireReload = true
+			if addon.functions and addon.functions.checkReloadFrame then addon.functions.checkReloadFrame() end
 		end,
 	})
 end
