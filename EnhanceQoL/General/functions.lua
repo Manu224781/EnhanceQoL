@@ -1124,13 +1124,17 @@ local function handleWayCommand(msg)
 	if #args >= 2 then
 		local first = args[1]
 		if first:sub(1, 1) == "#" then first = first:sub(2) end
-		if tonumber(first) and args[3] then
-			mapID = tonumber(first)
-			x = tonumber(args[2])
-			y = tonumber(args[3])
+		local firstNumber = tonumber(first)
+		local secondNumber = tonumber(args[2])
+		local thirdNumber = tonumber(args[3])
+
+		if firstNumber and secondNumber and thirdNumber then
+			mapID = firstNumber
+			x = secondNumber
+			y = thirdNumber
 		else
-			x = tonumber(args[1])
-			y = tonumber(args[2])
+			x = firstNumber
+			y = secondNumber
 			mapID = C_Map.GetBestMapForUnit("player")
 		end
 	end

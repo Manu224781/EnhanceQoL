@@ -1,5 +1,11 @@
 # Changelog
 
+## [6.2.1] – 2025-12-13
+
+### 🐛 Fixed
+
+- `/way` parser now accepts two coordinate values followed by descriptive text (e.g., `/way 26.90 28.89 Melody 2nd`) without treating the note as extra arguments.
+
 ## [6.2.0] – 2025-12-11
 
 ### Important note
