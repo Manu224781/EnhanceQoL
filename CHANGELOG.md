@@ -2,12 +2,15 @@
 
 ## [6.3.0] – 2025-12-14
 
+### ✨ Added
+
+- World Map: Optional player/cursor coordinates near the title (updates only while the map is open).
+- Unit Frames (Target auras): stack text is now configurable (position, X/Y offsets, font size, and outline).
+- Character frame and bag item level dropdowns now offer explicit TOP/CENTER/BOTTOM and LEFT/RIGHT anchors.
+
 ### 🔄 Changed
 
-- Character frame and bag item level dropdowns now offer explicit TOP/CENTER/BOTTOM and LEFT/RIGHT anchors.
-- Unit Frames (Target auras): stack text is now configurable (position, X/Y offsets, font size, and outline).
 - TOC Update for midnight 12.0.1
-- World Map: Optional player/cursor coordinates near the title (updates only while the map is open).
 
 ### 🐛 Fixed
 
