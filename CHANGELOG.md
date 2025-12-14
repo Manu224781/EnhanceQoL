@@ -7,6 +7,7 @@
 - Character frame and bag item level dropdowns now offer explicit TOP/CENTER/BOTTOM and LEFT/RIGHT anchors (including top/bottom center) so you can place the text in the middle as well as the corners.
 - Tooltip: Item ID display now respects its toggle (no ID when disabled), and item icon size defaults are aligned to 16.
 - Unit Frames (Target auras): stack text is now configurable (position, X/Y offsets, font size, and outline).
+- TOC Update for midnight 12.0.1
 
 ### 🐛 Fixed
 
