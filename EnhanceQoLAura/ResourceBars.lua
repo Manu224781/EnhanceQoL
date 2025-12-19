@@ -72,10 +72,13 @@ local ResourcebarVars = {
 	MAELSTROM_WEAPON_MAX_STACKS = 10,
 	MAELSTROM_WEAPON_SEGMENTS = 5,
 	MAELSTROM_WEAPON_SPELL_ID = 344179,
+	VOID_METAMORPHOSIS_SPELL_ID = 1225789,
 	DEFAULT_MAELSTROM_WEAPON_FIVE_COLOR = { 0.10, 0.85, 0.55, 1 },
 	CUSTOM_POWER_COLORS = {
 		MAELSTROM_WEAPON = { 0.15, 0.45, 1.00 },
 	},
+	POWER_LABELS = {},
+	AURA_POWER_CONFIG = {},
 }
 local RB = ResourcebarVars
 
@@ -87,8 +90,9 @@ local scheduleRelativeFrameWidthSync
 local ensureSpecCfg
 local classPowerTypes
 local powertypeClasses
-local mwAuraInstances = {}
-local hasMWAura = false
+local auraPowerState = {}
+local auraInstanceToType = {}
+local auraSpellToType = {}
 local COSMETIC_BAR_KEYS = {
 	"barTexture",
 	"width",
@@ -176,44 +180,152 @@ local function getPowerPercent(unit, powerEnum, curPower, maxPower)
 	return 0
 end
 
-local maelstromWeaponName = (C_Spell.GetSpellName(RB.MAELSTROM_WEAPON_SPELL_ID)) or "Maelstrom Weapon"
 ResourceBars.PowerLabels = {
-	["MAELSTROM_WEAPON"] = maelstromWeaponName,
+	MAELSTROM_WEAPON = (C_Spell.GetSpellName(RB.MAELSTROM_WEAPON_SPELL_ID)) or "Maelstrom Weapon",
+	VOID_METAMORPHOSIS = (C_Spell.GetSpellName(RB.VOID_METAMORPHOSIS_SPELL_ID)) or "Void Metamorphosis",
 }
-local function isMaelstromWeaponAura(spellId)
-	if issecretvalue and issecretvalue(spellId) then return false end
-	return spellId == RB.MAELSTROM_WEAPON_SPELL_ID
-end
-local function getMaelstromWeaponStacks()
-	local aura
-	if hasMWAura then
-		aura = C_UnitAuras.GetAuraDataByAuraInstanceID("player", hasMWAura)
-		if aura then
-			return aura.applications
-		else
-			mwAuraInstances[hasMWAura] = nil
-			hasMWAura = false
-		end
-	end
-	if addon.variables.isMidnight then
-		for i, v in pairs(C_UnitAuras.GetUnitAuras("player", "HELPFUL")) do
-			if hasMWAura == false and not issecretvalue(v.spellId) and v.spellId == RB.MAELSTROM_WEAPON_SPELL_ID then
-				hasMWAura = v.auraInstanceID
-				mwAuraInstances[v.auraInstanceID] = true
-				aura = v
-				break
+
+RB.AURA_POWER_CONFIG = {
+	MAELSTROM_WEAPON = {
+		spellIds = { RB.MAELSTROM_WEAPON_SPELL_ID },
+		maxStacks = RB.MAELSTROM_WEAPON_MAX_STACKS,
+		visualSegments = RB.MAELSTROM_WEAPON_SEGMENTS,
+		midColor = RB.DEFAULT_MAELSTROM_WEAPON_FIVE_COLOR,
+		useMidColorKey = "useMaelstromFiveColor",
+		midColorKey = "maelstromFiveColor",
+		useMaxColorDefault = true,
+		defaultShowSeparator = true,
+	},
+	VOID_METAMORPHOSIS = {
+		spellIds = { RB.VOID_METAMORPHOSIS_SPELL_ID },
+		maxStacks = 50,
+		visualSegments = 0,
+		defaultColor = { 0.67, 0.37, 0.97, 1 }, -- #AC5FF8
+		useMaxColorDefault = true,
+		defaultShowSeparator = false,
+	},
+}
+
+local function registerAuraSpellLookup()
+	for pType, cfg in pairs(RB.AURA_POWER_CONFIG or {}) do
+		if cfg.spellIds then
+			for _, sid in ipairs(cfg.spellIds) do
+				if sid then auraSpellToType[sid] = pType end
 			end
 		end
-	else
-		aura = C_UnitAuras.GetPlayerAuraBySpellID(RB.MAELSTROM_WEAPON_SPELL_ID)
 	end
-	if aura then
-		hasMWAura = aura.auraInstanceID
-		mwAuraInstances[aura.auraInstanceID] = true
-		return aura.applications
-	else
-		return 0
+end
+
+local function isAuraPowerType(pType) return RB.AURA_POWER_CONFIG and RB.AURA_POWER_CONFIG[pType] ~= nil end
+
+local function isAuraPowerSpell(spellId)
+	if not spellId then return nil end
+	if issecretvalue and issecretvalue(spellId) then return nil end
+	return auraSpellToType[spellId]
+end
+
+registerAuraSpellLookup()
+
+local function ensureAuraPowerState(pType)
+	if not auraPowerState[pType] then auraPowerState[pType] = { instances = {}, currentInstance = nil } end
+	return auraPowerState[pType]
+end
+
+local function assignAuraInstance(pType, auraInstanceID, spellId)
+	local state = ensureAuraPowerState(pType)
+	if auraInstanceID then
+		state.instances[auraInstanceID] = true
+		state.currentInstance = auraInstanceID
+		state.lastSpellId = spellId or state.lastSpellId
+		auraInstanceToType[auraInstanceID] = pType
 	end
+end
+
+local function clearAuraInstance(pType, auraInstanceID)
+	local state = ensureAuraPowerState(pType)
+	if auraInstanceID then
+		state.instances[auraInstanceID] = nil
+		if state.currentInstance == auraInstanceID then state.currentInstance = nil end
+	end
+	if auraInstanceID then auraInstanceToType[auraInstanceID] = nil end
+end
+
+local function resetAuraTracking()
+	for k in pairs(auraPowerState) do
+		auraPowerState[k] = nil
+	end
+	for k in pairs(auraInstanceToType) do
+		auraInstanceToType[k] = nil
+	end
+end
+
+local function handleAuraEventInfo(eventInfo)
+	if not eventInfo then return nil end
+	local changed = {}
+	for _, aura in ipairs(eventInfo.addedAuras or {}) do
+		local pType = aura and aura.spellId and isAuraPowerSpell(aura.spellId)
+		if pType and aura.auraInstanceID then
+			assignAuraInstance(pType, aura.auraInstanceID, aura.spellId)
+			changed[pType] = true
+		end
+	end
+	for _, inst in ipairs(eventInfo.updatedAuraInstanceIDs or {}) do
+		local pType = auraInstanceToType[inst]
+		if not pType and C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID then
+			local data = C_UnitAuras.GetAuraDataByAuraInstanceID("player", inst)
+			if data and data.spellId then pType = isAuraPowerSpell(data.spellId) end
+			if pType and data then assignAuraInstance(pType, inst, data.spellId) end
+		end
+		if pType then changed[pType] = true end
+	end
+	for _, inst in ipairs(eventInfo.removedAuraInstanceIDs or {}) do
+		local pType = auraInstanceToType[inst]
+		if pType then
+			clearAuraInstance(pType, inst)
+			changed[pType] = true
+		end
+	end
+	return changed
+end
+local function getAuraPowerCounts(pType)
+	local cfg = RB.AURA_POWER_CONFIG[pType]
+	if not cfg then return 0, 0, 0 end
+	local state = ensureAuraPowerState(pType)
+	local auraData
+	if state.currentInstance and C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID then
+		auraData = C_UnitAuras.GetAuraDataByAuraInstanceID("player", state.currentInstance)
+		if not auraData then clearAuraInstance(pType, state.currentInstance) end
+	end
+	if not auraData then
+		if addon.variables.isMidnight and C_UnitAuras and C_UnitAuras.GetUnitAuras then
+			for _, v in pairs(C_UnitAuras.GetUnitAuras("player", "HELPFUL")) do
+				if not (issecretvalue and issecretvalue(v.spellId)) and isAuraPowerSpell(v.spellId) == pType then
+					assignAuraInstance(pType, v.auraInstanceID, v.spellId)
+					auraData = v
+					break
+				end
+			end
+		elseif C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID then
+			for _, sid in ipairs(cfg.spellIds or {}) do
+				local aura = C_UnitAuras.GetPlayerAuraBySpellID(sid)
+				if aura and not (issecretvalue and issecretvalue(aura.spellId)) then
+					assignAuraInstance(pType, aura.auraInstanceID, aura.spellId)
+					auraData = aura
+					break
+				end
+			end
+		end
+	end
+	if not auraData then return 0, cfg.maxStacks or 0, cfg.visualSegments or (cfg.maxStacks or 0) end
+	state.currentInstance = auraData.auraInstanceID or state.currentInstance
+	if state.currentInstance then
+		auraInstanceToType[state.currentInstance] = pType
+		state.instances[state.currentInstance] = true
+	end
+	local stacks = auraData.applications or auraData.charges or 0
+	local logicalMax = auraData.maxCharges or auraData.pointsMax or cfg.maxStacks or stacks
+	local visualSegments = cfg.visualSegments or logicalMax or stacks
+	return stacks or 0, logicalMax or 0, visualSegments or logicalMax
 end
 
 local function getPlayerClassColor()
@@ -391,6 +503,24 @@ local function ensureMaelstromWeaponDefaults(cfg)
 	if cfg.showSeparator == nil then cfg.showSeparator = true end
 	if not cfg.separatorThickness then cfg.separatorThickness = RB.SEPARATOR_THICKNESS end
 	if not cfg.separatorColor then cfg.separatorColor = CopyTable(RB.SEP_DEFAULT) end
+end
+
+local function ensureAuraPowerDefaults(pType, cfg)
+	if not cfg then return end
+	local def = RB.AURA_POWER_CONFIG[pType]
+	if cfg.showSeparator == nil then
+		if def and def.defaultShowSeparator ~= nil then
+			cfg.showSeparator = def.defaultShowSeparator and true or false
+		else
+			cfg.showSeparator = true
+		end
+	end
+	if not cfg.separatorThickness then cfg.separatorThickness = RB.SEPARATOR_THICKNESS end
+	if not cfg.separatorColor then cfg.separatorColor = CopyTable(RB.SEP_DEFAULT) end
+	if def and not cfg.visualSegments then cfg.visualSegments = def.visualSegments end
+	if def and def.useMaxColorDefault and cfg.useMaxColor == nil then cfg.useMaxColor = true end
+	if cfg.useMaxColor and not cfg.maxColor then cfg.maxColor = { 0, 1, 0, 1 } end
+	if pType == "MAELSTROM_WEAPON" then ensureMaelstromWeaponDefaults(cfg) end
 end
 
 local function ensureGlobalStore()
@@ -1972,7 +2102,9 @@ powertypeClasses = {
 	DEMONHUNTER = {
 		[1] = { MAIN = "FURY" },
 		[2] = { MAIN = "FURY" },
-		[3] = { MAIN = "FURY" },
+		[3] = { --MAIN = "VOID_METAMORPHOSIS", -- TODO When declassified uncomment
+			FURY = true,
+		},
 	},
 	DEATHKNIGHT = {
 		[1] = { MAIN = "RUNIC_POWER", RUNES = true },
@@ -2067,6 +2199,7 @@ classPowerTypes = {
 	"HOLY_POWER",
 	"MAELSTROM",
 	"MAELSTROM_WEAPON",
+	"VOID_METAMORPHOSIS",
 	"CHI",
 	"INSANITY",
 	"ARCANE_CHARGES",
@@ -2082,7 +2215,7 @@ ResourceBars.separatorEligible = {
 	ARCANE_CHARGES = true,
 	CHI = true,
 	COMBO_POINTS = true,
-	MAELSTROM_WEAPON = true,
+	VOID_METAMORPHOSIS = true,
 	RUNES = true,
 }
 ResourceBars.RUNE_BORDER_ID = RB.RUNES_BORDER_ID
@@ -2095,7 +2228,7 @@ function getBarSettings(pType)
 	if addon.db.personalResourceBarSettings and addon.db.personalResourceBarSettings[class] and addon.db.personalResourceBarSettings[class][spec] then
 		local cfg = addon.db.personalResourceBarSettings[class][spec][pType]
 		if cfg then
-			if pType == "MAELSTROM_WEAPON" then ensureMaelstromWeaponDefaults(cfg) end
+			if isAuraPowerType and isAuraPowerType(pType) then ensureAuraPowerDefaults(pType, cfg) end
 			ensureDruidShowFormsDefaults(cfg, pType, specInfo)
 			ensureRelativeFrameFallback(cfg.anchor, pType, specInfo)
 			return cfg
@@ -2107,7 +2240,7 @@ function getBarSettings(pType)
 			local globalCfg, secondaryIdx = resolveGlobalTemplate(pType, spec)
 			if globalCfg then
 				specCfg[pType] = CopyTable(globalCfg)
-				if pType == "MAELSTROM_WEAPON" then ensureMaelstromWeaponDefaults(specCfg[pType]) end
+				if isAuraPowerType and isAuraPowerType(pType) then ensureAuraPowerDefaults(pType, specCfg[pType]) end
 				ensureDruidShowFormsDefaults(specCfg[pType], pType, specInfo)
 				ensureRelativeFrameFallback(specCfg[pType].anchor, pType, specInfo)
 				if secondaryIdx and secondaryIdx > 1 then
@@ -2451,15 +2584,13 @@ function updatePowerBar(type, runeSlot)
 		if bar.text then bar.text:SetText("") end
 		return
 	end
-	if type == "MAELSTROM_WEAPON" then
+	if isAuraPowerType(type) then
 		local cfg = getBarSettings(type) or {}
-		ensureMaelstromWeaponDefaults(cfg)
-		local visualMax = ResourcebarVars.MAELSTROM_WEAPON_SEGMENTS
-		local stacks = getMaelstromWeaponStacks()
-		bar._mwObservedMax = max(bar._mwObservedMax or visualMax, stacks, visualMax)
-		local logicalMax = ResourcebarVars.MAELSTROM_WEAPON_MAX_STACKS
-		local shownStacks = (stacks <= 0) and 0 or (((stacks - 1) % visualMax) + 1)
-
+		if type == "MAELSTROM_WEAPON" then ensureMaelstromWeaponDefaults(cfg) end
+		local stacks, logicalMax, visualMax = getAuraPowerCounts(type)
+		local cfgDef = RB.AURA_POWER_CONFIG[type] or {}
+		logicalMax = logicalMax > 0 and logicalMax or cfgDef.maxStacks or visualMax
+		visualMax = visualMax > 0 and visualMax or logicalMax
 		if bar._lastMax ~= visualMax then
 			bar:SetMinMaxValues(0, visualMax)
 			bar._lastMax = visualMax
@@ -2467,9 +2598,10 @@ function updatePowerBar(type, runeSlot)
 
 		local style = bar._style or "CURMAX"
 		local smooth = cfg.smoothFill == true
+		local shownStacks = (visualMax and visualMax > 0) and ((stacks <= 0) and 0 or (((stacks - 1) % visualMax) + 1)) or stacks
 		if not addon.variables.isMidnight and smooth then
 			bar._smoothTarget = shownStacks
-			bar._smoothDeadzone = cfg.smoothDeadzone or bar._smoothDeadzone or RB.DEFAULT_SMOOTH_DEADZONE
+			bar._smoothDeadzone = cfg.smoothDeadzone or bar._smoot - hDeadzone or RB.DEFAULT_SMOOTH_DEADZONE
 			bar._smoothSpeed = RB.SMOOTH_SPEED
 			if not bar._smoothInitialized then
 				bar:SetValue(shownStacks)
@@ -2489,12 +2621,7 @@ function updatePowerBar(type, runeSlot)
 		bar._lastVal = shownStacks
 
 		local percent = logicalMax > 0 and (stacks / logicalMax * 100) or 0
-		local percentStr
-		if addon.variables.isMidnight then
-			percentStr = string.format("%s%%", AbbreviateLargeNumbers(percent))
-		else
-			percentStr = tostring(floor(percent + 0.5))
-		end
+		local percentStr = addon.variables.isMidnight and string.format("%s%%", AbbreviateLargeNumbers(percent)) or tostring(floor(percent + 0.5))
 
 		if bar.text then
 			if style == "NONE" then
@@ -2541,11 +2668,12 @@ function updatePowerBar(type, runeSlot)
 
 		local targetR, targetG, targetB, targetA = bar._baseColor[1] or 1, bar._baseColor[2] or 1, bar._baseColor[3] or 1, bar._baseColor[4] or 1
 		local flag
-		if cfg.useMaxColor ~= false and stacks >= logicalMax then
+		local useMaxDefault = (RB.AURA_POWER_CONFIG[type] and RB.AURA_POWER_CONFIG[type].useMaxColorDefault) or false
+		if (cfg.useMaxColor ~= false and (cfg.useMaxColor or useMaxDefault)) and logicalMax > 0 and stacks >= logicalMax then
 			local maxCol = cfg.maxColor or RB.WHITE
 			targetR, targetG, targetB, targetA = maxCol[1] or targetR, maxCol[2] or targetG, maxCol[3] or targetB, maxCol[4] or targetA
 			flag = "max"
-		elseif cfg.useMaelstromFiveColor ~= false and stacks >= ResourcebarVars.MAELSTROM_WEAPON_SEGMENTS then
+		elseif type == "MAELSTROM_WEAPON" and cfg.useMaelstromFiveColor ~= false and visualMax and visualMax > 0 and stacks >= visualMax then
 			local mid = cfg.maelstromFiveColor or ResourcebarVars.DEFAULT_MAELSTROM_WEAPON_FIVE_COLOR
 			targetR, targetG, targetB, targetA = mid[1] or targetR, mid[2] or targetG, mid[3] or targetB, mid[4] or targetA
 			flag = "mid"
@@ -2647,6 +2775,9 @@ function updatePowerBar(type, runeSlot)
 	if cfg.useBarColor then
 		local custom = cfg.barColor or RB.WHITE
 		bar._baseColor[1], bar._baseColor[2], bar._baseColor[3], bar._baseColor[4] = custom[1] or 1, custom[2] or 1, custom[3] or 1, custom[4] or 1
+	elseif cfgDef and cfgDef.defaultColor then
+		local c = cfgDef.defaultColor
+		bar._baseColor[1], bar._baseColor[2], bar._baseColor[3], bar._baseColor[4] = c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1
 	end
 
 	local useHolyThreeColor = (type == "HOLY_POWER") and cfg.useHolyThreeColor == true
@@ -2729,8 +2860,9 @@ updateBarSeparators = function(pType)
 	if pType == "RUNES" then
 		-- Runes don't use UnitPowerMax; always 6 segments
 		segments = 6
-	elseif pType == "MAELSTROM_WEAPON" then
-		segments = ResourcebarVars.MAELSTROM_WEAPON_SEGMENTS
+	elseif isAuraPowerType and isAuraPowerType(pType) then
+		local auraCfg = RB.AURA_POWER_CONFIG[pType] or {}
+		segments = (cfg and cfg.visualSegments) or auraCfg.visualSegments or auraCfg.maxStacks or 0
 	elseif pType == "ENERGY" then
 		segments = 10
 	else
@@ -3083,8 +3215,21 @@ local eventsToRegister = {
 	"UNIT_MAXPOWER",
 	"UPDATE_SHAPESHIFT_FORM",
 }
-if addon.variables.unitClass == "SHAMAN" then table.insert(eventsToRegister, "UNIT_AURA") end
+local function classUsesAuraPowers(class)
+	local classTbl = powertypeClasses and powertypeClasses[class]
+	if not classTbl then return false end
 
+	for _, specInfo in pairs(classTbl) do
+		if type(specInfo) == "table" then
+			for pType in pairs(RB.AURA_POWER_CONFIG or {}) do
+				if specInfo.MAIN == pType or specInfo[pType] then return true end
+			end
+		end
+	end
+	return false
+end
+
+if classUsesAuraPowers(addon.variables.unitClass) then table.insert(eventsToRegister, "UNIT_AURA") end
 local function setPowerbars(opts)
 	local _, powerToken = UnitPowerType("player")
 	powerfrequent = {}
@@ -3488,11 +3633,11 @@ local function eventHandler(self, event, unit, arg1)
 	elseif event == "PLAYER_ENTERING_WORLD" then
 		updateHealthBar("UNIT_ABSORB_AMOUNT_CHANGED")
 		setPowerbars()
-		if addon.variables.unitClass == "SHAMAN" and After then
-			After(0, function()
-				if powerbar["MAELSTROM_WEAPON"] and powerbar["MAELSTROM_WEAPON"]:IsShown() then updatePowerBar("MAELSTROM_WEAPON") end
-			end)
-		end
+		if After then After(0, function()
+			for pType, _ in pairs(RB.AURA_POWER_CONFIG or {}) do
+				if powerbar[pType] and powerbar[pType]:IsShown() then updatePowerBar(pType) end
+			end
+		end) end
 		if scheduleRelativeFrameWidthSync then scheduleRelativeFrameWidthSync() end
 	elseif event == "UPDATE_SHAPESHIFT_FORM" then
 		setPowerbars()
@@ -3509,38 +3654,20 @@ local function eventHandler(self, event, unit, arg1)
 	elseif event == "UNIT_AURA" and unit == "player" then
 		local info = arg1
 
-		-- FULL UPDATE: nach Zonenwechsel/Reload kommen Auren oft so rein.
 		if not info or info.isFullUpdate then
-			hasMWAura = false
-			wipeTable(mwAuraInstances)
-
-			if powerbar["MAELSTROM_WEAPON"] and powerbar["MAELSTROM_WEAPON"]:IsShown() then updatePowerBar("MAELSTROM_WEAPON") end
+			resetAuraTracking()
+			for pType, _ in pairs(RB.AURA_POWER_CONFIG or {}) do
+				if powerbar[pType] and powerbar[pType]:IsShown() then updatePowerBar(pType) end
+			end
 			return
 		end
 
-		local changed
-		for _, aura in ipairs(info.addedAuras or {}) do
-			if aura and aura.spellId and aura.auraInstanceID and isMaelstromWeaponAura(aura.spellId) then
-				-- (optional: auch dann akzeptieren, wenn hasMWAura schon gesetzt ist)
-				mwAuraInstances[aura.auraInstanceID] = true
-				hasMWAura = aura.auraInstanceID
-				changed = true
+		local changed = handleAuraEventInfo(info)
+		if changed then
+			for pType in pairs(changed) do
+				if powerbar[pType] and powerbar[pType]:IsShown() then updatePowerBar(pType) end
 			end
 		end
-
-		for _, inst in ipairs(info.updatedAuraInstanceIDs or {}) do
-			if mwAuraInstances[inst] then changed = true end
-		end
-
-		for _, inst in ipairs(info.removedAuraInstanceIDs or {}) do
-			if mwAuraInstances[inst] then
-				mwAuraInstances[inst] = nil
-				hasMWAura = false
-				changed = true
-			end
-		end
-
-		if changed and powerbar["MAELSTROM_WEAPON"] and powerbar["MAELSTROM_WEAPON"]:IsShown() then updatePowerBar("MAELSTROM_WEAPON") end
 		return
 	elseif (event == "UNIT_MAXHEALTH" or event == "UNIT_HEALTH" or event == "UNIT_ABSORB_AMOUNT_CHANGED") and healthBar and healthBar:IsShown() then
 		if event == "UNIT_MAXHEALTH" then

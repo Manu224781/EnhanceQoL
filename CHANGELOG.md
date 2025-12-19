@@ -14,6 +14,8 @@
 - Profiles: export/import the active profile (full overwrite) via copy/paste with reload after import.
 - Added Naaru's Enfold toy (ID 263489) support to teleport/hearthstone handling.
 - Maelstrom Weapon tracking added as Resourcebar for Enhancement Shaman
+- Devourer Resource bar tracking added (but disabled until next beta release of WoW - Will be non-secret than)
+- Tooltips for Spell/Item/Aura-IDs enabled in Combat with better secret handling for midnight
 
 ### 🔄 Changed
 
@@ -25,6 +27,7 @@
 - Assisted Combat Button Rotation border hide had an error with updating the button
 - Cooldown Viewer visibility now only hooks mouseover/polling when a visibility rule is set, preventing unintended alpha changes.
 - Cooldown Viewer frames no longer lose click-through behavior when using EQOL.
+- UF Plus had an issue with some secret states
 
 ---
 

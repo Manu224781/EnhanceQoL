@@ -634,6 +634,8 @@ end
 
 local function applyAuraToButton(btn, aura, ac, isDebuff, unitToken)
 	if not btn or not aura then return end
+
+	if issecretvalue and issecretvalue(isDebuff) then isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID("target", aura.auraInstanceID, "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY") end
 	unitToken = unitToken or "target"
 	btn.spellId = aura.spellId
 	btn._showTooltip = ac.showTooltip ~= false
@@ -725,7 +727,7 @@ local function updateTargetAuraIcons(startIndex)
 			else
 				local btn
 				btn, st.auraButtons = ensureAuraButton(st.auraContainer, st.auraButtons, i, ac)
-				applyAuraToButton(btn, aura, ac, aura.isHarmful == true, "target")
+				applyAuraToButton(btn, aura, ac, aura.isHarmful, "target")
 				anchorAuraButton(btn, st.auraContainer, i, ac, perRow, ac.anchor or "BOTTOM")
 				targetAuraIndexById[auraId] = i
 				i = i + 1

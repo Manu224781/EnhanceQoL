@@ -50,6 +50,8 @@ ChannelHistory.EVENT_FILTER_KEY = ChannelHistory.EVENT_FILTER_KEY
 		CHAT_MSG_MONSTER_SAY = "MONSTER",
 		CHAT_MSG_MONSTER_WHISPER = "MONSTER",
 		CHAT_MSG_MONSTER_YELL = "MONSTER",
+		CHAT_MSG_RAID_BOSS_EMOTE = "MONSTER",
+		CHAT_MSG_RAID_BOSS_WHISPER = "MONSTER",
 	}
 ChannelHistory.loggedIn = ChannelHistory.loggedIn or (IsLoggedIn and IsLoggedIn()) or false
 ChannelHistory.defaultFilters = {

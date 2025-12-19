@@ -839,11 +839,14 @@ local function checkAura(tooltip, id, name)
 
 	if addon.db["TooltipShowSpellIconInline"] then
 		local spellInfo = C_Spell.GetSpellInfo(id)
-		if spellInfo and spellInfo.iconID then
+		if spellInfo and spellInfo.iconID then --and (not issecretvalue or (issecretvalue and not issecretvalue(spellInfo.iconID))) then
 			local line = tooltip and _G[tooltip:GetName() .. "TextLeft1"]
 			if line then
 				local current = line:GetText()
-				if current and not current:find("|T", 1, true) then
+				if
+					current
+					--and not current:find("|T", 1, true)
+				then
 					local size = addon.db and addon.db["TooltipItemIconSize"] or 16
 					if size < 10 then
 						size = 10
@@ -908,7 +911,12 @@ if TooltipDataProcessor then
 
 		if issecretvalue and issecretvalue(data.type) then
 			-- check for mouseover
-			if UnitIsEnemy("mouseover", "player") or UnitIsFriend("mouseover", "player") then kind = "unit" end
+			if UnitIsEnemy("mouseover", "player") or UnitIsFriend("mouseover", "player") then
+				kind = "unit"
+			else
+				-- assume it's a aura?
+				kind = "aura"
+			end
 		else
 			kind = addon.Tooltip.variables.kindsByID[tonumber(data.type)]
 		end
