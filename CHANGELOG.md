@@ -4,7 +4,6 @@
 
 ### ✨ Added
 
-- Option to show the Class Resources with UF Plus
 - Maelstrom Weapon tracking added as Resourcebar for Enhancement Shaman
 - Devourer Resource bar tracking added (but disabled until next beta release of WoW - Will be non-secret than)
 - Tooltips for Spell/Item/Aura-IDs enabled in Combat with better secret handling for midnight
