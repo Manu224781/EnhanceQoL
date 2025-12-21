@@ -4268,8 +4268,8 @@ local eventHandlers = {
 			loadMain()
 			EQOL.PersistSignUpNote()
 
-			--@debug@
 			loadSubAddon("EnhanceQoLLayoutTools")
+			--@debug@
 			loadSubAddon("EnhanceQoLQuery")
 			--@end-debug@
 			loadSubAddon("EnhanceQoLSharedMedia")
