@@ -15,6 +15,7 @@
 ### ❌ Removed
 
 - Removed the option to show party frames in solo content
+- Removed the cloak upgrade button feature
 
 ### 🐛 Fixed
 
