@@ -2,7 +2,6 @@
 ## Title: Mover
 ## Author: R41Z0R
 ## Version: @project-version@
-## SavedVariables: EnhanceQoLMoverDB
 ## Notes: Move Blizzard frames
 ## Notes-deDE: Verschiebt Blizzard-Fenster
 ## Notes-esES: Mueve marcos de Blizzard
