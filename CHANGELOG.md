@@ -1,5 +1,14 @@
 # Changelog
 
+## [6.6.0] – 2025-12-22
+
+### 🔄 Changed
+
+- Moved the "Hide Minimap Button" setting to Map Navigation.
+- UF/Resource Bars: texture/font/outline dropdowns now stay open on click so you can browse SharedMedia options faster.
+
+---
+
 ## [6.5.0] – 2025-12-22
 
 ### ✨ Added

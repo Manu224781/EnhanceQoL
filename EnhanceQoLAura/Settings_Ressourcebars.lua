@@ -782,13 +782,15 @@ local function registerEditModeBars()
 					if not listTex or not orderTex then return end
 					for _, key in ipairs(orderTex) do
 						local label = listTex[key] or key
-						root:CreateRadio(label, function()
+						root:CreateCheckbox(label, function()
 							local c = curSpecCfg()
 							local cur = c and c.barTexture or cfg.barTexture or "DEFAULT"
 							return cur == key
 						end, function()
 							local c = curSpecCfg()
 							if not c then return end
+							local cur = c.barTexture or cfg.barTexture or "DEFAULT"
+							if cur == key then return end
 							c.barTexture = key
 							queueRefresh()
 						end)
@@ -1102,13 +1104,15 @@ local function registerEditModeBars()
 						if not listTex or not orderTex then return end
 						for _, key in ipairs(orderTex) do
 							local label = listTex[key] or key
-							root:CreateRadio(label, function()
+							root:CreateCheckbox(label, function()
 								local c = curSpecCfg()
 								local cur = c and c.absorbTexture or cfg.absorbTexture or cfg.barTexture or "DEFAULT"
 								return cur == key
 							end, function()
 								local c = curSpecCfg()
 								if not c then return end
+								local cur = c.absorbTexture or cfg.absorbTexture or cfg.barTexture or "DEFAULT"
+								if cur == key then return end
 								c.absorbTexture = key
 								queueRefresh()
 							end)
@@ -1314,24 +1318,26 @@ local function registerEditModeBars()
 						for _, name in ipairs(media:List("font") or {}) do
 							local path = hash[name] or name
 							seen[path] = name
-							root:CreateRadio(name, function()
+							root:CreateCheckbox(name, function()
 								local c = curSpecCfg()
 								return currentPath == path
 							end, function()
 								local c = curSpecCfg()
 								if not c then return end
+								if currentPath == path then return end
 								c.fontFace = path
 								queueRefresh()
 							end)
 						end
 						if currentPath and not seen[currentPath] then
 							local label = tostring(currentPath)
-							root:CreateRadio(label, function()
+							root:CreateCheckbox(label, function()
 								local c = curSpecCfg()
 								return (c and c.fontFace) == currentPath
 							end, function()
 								local c = curSpecCfg()
 								if not c then return end
+								if (c and c.fontFace) == currentPath then return end
 								c.fontFace = currentPath
 								queueRefresh()
 							end)
@@ -1378,13 +1384,15 @@ local function registerEditModeBars()
 					parentId = "textsettings",
 					generator = function(_, root)
 						for _, entry in ipairs(outlineOptions) do
-							root:CreateRadio(entry.label, function()
+							root:CreateCheckbox(entry.label, function()
 								local c = curSpecCfg()
 								local cur = (c and c.fontOutline) or cfg.fontOutline or "OUTLINE"
 								return cur == entry.key
 							end, function()
 								local c = curSpecCfg()
 								if not c then return end
+								local cur = (c and c.fontOutline) or cfg.fontOutline or "OUTLINE"
+								if cur == entry.key then return end
 								c.fontOutline = entry.key
 								queueRefresh()
 							end)
@@ -1713,7 +1721,7 @@ local function registerEditModeBars()
 						if not list or not order then return end
 						for _, key in ipairs(order) do
 							local label = list[key] or key
-							root:CreateRadio(label, function()
+							root:CreateCheckbox(label, function()
 								local c = curSpecCfg()
 								local bd = ensureBackdropTable(c)
 								return bd and bd.backgroundTexture == key
@@ -1721,6 +1729,7 @@ local function registerEditModeBars()
 								local c = curSpecCfg()
 								if not c then return end
 								local bd = ensureBackdropTable(c)
+								if bd and bd.backgroundTexture == key then return end
 								bd.backgroundTexture = key
 								queueRefresh()
 							end)
@@ -1769,7 +1778,7 @@ local function registerEditModeBars()
 						if not list or not order then return end
 						for _, key in ipairs(order) do
 							local label = list[key] or key
-							root:CreateRadio(label, function()
+							root:CreateCheckbox(label, function()
 								local c = curSpecCfg()
 								local bd = ensureBackdropTable(c)
 								return bd and bd.borderTexture == key
@@ -1777,6 +1786,7 @@ local function registerEditModeBars()
 								local c = curSpecCfg()
 								if not c then return end
 								local bd = ensureBackdropTable(c)
+								if bd and bd.borderTexture == key then return end
 								if customBorderOptions() and customBorderOptions()[key] then
 									local col = bd.borderColor
 									if not col or (col[4] or 0) <= 0 then bd.borderColor = { 1, 1, 1, 1 } end

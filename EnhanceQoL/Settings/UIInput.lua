@@ -432,14 +432,6 @@ data = {
 		end,
 	},
 	{
-		var = "hideMinimapButton",
-		text = L["hideMinimapButton"],
-		func = function(v)
-			addon.db["hideMinimapButton"] = v
-			addon.functions.toggleMinimapButton(addon.db["hideMinimapButton"])
-		end,
-	},
-	{
 		var = "hideMicroMenuNotificationOverlay",
 		text = L["hideMicroMenuNotificationOverlay"],
 		desc = L["hideMicroMenuNotificationOverlayDesc"],

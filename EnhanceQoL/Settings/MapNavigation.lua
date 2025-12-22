@@ -117,6 +117,15 @@ local data = {
 			},
 		},
 	},
+	{
+		var = "hideMinimapButton",
+		text = L["hideMinimapButton"],
+		func = function(v)
+			addon.db["hideMinimapButton"] = v
+			addon.functions.toggleMinimapButton(addon.db["hideMinimapButton"])
+		end,
+		default = false,
+	},
 }
 
 table.sort(data, function(a, b) return a.text < b.text end)
