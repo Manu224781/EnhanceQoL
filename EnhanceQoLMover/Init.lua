@@ -726,7 +726,7 @@ local eventHandlers = {
 		if arg1 == "Blizzard_PlayerChoice" and _G.PlayerChoiceFrame then FixPlayerChoiceAnchor() end
 		if arg1 == "Blizzard_PlayerSpells" then FixHeroTalentsAnchor() end
 		--@debug@
-		print(arg1)
+		-- print(arg1)
 		--@end-debug@
 		local list = registry.addonIndex and registry.addonIndex[arg1]
 		if list then
