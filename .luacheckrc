@@ -848,6 +848,8 @@ globals = {
 	"BossTargetFrameContainer",
 	"FocusFrameDropDown",
 	"PetFrameDropDown",
+	"RunNextFrame",
+	"TalentFrameUtil",
 	"C_Garrison.GetFollowerAbilityIcon",
 	"C_Garrison.GetFollowerAbilityInfo",
 	"C_Garrison.GetFollowerAbilityIsTrait",
