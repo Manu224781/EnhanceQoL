@@ -1,4 +1,4 @@
--- luacheck: globals EnhanceQoL
+-- luacheck: globals EnhanceQoL DifficultyUtil MenuResponse SetRaidDifficulties
 local addonName, addon = ...
 local L = addon.L
 
