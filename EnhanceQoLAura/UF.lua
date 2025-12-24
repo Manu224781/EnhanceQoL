@@ -1482,9 +1482,6 @@ local function applyBarBackdrop(bar, cfg)
 	bar:SetBackdropColor(col[1] or 0, col[2] or 0, col[3] or 0, col[4] or 0.6)
 end
 
-local UnitHealthPercent = UnitHealthPercent
-local UnitPowerPercent = UnitPowerPercent
-
 local function resolveTexture(key)
 	if key == "SOLID" then return "Interface\\Buttons\\WHITE8x8" end
 	if not key or key == "DEFAULT" then return BLIZZARD_TEX end
@@ -1720,6 +1717,7 @@ local function updateCastBar(unit)
 end
 
 shouldShowSampleCast = function(unit)
+	if not (addon.EditModeLib and addon.EditModeLib:IsInEditMode()) then return false end
 	local key = isBossUnit(unit) and "boss" or unit
 	return sampleCast and sampleCast[key] == true
 end
@@ -1803,6 +1801,7 @@ local function setCastInfoFromUnit(unit)
 				st.castIcon:SetShown(showIcon)
 				if showIcon then st.castIcon:SetTexture(texture) end
 			end
+			-- TODO reverse bar for channeling is missing
 			-- TODO: replace this interruptible-event workaround once C_CurveUtil.EvaluateColorFromBoolean and C_CurveUtil.EvaluateColorValueFromBoolean are available.
 			local np = C_NamePlate.GetNamePlateForUnit(unit)
 
@@ -1816,7 +1815,8 @@ local function setCastInfoFromUnit(unit)
 				clr = ccfg.color or defc.color or { 0.9, 0.7, 0.2, 1 }
 			end
 			st.castBar:SetStatusBarColor(clr[1] or 0.9, clr[2] or 0.7, clr[3] or 0.2, clr[4] or 1)
-			st.castBar:SetStatusBarDesaturated(notInterruptible)
+			--! not allowed in tainted code from secret values (waiting for new BETA or API from blizzard)
+			-- st.castBar:SetStatusBarDesaturated(notInterruptible)
 		else
 			stopCast(unit)
 		end
@@ -2602,8 +2602,7 @@ local function applyConfig(unit)
 	end
 	if unit == UNIT.TARGET and st.castBar then
 		if cfg.cast and cfg.cast.enabled ~= false and UnitExists(UNIT.TARGET) then
-			if shouldShowSampleCast(unit) and (not st.castInfo or not UnitCastingInfo or not UnitCastingInfo(unit)) then setSampleCast(unit) end
-			st.castBar:Show()
+			setCastInfoFromUnit(UNIT.TARGET)
 		else
 			stopCast(UNIT.TARGET)
 			st.castBar:Hide()
@@ -2611,7 +2610,7 @@ local function applyConfig(unit)
 	end
 	if isBossUnit(unit) and st.castBar then
 		if cfg.cast and cfg.cast.enabled ~= false and UnitExists(unit) then
-			st.castBar:Show()
+			setCastInfoFromUnit(unit)
 		else
 			stopCast(unit)
 			st.castBar:Hide()
@@ -2793,7 +2792,6 @@ local function updateBossFrames(force)
 					if st.castBar and cfg.cast and cfg.cast.enabled ~= false then
 						setCastInfoFromUnit(unit)
 						if shouldShowSampleCast(unit) and (not st.castInfo or not UnitCastingInfo or (UnitCastingInfo and not UnitCastingInfo(unit))) then setSampleCast(unit) end
-						st.castBar:Show()
 					elseif st.castBar then
 						stopCast(unit)
 						st.castBar:Hide()
