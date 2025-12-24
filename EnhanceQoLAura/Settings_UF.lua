@@ -490,7 +490,13 @@ local function calcLayout(unit, frame)
 	local showCombat = unit == "player" and getValue(unit, { "status", "combatIndicator", "enabled" }, ciDef.enabled ~= false) ~= false
 	local showStatus = showName or showLevel or showCombat
 	local statusHeight = showStatus and (cfg.statusHeight or def.statusHeight or 18) or 0
-	local width = cfg.width or def.width or frame:GetWidth() or 200
+	local portraitDef = def.portrait or {}
+	local portraitCfg = cfg.portrait or {}
+	local portraitEnabled = portraitCfg.enabled
+	if portraitEnabled == nil then portraitEnabled = portraitDef.enabled end
+	local portraitSize = portraitCfg.size or portraitDef.size or 32
+	local portraitWidth = portraitEnabled and portraitSize or 0
+	local width = (cfg.width or def.width or frame:GetWidth() or 200) + portraitWidth
 	local barGap = powerEnabled and (cfg.barGap or def.barGap or 0) or 0
 	local powerHeight = powerEnabled and (cfg.powerHeight or def.powerHeight or 16) or 0
 	local height = statusHeight + (cfg.healthHeight or def.healthHeight or 24) + powerHeight + barGap
@@ -669,6 +675,75 @@ local function buildUnitSettings(unit)
 			refresh()
 		end)
 	end, max(1, (def.border and def.border.edgeSize) or 1), "frame", true)
+
+	local portraitDef = def.portrait or {}
+	list[#list + 1] = { name = L["UFPortrait"] or "Portrait", kind = settingType.Collapsible, id = "portrait", defaultCollapsed = true }
+	local function isPortraitEnabled() return getValue(unit, { "portrait", "enabled" }, portraitDef.enabled == true) == true end
+
+	list[#list + 1] = checkbox(L["UFPortraitEnable"] or "Enable portrait", isPortraitEnabled, function(val)
+		setValue(unit, { "portrait", "enabled" }, val and true or false)
+		refreshSelf()
+		refreshSettingsUI()
+	end, portraitDef.enabled == true, "portrait")
+
+	local portraitSize = slider(L["UFPortraitSize"] or "Portrait size", 8, 128, 1, function() return getValue(unit, { "portrait", "size" }, portraitDef.size or 32) end, function(val)
+		setValue(unit, { "portrait", "size" }, val or portraitDef.size or 32)
+		refreshSelf()
+	end, portraitDef.size or 32, "portrait", true)
+	portraitSize.isEnabled = isPortraitEnabled
+	list[#list + 1] = portraitSize
+
+	local portraitSideOptions = {
+		{ value = "LEFT", label = LEFT or "Left" },
+		{ value = "RIGHT", label = RIGHT or "Right" },
+	}
+	local portraitSide = radioDropdown(
+		L["UFPortraitSide"] or "Portrait side",
+		portraitSideOptions,
+		function() return (getValue(unit, { "portrait", "side" }, portraitDef.side or "LEFT") or "LEFT"):upper() end,
+		function(val)
+			setValue(unit, { "portrait", "side" }, (val or "LEFT"):upper())
+			refreshSelf()
+		end,
+		(portraitDef.side or "LEFT"):upper(),
+		"portrait"
+	)
+	portraitSide.isEnabled = isPortraitEnabled
+	list[#list + 1] = portraitSide
+
+	local portraitOffsetX = slider(
+		L["Offset X"] or "Offset X",
+		-200,
+		200,
+		1,
+		function() return getValue(unit, { "portrait", "offset", "x" }, (portraitDef.offset and portraitDef.offset.x) or 0) end,
+		function(val)
+			setValue(unit, { "portrait", "offset", "x" }, val or 0)
+			refreshSelf()
+		end,
+		(portraitDef.offset and portraitDef.offset.x) or 0,
+		"portrait",
+		true
+	)
+	portraitOffsetX.isEnabled = isPortraitEnabled
+	list[#list + 1] = portraitOffsetX
+
+	local portraitOffsetY = slider(
+		L["Offset Y"] or "Offset Y",
+		-200,
+		200,
+		1,
+		function() return getValue(unit, { "portrait", "offset", "y" }, (portraitDef.offset and portraitDef.offset.y) or 0) end,
+		function(val)
+			setValue(unit, { "portrait", "offset", "y" }, val or 0)
+			refreshSelf()
+		end,
+		(portraitDef.offset and portraitDef.offset.y) or 0,
+		"portrait",
+		true
+	)
+	portraitOffsetY.isEnabled = isPortraitEnabled
+	list[#list + 1] = portraitOffsetY
 
 	list[#list + 1] = { name = L["HealthBar"] or "Health Bar", kind = settingType.Collapsible, id = "health", defaultCollapsed = true }
 

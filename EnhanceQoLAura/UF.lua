@@ -284,6 +284,12 @@ local defaults = {
 			size = 18,
 			offset = { x = 0, y = -2 },
 		},
+		portrait = {
+			enabled = false,
+			size = 32,
+			side = "LEFT",
+			offset = { x = 0, y = 0 },
+		},
 	},
 	target = {
 		enabled = false,
@@ -324,6 +330,12 @@ local defaults = {
 			color = { 0.9, 0.7, 0.2, 1 },
 			notInterruptibleColor = { 0.6, 0.6, 0.6, 1 },
 		},
+		portrait = {
+			enabled = false,
+			size = 32,
+			side = "LEFT",
+			offset = { x = 0, y = 0 },
+		},
 	},
 	targettarget = {
 		enabled = false,
@@ -333,6 +345,12 @@ local defaults = {
 		powerHeight = 12,
 		statusHeight = 16,
 		anchor = { point = "CENTER", relativeTo = "UIParent", relativePoint = "CENTER", x = 520, y = -200 },
+		portrait = {
+			enabled = false,
+			size = 32,
+			side = "LEFT",
+			offset = { x = 0, y = 0 },
+		},
 	},
 }
 
@@ -911,7 +929,7 @@ local function updateTargetAuraIcons(startIndex)
 	if ac.showTooltip == nil then ac.showTooltip = true end
 	if ac.max < 1 then ac.max = 1 end
 
-	local width = st.frame:GetWidth() or 0
+	local width = (st.auraContainer and st.auraContainer:GetWidth()) or (st.barGroup and st.barGroup:GetWidth()) or (st.frame and st.frame:GetWidth()) or 0
 	local perRow = math.max(1, math.floor((width + ac.padding) / (ac.size + ac.padding)))
 	local useSeparateDebuffs = ac.separateDebuffAnchor == true
 	if useSeparateDebuffs and not st.debuffContainer then useSeparateDebuffs = false end
@@ -1549,11 +1567,12 @@ local function applyCastLayout(cfg, unit)
 	st.castBar:SetSize(width, height)
 	local anchor = (ccfg.anchor or defc.anchor or "BOTTOM")
 	local off = ccfg.offset or defc.offset or { x = 0, y = -4 }
+	local anchorFrame = st.barGroup or st.frame
 	st.castBar:ClearAllPoints()
 	if anchor == "TOP" then
-		st.castBar:SetPoint("BOTTOM", st.frame, "TOP", off.x or 0, off.y or 0)
+		st.castBar:SetPoint("BOTTOM", anchorFrame, "TOP", off.x or 0, off.y or 0)
 	else
-		st.castBar:SetPoint("TOP", st.frame, "BOTTOM", off.x or 0, off.y or 0)
+		st.castBar:SetPoint("TOP", anchorFrame, "BOTTOM", off.x or 0, off.y or 0)
 	end
 	if st.castName then
 		local nameOff = ccfg.nameOffset or defc.nameOffset or { x = 6, y = 0 }
@@ -2100,6 +2119,39 @@ local function updateRestingIndicator(cfg)
 	end
 end
 
+local function getPortraitConfig(cfg, unit)
+	local def = defaultsFor(unit)
+	local pdef = def and def.portrait or {}
+	local pcfg = (cfg and cfg.portrait) or {}
+	local enabled = pcfg.enabled
+	if enabled == nil then enabled = pdef.enabled end
+	local size = pcfg.size or pdef.size or 32
+	local side = (pcfg.side or pdef.side or "LEFT"):upper()
+	if side ~= "RIGHT" then side = "LEFT" end
+	local offx = (pcfg.offset and pcfg.offset.x) or (pdef.offset and pdef.offset.x) or 0
+	local offy = (pcfg.offset and pcfg.offset.y) or (pdef.offset and pdef.offset.y) or 0
+	return enabled == true, max(1, size or 1), side, offx, offy
+end
+
+local function updatePortrait(cfg, unit)
+	cfg = cfg or (states[unit] and states[unit].cfg) or ensureDB(unit)
+	local st = states[unit]
+	if not st or not st.portrait then return end
+	local enabled = getPortraitConfig(cfg, unit)
+	if not enabled or cfg.enabled == false then
+		st.portrait:Hide()
+		st.portrait:SetTexture(nil)
+		return
+	end
+	if UnitExists and not UnitExists(unit) then
+		st.portrait:Hide()
+		st.portrait:SetTexture(nil)
+		return
+	end
+	SetPortraitTexture(st.portrait, unit)
+	st.portrait:Show()
+end
+
 local function layoutFrame(cfg, unit)
 	local st = states[unit]
 	if not st or not st.frame then return end
@@ -2119,7 +2171,11 @@ local function layoutFrame(cfg, unit)
 	local barGap = powerEnabled and (cfg.barGap or def.barGap or 0) or 0
 	local borderInset = 0
 	if cfg.border and cfg.border.enabled then borderInset = (cfg.border.edgeSize or 1) end
-	st.frame:SetWidth(width + borderInset * 2)
+	local portraitEnabled, portraitSize, portraitSide, portraitOffsetX, portraitOffsetY = getPortraitConfig(cfg, unit)
+	local portraitWidth = portraitEnabled and portraitSize or 0
+	local barOffsetLeft = (portraitEnabled and portraitSide == "LEFT") and portraitWidth or 0
+	local barOffsetRight = (portraitEnabled and portraitSide == "RIGHT") and -portraitWidth or 0
+	st.frame:SetWidth(width + borderInset * 2 + portraitWidth)
 	if cfg.strata then
 		st.frame:SetFrameStrata(cfg.strata)
 	else
@@ -2155,20 +2211,20 @@ local function layoutFrame(cfg, unit)
 
 	local y = 0
 	if statusHeight > 0 then
-		st.status:SetPoint("TOPLEFT", st.frame, "TOPLEFT", 0, 0)
-		st.status:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", 0, 0)
+		st.status:SetPoint("TOPLEFT", st.frame, "TOPLEFT", barOffsetLeft, 0)
+		st.status:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", barOffsetRight, 0)
 		y = -statusHeight
 	else
-		st.status:SetPoint("TOPLEFT", st.frame, "TOPLEFT", 0, 0)
-		st.status:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", 0, 0)
+		st.status:SetPoint("TOPLEFT", st.frame, "TOPLEFT", barOffsetLeft, 0)
+		st.status:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", barOffsetRight, 0)
 	end
 	-- Bars container sits below status; border applied here, not on status
 	local barsHeight = healthHeight + powerHeight + barGap + borderInset * 2
 	if st.barGroup then
 		st.barGroup:SetWidth(width + borderInset * 2)
 		st.barGroup:SetHeight(barsHeight)
-		st.barGroup:SetPoint("TOPLEFT", st.frame, "TOPLEFT", 0, y)
-		st.barGroup:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", 0, y)
+		st.barGroup:SetPoint("TOPLEFT", st.frame, "TOPLEFT", barOffsetLeft, y)
+		st.barGroup:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", barOffsetRight, y)
 	end
 
 	st.health:SetPoint("TOPLEFT", st.barGroup or st.frame, "TOPLEFT", borderInset, -borderInset)
@@ -2176,8 +2232,26 @@ local function layoutFrame(cfg, unit)
 	st.power:SetPoint("TOPLEFT", st.health, "BOTTOMLEFT", 0, -barGap)
 	st.power:SetPoint("TOPRIGHT", st.health, "BOTTOMRIGHT", 0, -barGap)
 
+	if st.portrait then
+		if portraitEnabled then
+			st.portrait:SetSize(portraitSize, portraitSize)
+			st.portrait:ClearAllPoints()
+			if portraitSide == "RIGHT" then
+				st.portrait:SetPoint("CENTER", st.barGroup or st.frame, "RIGHT", (portraitSize / 2) + portraitOffsetX, portraitOffsetY)
+			else
+				st.portrait:SetPoint("CENTER", st.barGroup or st.frame, "LEFT", -(portraitSize / 2) + portraitOffsetX, portraitOffsetY)
+			end
+		else
+			st.portrait:Hide()
+		end
+	end
+
 	local totalHeight = statusHeight + barsHeight
 	st.frame:SetHeight(totalHeight)
+	if st.raidIcon then
+		st.raidIcon:ClearAllPoints()
+		st.raidIcon:SetPoint("TOP", st.barGroup or st.frame, "TOP", 0, -2)
+	end
 
 	layoutTexts(st.health, st.healthTextLeft, st.healthTextRight, cfg.health, width)
 	layoutTexts(st.power, st.powerTextLeft, st.powerTextRight, cfg.power, width)
@@ -2266,6 +2340,11 @@ local function ensureFrames(unit)
 	st.power = _G[info.powerName] or CreateFrame("StatusBar", info.powerName, st.barGroup, "BackdropTemplate")
 	local _, powerToken = getMainPower(unit)
 	if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
+	if not st.portrait then
+		st.portrait = st.frame:CreateTexture(nil, "ARTWORK")
+		st.portrait:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+		st.portrait:Hide()
+	end
 
 	local allowAbsorb = not (info and info.disableAbsorb)
 	if allowAbsorb then
@@ -2457,6 +2536,7 @@ local function applyConfig(unit)
 		if st and st.frame then
 			if st.barGroup then st.barGroup:Hide() end
 			if st.status then st.status:Hide() end
+			if st.portrait then st.portrait:Hide() end
 		end
 		applyVisibilityDriver(unit, false)
 		if unit == UNIT.PLAYER then applyFrameRuleOverride(BLIZZ_FRAME_NAMES.player, false) end
@@ -2485,6 +2565,7 @@ local function applyConfig(unit)
 	updateNameAndLevel(cfg, unit)
 	updateHealth(cfg, unit)
 	updatePower(cfg, unit)
+	updatePortrait(cfg, unit)
 	checkRaidTargetIcon(unit, st)
 	if unit == UNIT.PLAYER then
 		updateCombatIndicator(cfg)
@@ -2738,6 +2819,18 @@ local unitEventsMap = {}
 for _, evt in ipairs(unitEvents) do
 	unitEventsMap[evt] = true
 end
+local portraitEvents = {
+	"UNIT_PORTRAIT_UPDATE",
+	"UNIT_MODEL_CHANGED",
+	"UNIT_CONNECTION",
+	"UNIT_ENTERED_VEHICLE",
+	"UNIT_EXITED_VEHICLE",
+	"UNIT_EXITING_VEHICLE",
+}
+local portraitEventsMap = {}
+for _, evt in ipairs(portraitEvents) do
+	portraitEventsMap[evt] = true
+end
 local FREQUENT = { ENERGY = true, FOCUS = true, RAGE = true, RUNIC_POWER = true, LUNAR_POWER = true }
 
 local generalEvents = {
@@ -2759,6 +2852,7 @@ local generalEvents = {
 }
 
 local eventFrame
+local portraitEventsActive
 
 local function anyUFEnabled()
 	local p = ensureDB("player").enabled
@@ -2768,6 +2862,43 @@ local function anyUFEnabled()
 	local focus = ensureDB(UNIT.FOCUS).enabled
 	local boss = ensureDB("boss").enabled
 	return p or t or tt or pet or focus or boss
+end
+
+local function portraitEnabledFor(unit)
+	local cfg = ensureDB(unit)
+	if not cfg or cfg.enabled == false then return false end
+	local def = defaultsFor(unit)
+	local pdef = def and def.portrait or {}
+	local pcfg = cfg.portrait or {}
+	local enabled = pcfg.enabled
+	if enabled == nil then enabled = pdef.enabled end
+	return enabled == true
+end
+
+local function anyPortraitEnabled()
+	if portraitEnabledFor(UNIT.PLAYER) then return true end
+	if portraitEnabledFor(UNIT.TARGET) then return true end
+	if portraitEnabledFor(UNIT.TARGET_TARGET) then return true end
+	if portraitEnabledFor(UNIT.FOCUS) then return true end
+	if portraitEnabledFor(UNIT.PET) then return true end
+	if portraitEnabledFor("boss") then return true end
+	return false
+end
+
+local function updatePortraitEventRegistration()
+	if not eventFrame then return end
+	local shouldRegister = anyPortraitEnabled()
+	if shouldRegister and not portraitEventsActive then
+		for _, evt in ipairs(portraitEvents) do
+			eventFrame:RegisterEvent(evt)
+		end
+		portraitEventsActive = true
+	elseif not shouldRegister and portraitEventsActive then
+		for _, evt in ipairs(portraitEvents) do
+			eventFrame:UnregisterEvent(evt)
+		end
+		portraitEventsActive = false
+	end
 end
 
 local function ensureBossFramesReady(cfg)
@@ -2850,6 +2981,7 @@ local function updateTargetTargetFrame(cfg, forceApply)
 			if st.barGroup then st.barGroup:Hide() end
 			if st.status then st.status:Hide() end
 		end
+		updatePortrait(cfg, UNIT.TARGET_TARGET)
 		applyVisibilityRules(UNIT.TARGET_TARGET)
 		return
 	end
@@ -2885,6 +3017,7 @@ local function updateTargetTargetFrame(cfg, forceApply)
 		end
 	end
 	checkRaidTargetIcon(UNIT.TARGET_TARGET, st)
+	updatePortrait(cfg, UNIT.TARGET_TARGET)
 	ensureToTTicker()
 	applyVisibilityRules(UNIT.TARGET_TARGET)
 end
@@ -2898,6 +3031,7 @@ local function updateFocusFrame(cfg, forceApply)
 			if st.barGroup then st.barGroup:Hide() end
 			if st.status then st.status:Hide() end
 		end
+		updatePortrait(cfg, UNIT.FOCUS)
 		applyVisibilityRules(UNIT.FOCUS)
 		return
 	end
@@ -2935,11 +3069,12 @@ local function updateFocusFrame(cfg, forceApply)
 		end
 	end
 	checkRaidTargetIcon(UNIT.FOCUS, st)
+	updatePortrait(cfg, UNIT.FOCUS)
 	applyVisibilityRules(UNIT.FOCUS)
 end
 
 local function onEvent(self, event, unit, arg1)
-	if unitEventsMap[event] and unit and not (allowedEventUnit[unit] or isBossUnit(unit)) then return end
+	if (unitEventsMap[event] or portraitEventsMap[event]) and unit and not (allowedEventUnit[unit] or isBossUnit(unit)) then return end
 	local playerCfg = (states[UNIT.PLAYER] and states[UNIT.PLAYER].cfg) or ensureDB("player")
 	local targetCfg = (states[UNIT.TARGET] and states[UNIT.TARGET].cfg) or ensureDB("target")
 	local totCfg = (states[UNIT.TARGET_TARGET] and states[UNIT.TARGET_TARGET].cfg) or ensureDB(UNIT.TARGET_TARGET)
@@ -3013,6 +3148,7 @@ local function onEvent(self, event, unit, arg1)
 			stopCast(unitToken)
 		end
 		checkRaidTargetIcon(unitToken, st)
+		updatePortrait(targetCfg, unitToken)
 		if totCfg.enabled then updateTargetTargetFrame(totCfg) end
 		if focusCfg.enabled then updateFocusFrame(focusCfg) end
 	elseif event == "UNIT_AURA" and unit == "target" then
@@ -3035,7 +3171,7 @@ local function onEvent(self, event, unit, arg1)
 		local hidePermanent = ac.hidePermanentAuras == true or ac.hidePermanent == true
 		local st = states.target
 		if not st or not st.auraContainer then return end
-		local width = st.frame and st.frame:GetWidth() or 0
+		local width = (st.auraContainer and st.auraContainer:GetWidth()) or (st.barGroup and st.barGroup:GetWidth()) or (st.frame and st.frame:GetWidth()) or 0
 		local perRow = math.max(1, math.floor((width + ac.padding) / (ac.size + ac.padding)))
 		local firstChanged
 		if eventInfo.addedAuras then
@@ -3167,6 +3303,13 @@ local function onEvent(self, event, unit, arg1)
 		if unit == UNIT.FOCUS then updateNameAndLevel(focusCfg, UNIT.FOCUS) end
 		if unit == UNIT.PET then updateNameAndLevel(petCfg, UNIT.PET) end
 		if bossCfg.enabled and isBossUnit(unit) then updateNameAndLevel(bossCfg, unit) end
+	elseif portraitEventsMap[event] then
+		if unit == UNIT.PLAYER then updatePortrait(playerCfg, UNIT.PLAYER) end
+		if unit == UNIT.TARGET then updatePortrait(targetCfg, UNIT.TARGET) end
+		if unit == UNIT.TARGET_TARGET then updatePortrait(totCfg, UNIT.TARGET_TARGET) end
+		if unit == UNIT.FOCUS then updatePortrait(focusCfg, UNIT.FOCUS) end
+		if unit == UNIT.PET then updatePortrait(petCfg, UNIT.PET) end
+		if bossCfg.enabled and isBossUnit(unit) then updatePortrait(bossCfg, unit) end
 	elseif event == "UNIT_TARGET" and unit == UNIT.TARGET then
 		if totCfg.enabled then updateTargetTargetFrame(totCfg) end
 	elseif event == "UNIT_SPELLCAST_START" or event == "UNIT_SPELLCAST_CHANNEL_START" or event == "UNIT_SPELLCAST_CHANNEL_UPDATE" then
@@ -3214,36 +3357,39 @@ local function ensureEventHandling()
 		if eventFrame and eventFrame.UnregisterAllEvents then eventFrame:UnregisterAllEvents() end
 		if eventFrame then eventFrame:SetScript("OnEvent", nil) end
 		eventFrame = nil
+		portraitEventsActive = nil
 		return
 	end
-	if eventFrame then return end
-	eventFrame = CreateFrame("Frame")
-	for _, evt in ipairs(unitEvents) do
-		eventFrame:RegisterEvent(evt)
-	end
-	for _, evt in ipairs(generalEvents) do
-		eventFrame:RegisterEvent(evt)
-	end
-	eventFrame:SetScript("OnEvent", onEvent)
-	if not editModeHooked then
-		editModeHooked = true
+	if not eventFrame then
+		eventFrame = CreateFrame("Frame")
+		for _, evt in ipairs(unitEvents) do
+			eventFrame:RegisterEvent(evt)
+		end
+		for _, evt in ipairs(generalEvents) do
+			eventFrame:RegisterEvent(evt)
+		end
+		eventFrame:SetScript("OnEvent", onEvent)
+		if not editModeHooked then
+			editModeHooked = true
 
-		addon.EditModeLib:RegisterCallback("enter", function()
-			updateCombatIndicator(states[UNIT.PLAYER] and states[UNIT.PLAYER].cfg or ensureDB(UNIT.PLAYER))
-			ensureBossFramesReady(ensureDB("boss"))
-			updateBossFrames(true)
-			updateAllRaidTargetIcons()
-			applyVisibilityRulesAll()
-		end)
+			addon.EditModeLib:RegisterCallback("enter", function()
+				updateCombatIndicator(states[UNIT.PLAYER] and states[UNIT.PLAYER].cfg or ensureDB(UNIT.PLAYER))
+				ensureBossFramesReady(ensureDB("boss"))
+				updateBossFrames(true)
+				updateAllRaidTargetIcons()
+				applyVisibilityRulesAll()
+			end)
 
-		addon.EditModeLib:RegisterCallback("exit", function()
-			updateCombatIndicator(states[UNIT.PLAYER] and states[UNIT.PLAYER].cfg or ensureDB(UNIT.PLAYER))
-			hideBossFrames(true)
-			if ensureDB("boss").enabled then updateBossFrames(true) end
-			updateAllRaidTargetIcons()
-			applyVisibilityRulesAll()
-		end)
+			addon.EditModeLib:RegisterCallback("exit", function()
+				updateCombatIndicator(states[UNIT.PLAYER] and states[UNIT.PLAYER].cfg or ensureDB(UNIT.PLAYER))
+				hideBossFrames(true)
+				if ensureDB("boss").enabled then updateBossFrames(true) end
+				updateAllRaidTargetIcons()
+				applyVisibilityRulesAll()
+			end)
+		end
 	end
+	updatePortraitEventRegistration()
 end
 
 function UF.Enable()
