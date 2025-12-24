@@ -1613,20 +1613,33 @@ local function applyCastLayout(cfg, unit)
 		st.castIcon:SetShown(ccfg.showIcon ~= false)
 	end
 	local texKey = ccfg.texture or defc.texture or "DEFAULT"
-	st.castBar:SetStatusBarTexture(resolveCastTexture(texKey))
+	local castTexture = resolveCastTexture(texKey)
+	st.castBar:SetStatusBarTexture(castTexture)
 	if st.castBar.SetStatusBarDesaturated then st.castBar:SetStatusBarDesaturated(false) end
 	do -- Cast backdrop
 		local bd = (ccfg and ccfg.backdrop) or (defc and defc.backdrop) or { enabled = true, color = { 0, 0, 0, 0.6 } }
+		if st.castBar.SetBackdrop then st.castBar:SetBackdrop(nil) end
+		local bg = st.castBar.backdropTexture
 		if bd.enabled == false then
-			if st.castBar.SetBackdrop then st.castBar:SetBackdrop(nil) end
-		elseif st.castBar.SetBackdrop then
-			st.castBar:SetBackdrop({
-				bgFile = "Interface\\Buttons\\WHITE8x8",
-				edgeFile = nil,
-				tile = false,
-			})
+			if bg then bg:Hide() end
+		else
+			if not bg then
+				bg = st.castBar:CreateTexture(nil, "BACKGROUND")
+				st.castBar.backdropTexture = bg
+			end
 			local col = bd.color or { 0, 0, 0, 0.6 }
-			if st.castBar.SetBackdropColor then st.castBar:SetBackdropColor(col[1] or 0, col[2] or 0, col[3] or 0, col[4] or 0.6) end
+			bg:ClearAllPoints()
+			local useBlizzBackdrop = not texKey or texKey == "" or texKey == "DEFAULT"
+			if useBlizzBackdrop and bg.SetAtlas then
+				bg:SetAtlas("ui-castingbar-background", false)
+				bg:SetPoint("TOPLEFT", st.castBar, "TOPLEFT", -1, 1)
+				bg:SetPoint("BOTTOMRIGHT", st.castBar, "BOTTOMRIGHT", 1, -1)
+			else
+				bg:SetTexture(castTexture)
+				bg:SetAllPoints(st.castBar)
+			end
+			bg:SetVertexColor(col[1] or 0, col[2] or 0, col[3] or 0, col[4] or 0.6)
+			bg:Show()
 		end
 	end
 	-- Limit cast name width so long names don't overlap duration text
