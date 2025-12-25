@@ -9,6 +9,7 @@
 - UF Plus: per-frame "Show when" visibility rules for custom unit frames in Edit Mode.
 - UF Plus: per-main-power color overrides for power bars (with optional desaturation).
 - UF Plus: portrait options for unit frames (size/side/offset).
+- UF Plus: border offset control for unit frame textures.
 - Data Panels: difficulty stream now opens a difficulty selection menu on click.
 - UF Plus now supports Click Casting Addons (like clique)
 

@@ -664,7 +664,7 @@ local function buildUnitSettings(unit)
 	borderTexture.isEnabled = function() return getValue(unit, { "border", "enabled" }, (def.border and def.border.enabled) ~= false) ~= false end
 	list[#list + 1] = borderTexture
 
-	list[#list + 1] = slider(L["UFBorderSize"] or "Border size", 1, 8, 1, function()
+	list[#list + 1] = slider(L["UFBorderSize"] or "Border size", 1, 64, 1, function()
 		local border = getValue(unit, { "border" }, def.border or {})
 		return border.edgeSize or 1
 	end, function(val)
@@ -675,6 +675,19 @@ local function buildUnitSettings(unit)
 			refresh()
 		end)
 	end, max(1, (def.border and def.border.edgeSize) or 1), "frame", true)
+
+	list[#list + 1] = slider(L["Border offset"] or "Border offset", 0, 64, 1, function()
+		local border = getValue(unit, { "border" }, def.border or {})
+		if border.offset == nil then return border.edgeSize or 1 end
+		return border.offset
+	end, function(val)
+		debounced(unit .. "_borderOffset", function()
+			local border = getValue(unit, { "border" }, def.border or {})
+			border.offset = val or 0
+			setValue(unit, { "border" }, border)
+			refresh()
+		end)
+	end, (def.border and def.border.offset) or (def.border and def.border.edgeSize) or 1, "frame", true)
 
 	local portraitDef = def.portrait or {}
 	list[#list + 1] = { name = L["UFPortrait"] or "Portrait", kind = settingType.Collapsible, id = "portrait", defaultCollapsed = true }

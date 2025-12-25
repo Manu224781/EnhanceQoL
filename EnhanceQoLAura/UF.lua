@@ -1446,22 +1446,48 @@ local function resolveBorderTexture(key)
 	return key
 end
 
+local function ensureBorderFrame(frame)
+	if not frame then return nil end
+	local border = frame._ufBorder
+	if not border then
+		border = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+		border:EnableMouse(false)
+		frame._ufBorder = border
+	end
+	border:SetFrameStrata(frame:GetFrameStrata())
+	local baseLevel = frame:GetFrameLevel() or 0
+	border:SetFrameLevel(baseLevel + 2)
+	border:ClearAllPoints()
+	border:SetPoint("TOPLEFT", frame, "TOPLEFT", 0, 0)
+	border:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", 0, 0)
+	return border
+end
+
 local function setBackdrop(frame, borderCfg)
 	if not frame then return end
 	if borderCfg and borderCfg.enabled then
+		if frame.SetBackdrop then frame:SetBackdrop(nil) end
+		local borderFrame = ensureBorderFrame(frame)
+		if not borderFrame then return end
 		local color = borderCfg.color or { 0, 0, 0, 0.8 }
 		local insetVal = borderCfg.inset
 		if insetVal == nil then insetVal = borderCfg.edgeSize or 1 end
-		frame:SetBackdrop({
+		borderFrame:SetBackdrop({
 			bgFile = "Interface\\Buttons\\WHITE8x8",
 			edgeFile = resolveBorderTexture(borderCfg.texture),
 			edgeSize = borderCfg.edgeSize or 1,
 			insets = { left = insetVal, right = insetVal, top = insetVal, bottom = insetVal },
 		})
-		frame:SetBackdropColor(0, 0, 0, 0)
-		frame:SetBackdropBorderColor(color[1] or 0, color[2] or 0, color[3] or 0, color[4] or 1)
+		borderFrame:SetBackdropColor(0, 0, 0, 0)
+		borderFrame:SetBackdropBorderColor(color[1] or 0, color[2] or 0, color[3] or 0, color[4] or 1)
+		borderFrame:Show()
 	else
-		frame:SetBackdrop(nil)
+		if frame.SetBackdrop then frame:SetBackdrop(nil) end
+		local borderFrame = frame._ufBorder
+		if borderFrame then
+			borderFrame:SetBackdrop(nil)
+			borderFrame:Hide()
+		end
 	end
 end
 
@@ -2206,13 +2232,17 @@ local function layoutFrame(cfg, unit)
 	local healthHeight = cfg.healthHeight or def.healthHeight
 	local powerHeight = powerEnabled and (cfg.powerHeight or def.powerHeight) or 0
 	local barGap = powerEnabled and (cfg.barGap or def.barGap or 0) or 0
-	local borderInset = 0
-	if cfg.border and cfg.border.enabled then borderInset = (cfg.border.edgeSize or 1) end
+	local borderOffset = 0
+	if cfg.border and cfg.border.enabled then
+		borderOffset = cfg.border.offset
+		if borderOffset == nil then borderOffset = cfg.border.edgeSize or 1 end
+		borderOffset = max(0, borderOffset or 0)
+	end
 	local portraitEnabled, portraitSize, portraitSide, portraitOffsetX, portraitOffsetY = getPortraitConfig(cfg, unit)
 	local portraitWidth = portraitEnabled and portraitSize or 0
 	local barOffsetLeft = (portraitEnabled and portraitSide == "LEFT") and portraitWidth or 0
 	local barOffsetRight = (portraitEnabled and portraitSide == "RIGHT") and -portraitWidth or 0
-	st.frame:SetWidth(width + borderInset * 2 + portraitWidth)
+	st.frame:SetWidth(width + borderOffset * 2 + portraitWidth)
 	if cfg.strata then
 		st.frame:SetFrameStrata(cfg.strata)
 	else
@@ -2256,16 +2286,16 @@ local function layoutFrame(cfg, unit)
 		st.status:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", barOffsetRight, 0)
 	end
 	-- Bars container sits below status; border applied here, not on status
-	local barsHeight = healthHeight + powerHeight + barGap + borderInset * 2
+	local barsHeight = healthHeight + powerHeight + barGap + borderOffset * 2
 	if st.barGroup then
-		st.barGroup:SetWidth(width + borderInset * 2)
+		st.barGroup:SetWidth(width + borderOffset * 2)
 		st.barGroup:SetHeight(barsHeight)
 		st.barGroup:SetPoint("TOPLEFT", st.frame, "TOPLEFT", barOffsetLeft, y)
 		st.barGroup:SetPoint("TOPRIGHT", st.frame, "TOPRIGHT", barOffsetRight, y)
 	end
 
-	st.health:SetPoint("TOPLEFT", st.barGroup or st.frame, "TOPLEFT", borderInset, -borderInset)
-	st.health:SetPoint("TOPRIGHT", st.barGroup or st.frame, "TOPRIGHT", -borderInset, -borderInset)
+	st.health:SetPoint("TOPLEFT", st.barGroup or st.frame, "TOPLEFT", borderOffset, -borderOffset)
+	st.health:SetPoint("TOPRIGHT", st.barGroup or st.frame, "TOPRIGHT", -borderOffset, -borderOffset)
 	st.power:SetPoint("TOPLEFT", st.health, "BOTTOMLEFT", 0, -barGap)
 	st.power:SetPoint("TOPRIGHT", st.health, "BOTTOMRIGHT", 0, -barGap)
 
@@ -2308,7 +2338,7 @@ local function layoutFrame(cfg, unit)
 		else
 			st.auraContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", ax, ay)
 		end
-		st.auraContainer:SetWidth(width + borderInset * 2)
+		st.auraContainer:SetWidth(width + borderOffset * 2)
 
 		if st.debuffContainer then
 			st.debuffContainer:ClearAllPoints()
@@ -2323,7 +2353,7 @@ local function layoutFrame(cfg, unit)
 				else
 					st.debuffContainer:SetPoint("TOPLEFT", st.barGroup, "BOTTOMLEFT", dax, day)
 				end
-				st.debuffContainer:SetWidth(width + borderInset * 2)
+				st.debuffContainer:SetWidth(width + borderOffset * 2)
 			else
 				-- If not separating, keep the debuff container collapsed
 				st.debuffContainer:SetPoint("TOPLEFT", st.auraContainer, "TOPLEFT", 0, 0)
