@@ -635,7 +635,7 @@ local function updateButtonInfo(itemButton, bag, slot, frameName)
 			bType, bKey, upgradeKey, bAuc = getTooltipInfo(bag, slot, classID, tBindType)
 		end
 		local setVisibility
-		local isUpgrade
+		local isUpgrade = nil
 
 		if addon.filterFrame then
 			if classID == 15 and subclassID == 0 then bAuc = true end -- ignore lockboxes etc.

@@ -532,6 +532,7 @@ globals = {
 	"SettingsListElementMixin",
 	"EQOL_MultiDropdownMixin",
 	"MenuConstants",
+	"ChatTypeGroup",
 	"ButtonStateBehaviorMixin",
 	"DefaultTooltipMixin",
 	"BankButtonIDToInvSlotID",
