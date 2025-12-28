@@ -2570,13 +2570,13 @@ local function ensureFrames(unit)
 	if st.frame then return end
 	local parent = UIParent
 	if isBossUnit(unit) then parent = ensureBossContainer() or UIParent end
-	st.frame = _G[info.frameName] or CreateFrame("Button", info.frameName, parent, "BackdropTemplate,SecureUnitButtonTemplate")
+	st.frame = _G[info.frameName] or CreateFrame("Button", info.frameName, parent, "BackdropTemplate,SecureUnitButtonTemplate, PingableUnitFrameTemplate")
 	_G.ClickCastFrames = _G.ClickCastFrames or {}
 	_G.ClickCastFrames[st.frame] = true
 	if st.frame.SetParent then st.frame:SetParent(parent) end
 	st.frame:SetAttribute("unit", info.unit)
-	st.frame:SetAttribute("type1", "target")
-	st.frame:SetAttribute("type2", "togglemenu")
+	st.frame:SetAttribute("*type1", "target")
+	st.frame:SetAttribute("*type2", "togglemenu")
 	st.frame:HookScript("OnEnter", function(self)
 		local cfg = ensureDB(unit)
 		if not (cfg and cfg.showTooltip) then return end
