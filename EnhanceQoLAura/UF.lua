@@ -886,14 +886,29 @@ local function styleAuraCount(btn, ac)
 	if not btn or not btn.count then return end
 	ac = ac or {}
 	local anchor = ac.countAnchor or "BOTTOMRIGHT"
-	local off = ac.countOffset or { x = -2, y = 2 }
+	local off = ac.countOffset
+	local ox, oy
+	if off then
+		ox = off.x or 0
+		oy = off.y or 0
+	else
+		ox = -2
+		oy = 2
+	end
+	local size = ac.countFontSize
+	local flags = ac.countFontOutline
+	local fontKey = ac.countFont or (addon.variables and addon.variables.defaultFont) or (LSM and LSM.DefaultMedia and LSM.DefaultMedia.font) or STANDARD_TEXT_FONT
+	local key = anchor .. "|" .. ox .. "|" .. oy .. "|" .. tostring(fontKey) .. "|" .. tostring(size) .. "|" .. tostring(flags)
+	if btn._countStyleKey == key then return end
+	btn._countStyleKey = key
 	btn.count:ClearAllPoints()
-	btn.count:SetPoint(anchor, btn.overlay or btn, anchor, off.x or 0, off.y or 0)
-	local fontPath = ac.countFont and getFont(ac.countFont) or nil
-	local _, curSize, curFlags = btn.count:GetFont()
-	local size = ac.countFontSize or curSize or 14
-	local flags = ac.countFontOutline or curFlags
-	if fontPath or size or flags then btn.count:SetFont(fontPath or getFont(), size, flags) end
+	btn.count:SetPoint(anchor, btn.overlay or btn, anchor, ox, oy)
+	if size == nil or flags == nil then
+		local _, curSize, curFlags = btn.count:GetFont()
+		if size == nil then size = curSize or 14 end
+		if flags == nil then flags = curFlags end
+	end
+	btn.count:SetFont(getFont(ac.countFont), size, flags)
 end
 
 local function applyAuraToButton(btn, aura, ac, isDebuff, unitToken)
@@ -930,17 +945,24 @@ local function applyAuraToButton(btn, aura, ac, isDebuff, unitToken)
 	if btn.border then
 		if isDebuff then
 			btn.border:SetTexture("Interface\\Buttons\\UI-Debuff-Overlays")
-			local color = { r = 1, g = 0.25, b = 0.25 }
+			local r, g, b = 1, 0.25, 0.25
 			if issecretAura then
-				color = C_UnitAuras.GetAuraDispelTypeColor(unitToken, aura.auraInstanceID, colorcurve)
+				local color = C_UnitAuras.GetAuraDispelTypeColor(unitToken, aura.auraInstanceID, colorcurve)
+				if color then
+					r, g, b = color.r, color.g, color.b
+				end
 			elseif _G.DebuffTypeColor then
+				local color
 				if aura.dispelName then
 					color = DebuffTypeColor[aura.dispelName]
 				else
 					color = DebuffTypeColor["none"]
 				end
+				if color then
+					r, g, b = color.r, color.g, color.b
+				end
 			end
-			btn.border:SetVertexColor(color.r, color.g, color.b, 1)
+			btn.border:SetVertexColor(r, g, b, 1)
 			btn.border:Show()
 		else
 			btn.border:SetTexture(nil)
@@ -1067,7 +1089,7 @@ end
 local function updateTargetAuraIcons(startIndex)
 	local st = states.target
 	if not st or not st.auraContainer or not st.frame then return end
-	local cfg = ensureDB("target")
+	local cfg = st.cfg or ensureDB("target")
 	local ac = cfg.auraIcons or defaults.target.auraIcons or { size = 24, padding = 2, max = 16, showCooldown = true }
 	ac.size = ac.size or 24
 	ac.padding = ac.padding or 0
@@ -1141,13 +1163,13 @@ local function updateTargetAuraIcons(startIndex)
 			targetAuraIndexById[auraId] = nil
 			reindexTargetAuraOrder(i)
 		else
-			local isDebuff
-			if issecretvalue and issecretvalue(aura.isHarmful) then
-				isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID("target", aura.auraInstanceID, "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY")
-			else
-				isDebuff = aura.isHarmful == true
-			end
 			if shownTotal < ac.max then
+				local isDebuff
+				if issecretvalue and issecretvalue(aura.isHarmful) then
+					isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID("target", aura.auraInstanceID, "HARMFUL|PLAYER|INCLUDE_NAME_PLATE_ONLY")
+				else
+					isDebuff = aura.isHarmful == true
+				end
 				shownTotal = shownTotal + 1
 				if isDebuff then
 					debuffCount = debuffCount + 1
@@ -1185,7 +1207,8 @@ end
 local function fullScanTargetAuras()
 	resetTargetAuras()
 	if not UnitExists or not UnitExists("target") then return end
-	local cfg = ensureDB("target")
+	local st = states.target
+	local cfg = (st and st.cfg) or ensureDB("target")
 	local ac = cfg.auraIcons or defaults.target.auraIcons or {}
 	local hidePermanent = ac.hidePermanentAuras == true or ac.hidePermanent == true
 	if C_UnitAuras and C_UnitAuras.GetUnitAuras then
@@ -3713,8 +3736,6 @@ local function onEvent(self, event, unit, arg1)
 		local hidePermanent = ac.hidePermanentAuras == true or ac.hidePermanent == true
 		local st = states.target
 		if not st or not st.auraContainer then return end
-		local width = (st.auraContainer and st.auraContainer:GetWidth()) or (st.barGroup and st.barGroup:GetWidth()) or (st.frame and st.frame:GetWidth()) or 0
-		local perRow = math.max(1, math.floor((width + ac.padding) / (ac.size + ac.padding)))
 		local firstChanged
 		if eventInfo.addedAuras then
 			for _, aura in ipairs(eventInfo.addedAuras) do
