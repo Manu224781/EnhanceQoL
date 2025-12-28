@@ -8,6 +8,7 @@ L["CooldownNotify"] = "Cooldown Notify"
 L["EnableBuffTracker"] = 'Enable Aura Tracker "%s"'
 L["EnableCooldownNotify"] = 'Enable Cooldown Notify "%s"'
 L["GrowthDirection"] = "Growth Direction"
+L["Debuff Growth Direction"] = "Debuff Growth Direction"
 L["AddSpellID"] = "Add Spell ID"
 L["TrackTrinketSlot"] = "Track Trinket Slot %d"
 L["TrinketSlot"] = "Trinket Slot %d"

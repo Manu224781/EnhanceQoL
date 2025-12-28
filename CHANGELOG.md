@@ -7,6 +7,7 @@
 - Social: Community chat privacy toggle with modes (Always / Session) plus quick eye reveal and overlay hint.
 - UF Plus: new text modes (Max, Max/Percent) and optional percent symbol hiding.
 - UF Plus: target aura anchor supports LEFT/RIGHT and growth direction combinations.
+- UF Plus: separate debuff growth direction option for target auras.
 - UF Plus: power bar can be detached with custom width and offsets.
 - Mover: position persistence mode (close / logout / reset).
 - Mover: reset scale and position to defaults with scale modifier + right-click on a handle.

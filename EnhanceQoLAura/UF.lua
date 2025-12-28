@@ -1003,7 +1003,7 @@ function UF._auraLayout.parseGrowth(growth)
 	return first, second
 end
 
-function UF._auraLayout.resolveGrowth(ac, fallbackAnchor)
+function UF._auraLayout.resolveGrowth(ac, fallbackAnchor, growthOverride)
 	local anchor = fallbackAnchor or (ac and ac.anchor) or "BOTTOM"
 	local fallback
 	if anchor == "TOP" then
@@ -1013,7 +1013,7 @@ function UF._auraLayout.resolveGrowth(ac, fallbackAnchor)
 	else
 		fallback = "RIGHTDOWN"
 	end
-	local primary, secondary = UF._auraLayout.parseGrowth(ac and ac.growth)
+	local primary, secondary = UF._auraLayout.parseGrowth(growthOverride or (ac and ac.growth))
 	if not primary then
 		primary, secondary = UF._auraLayout.parseGrowth(fallback)
 	end
@@ -1157,7 +1157,7 @@ local function updateTargetAuraIcons(startIndex)
 	local debuffCount = 0
 	local shownTotal = 0
 	local debAnchor = ac.debuffAnchor or ac.anchor or "BOTTOM"
-	local debPrimary, debSecondary = auraLayout.resolveGrowth(ac, debAnchor)
+	local debPrimary, debSecondary = auraLayout.resolveGrowth(ac, debAnchor, ac.debuffGrowth)
 	local perRowDebuff = auraLayout.calcPerRow(st, ac, width, debPrimary)
 	local i = 1
 	while i <= #targetAuraOrder do
@@ -1544,14 +1544,17 @@ do
 		size = 24,
 		padding = 2,
 		max = 16,
+		perRow = 0,
 		showCooldown = true,
 		showTooltip = true,
 		hidePermanentAuras = false,
 		anchor = "BOTTOM",
 		offset = { x = 0, y = -5 },
+		growth = nil,
 		separateDebuffAnchor = false,
 		debuffAnchor = nil,
 		debuffOffset = nil,
+		debuffGrowth = nil,
 		countAnchor = "BOTTOMRIGHT",
 		countOffset = { x = -2, y = 2 },
 		countFontSize = nil,

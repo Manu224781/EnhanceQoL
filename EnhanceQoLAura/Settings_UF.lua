@@ -2435,7 +2435,7 @@ local function buildUnitSettings(unit)
 			"auras"
 		)
 
-		list[#list + 1] = slider(L["Aura Offset X"] or "Aura Offset X", -200, 200, 1, function()
+		list[#list + 1] = slider(L["Aura Offset X"] or "Aura Offset X", -500, 500, 1, function()
 			local anchor = getValue(unit, { "auraIcons", "anchor" }, auraDef.anchor or "BOTTOM")
 			return getValue(unit, { "auraIcons", "offset", "x" }, (auraDef.offset and auraDef.offset.x) or defaultAuraOffsetX(anchor))
 		end, function(val)
@@ -2443,7 +2443,7 @@ local function buildUnitSettings(unit)
 			refresh()
 		end, (auraDef.offset and auraDef.offset.x) or defaultAuraOffsetX(auraDef.anchor or "BOTTOM"), "auras", true)
 
-		list[#list + 1] = slider(L["Aura Offset Y"] or "Aura Offset Y", -200, 200, 1, function()
+		list[#list + 1] = slider(L["Aura Offset Y"] or "Aura Offset Y", -500, 500, 1, function()
 			local anchor = getValue(unit, { "auraIcons", "anchor" }, auraDef.anchor or "BOTTOM")
 			return getValue(unit, { "auraIcons", "offset", "y" }, (auraDef.offset and auraDef.offset.y) or defaultAuraOffsetY(anchor))
 		end, function(val)
@@ -2471,6 +2471,29 @@ local function buildUnitSettings(unit)
 		end, auraDef.debuffAnchor or auraDef.anchor or "BOTTOM", "auras")
 		debuffAnchorSetting.isEnabled = isSeparateDebuffEnabled
 		list[#list + 1] = debuffAnchorSetting
+
+		local function defaultDebuffGrowth()
+			local baseGrowth = getValue(unit, { "auraIcons", "growth" }, nil)
+			if baseGrowth and baseGrowth ~= "" then return baseGrowth end
+			local anchor = debuffAnchorValue()
+			if anchor == "TOP" then return "RIGHTUP" end
+			if anchor == "LEFT" then return "LEFTDOWN" end
+			return "RIGHTDOWN"
+		end
+
+		local debuffGrowthSetting = radioDropdown(
+			L["Debuff Growth Direction"] or "Debuff growth direction",
+			growthOptions,
+			function() return (getValue(unit, { "auraIcons", "debuffGrowth" }, defaultDebuffGrowth()) or defaultDebuffGrowth()):upper() end,
+			function(val)
+				setValue(unit, { "auraIcons", "debuffGrowth" }, (val or defaultDebuffGrowth()):upper())
+				refresh()
+			end,
+			defaultDebuffGrowth(),
+			"auras"
+		)
+		debuffGrowthSetting.isEnabled = isSeparateDebuffEnabled
+		list[#list + 1] = debuffGrowthSetting
 
 		list[#list + 1] = slider(
 			L["Debuff Offset X"] or "Debuff Offset X",
