@@ -30,5 +30,6 @@ EnhanceQoLAura.lua
 BuffTracker.lua
 CastTracker.lua
 CooldownNotify.lua
+UF_Helper.lua
 UF.lua
 Settings_UF.lua

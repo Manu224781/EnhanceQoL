@@ -8,9 +8,10 @@ else
 end
 
 addon.Aura = addon.Aura or {}
-local UF = {}
+local UF = addon.Aura.UF or {}
 addon.Aura.UF = UF
 UF.ui = UF.ui or {}
+local UFHelper = addon.Aura.UFHelper
 addon.variables = addon.variables or {}
 addon.variables.ufSampleAbsorb = addon.variables.ufSampleAbsorb or {}
 local maxBossFrames = MAX_BOSS_FRAMES or 5
@@ -31,23 +32,7 @@ end
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
 local LSM = LibStub("LibSharedMedia-3.0")
 local AceGUI = addon.AceGUI or LibStub("AceGUI-3.0")
-local BLIZZARD_TEX = "Interface\\TargetingFrame\\UI-StatusBar"
 local DEFAULT_NOT_INTERRUPTIBLE_COLOR = { 204 / 255, 204 / 255, 204 / 255, 1 }
-local atlasByPower = {
-	LUNAR_POWER = "Unit_Druid_AstralPower_Fill",
-	MAELSTROM = "Unit_Shaman_Maelstrom_Fill",
-	INSANITY = "Unit_Priest_Insanity_Fill",
-	FURY = "Unit_DemonHunter_Fury_Fill",
-	RUNIC_POWER = "UI-HUD-UnitFrame-Player-PortraitOn-Bar-RunicPower",
-	ENERGY = "UI-HUD-UnitFrame-Player-PortraitOn-ClassResource-Bar-Energy",
-	FOCUS = "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Focus",
-	RAGE = "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Rage",
-	MANA = "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Mana",
-	HEALTH = "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Health",
-}
-
-local CASTING_BAR_TYPES = _G.CASTING_BAR_TYPES
-local EnumPowerType = Enum and Enum.PowerType
 local UnitGetTotalAbsorbs = UnitGetTotalAbsorbs or function() return 0 end
 local RegisterStateDriver = _G.RegisterStateDriver
 local UnregisterStateDriver = _G.UnregisterStateDriver
@@ -55,15 +40,8 @@ local IsResting = _G.IsResting
 local UnitIsResting = _G.UnitIsResting
 local After = C_Timer and C_Timer.After
 local NewTicker = C_Timer and C_Timer.NewTicker
-local floor = math.floor
 local max = math.max
-local abs = math.abs
 local wipe = wipe or (table and table.wipe)
-local function clamp(value, minV, maxV)
-	if value < minV then return minV end
-	if value > maxV then return maxV end
-	return value
-end
 local SetFrameVisibilityOverride = addon.functions and addon.functions.SetFrameVisibilityOverride
 local HasFrameVisibilityOverride = addon.functions and addon.functions.HasFrameVisibilityOverride
 local NormalizeUnitFrameVisibilityConfig = addon.functions and addon.functions.NormalizeUnitFrameVisibilityConfig
@@ -71,7 +49,6 @@ local ApplyFrameVisibilityConfig = addon.functions and addon.functions.ApplyFram
 
 local shouldShowSampleCast
 local setSampleCast
-local applyFont
 
 local UNIT = {
 	PLAYER = "player",
@@ -137,10 +114,6 @@ local classResourceManagedFrames = {}
 local classResourceHooks = {}
 local applyClassResourceLayout
 
-local function getFont(path)
-	if path and path ~= "" then return path end
-	return addon.variables and addon.variables.defaultFont or (LSM and LSM:Fetch("font", LSM.DefaultMedia.font)) or STANDARD_TEXT_FONT
-end
 local function isBossUnit(unit)
 	if type(unit) ~= "string" then return false end
 	return unit == "boss" or (unit and unit:match("^boss%d+$"))
@@ -265,6 +238,7 @@ local defaults = {
 			nameOffset = { x = 0, y = 0 },
 			levelOffset = { x = 0, y = 0 },
 			levelEnabled = true,
+			hideLevelAtMax = false,
 			nameMaxChars = 15,
 			unitStatus = {
 				enabled = false,
@@ -498,7 +472,7 @@ local function applyRaidIconLayout(unit, cfg)
 	local offsetDef = def and def.raidIcon and def.raidIcon.offset or {}
 	local sizeDef = def and def.raidIcon and def.raidIcon.size or 18
 	local enabled = rcfg.enabled ~= false
-	local size = clamp(rcfg.size or sizeDef or 18, 10, 30)
+	local size = UFHelper.clamp(rcfg.size or sizeDef or 18, 10, 30)
 	local ox = (rcfg.offset and rcfg.offset.x) or offsetDef.x or 0
 	local oy = (rcfg.offset and rcfg.offset.y) or offsetDef.y or -2
 	local centerOffset = (st and st._portraitCenterOffset) or 0
@@ -652,11 +626,6 @@ applyClassResourceLayout = function(cfg)
 	end
 end
 
-local function trim(str)
-	if type(str) ~= "string" then return "" end
-	return str:match("^%s*(.-)%s*$")
-end
-
 local function normalizeScopeKey(scopeKey)
 	if not scopeKey or scopeKey == "" then return "ALL" end
 	if scopeKey == "ALL" then return "ALL" end
@@ -695,7 +664,7 @@ end
 
 local function importUnitFrameProfile(encoded, scopeKey)
 	scopeKey = normalizeScopeKey(scopeKey)
-	encoded = trim(encoded or "")
+	encoded = UFHelper.trim(encoded or "")
 	if not encoded or encoded == "" then return false, "NO_INPUT" end
 
 	local deflate = LibStub("LibDeflate")
@@ -913,7 +882,7 @@ local function styleAuraCount(btn, ac)
 		if size == nil then size = curSize or 14 end
 		if flags == nil then flags = curFlags end
 	end
-	btn.count:SetFont(getFont(ac.countFont), size, flags)
+	btn.count:SetFont(UFHelper.getFont(ac.countFont), size, flags)
 end
 
 local function applyAuraToButton(btn, aura, ac, isDebuff, unitToken)
@@ -1452,44 +1421,6 @@ end
 
 local function ensureRootNode() addTreeNode("ufplus", { value = "ufplus", text = L["UFPlusRoot"] or "UF Plus" }, nil) end
 
-local function getPowerColor(pToken)
-	if not pToken then pToken = EnumPowerType.MANA end
-	local overrides = addon.db and addon.db.ufPowerColorOverrides
-	local override = overrides and overrides[pToken]
-	if override then
-		if override.r then return override.r, override.g, override.b, override.a or 1 end
-		if override[1] then return override[1], override[2], override[3], override[4] or 1 end
-	end
-	if PowerBarColor then
-		local c = PowerBarColor[pToken]
-		if c then
-			if c.r then return c.r, c.g, c.b, c.a or 1 end
-			if c[1] then return c[1], c[2], c[3], c[4] or 1 end
-		end
-	end
-	return 0.1, 0.45, 1, 1
-end
-
-local function isPowerDesaturated(pToken)
-	if not pToken then return false end
-	local overrides = addon.db and addon.db.ufPowerColorOverrides
-	return overrides and overrides[pToken] ~= nil
-end
-
-local function shortValue(val)
-	if val == nil then return "" end
-	if addon.variables and addon.variables.isMidnight then return AbbreviateNumbers(val) end
-	local absVal = abs(val)
-	if absVal >= 1e9 then
-		return ("%.1fB"):format(val / 1e9):gsub("%.0B", "B")
-	elseif absVal >= 1e6 then
-		return ("%.1fM"):format(val / 1e6):gsub("%.0M", "M")
-	elseif absVal >= 1e3 then
-		return ("%.1fK"):format(val / 1e3):gsub("%.0K", "K")
-	end
-	return tostring(floor(val + 0.5))
-end
-
 local function hideBlizzardPlayerFrame()
 	if not _G.PlayerFrame then return end
 	if not InCombatLockdown() and ensureDB("player").enabled then _G.PlayerFrame:Hide() end
@@ -1612,15 +1543,6 @@ do
 	defaults.boss = bossDefaults
 end
 
-local function resolveBorderTexture(key)
-	if not key or key == "" or key == "DEFAULT" then return "Interface\\Buttons\\WHITE8x8" end
-	if LSM then
-		local tex = LSM:Fetch("border", key)
-		if tex and tex ~= "" then return tex end
-	end
-	return key
-end
-
 local function ensureBorderFrame(frame)
 	if not frame then return nil end
 	local border = frame._ufBorder
@@ -1649,7 +1571,7 @@ local function setBackdrop(frame, borderCfg)
 		if insetVal == nil then insetVal = borderCfg.edgeSize or 1 end
 		borderFrame:SetBackdrop({
 			bgFile = "Interface\\Buttons\\WHITE8x8",
-			edgeFile = resolveBorderTexture(borderCfg.texture),
+			edgeFile = UFHelper.resolveBorderTexture(borderCfg.texture),
 			edgeSize = borderCfg.edgeSize or 1,
 			insets = { left = insetVal, right = insetVal, top = insetVal, bottom = insetVal },
 		})
@@ -1681,167 +1603,6 @@ local function applyBarBackdrop(bar, cfg)
 		tile = false,
 	})
 	bar:SetBackdropColor(col[1] or 0, col[2] or 0, col[3] or 0, col[4] or 0.6)
-end
-
-local function resolveTexture(key)
-	if key == "SOLID" then return "Interface\\Buttons\\WHITE8x8" end
-	if not key or key == "DEFAULT" then return BLIZZARD_TEX end
-	if LSM then
-		local tex = LSM:Fetch("statusbar", key)
-		if tex then return tex end
-	end
-	return key
-end
-
-local function resolveSeparatorTexture(key)
-	if not key or key == "" or key == "SOLID" then return "Interface\\Buttons\\WHITE8x8" end
-	if key == "DEFAULT" then return BLIZZARD_TEX end
-	if LSM then
-		local tex = LSM:Fetch("statusbar", key)
-		if tex then return tex end
-	end
-	return key
-end
-
-local function resolveCastTexture(key)
-	if key == "SOLID" then return "Interface\\Buttons\\WHITE8x8" end
-	if not key or key == "DEFAULT" then
-		if CASTING_BAR_TYPES and CASTING_BAR_TYPES.standard and CASTING_BAR_TYPES.standard.full then return CASTING_BAR_TYPES.standard.full end
-		return BLIZZARD_TEX
-	end
-	if LSM then
-		local tex = LSM:Fetch("statusbar", key)
-		if tex then return tex end
-	end
-	return key
-end
-
-local function configureSpecialTexture(bar, pType, texKey, cfg)
-	if not bar or not pType then return end
-	local atlas = atlasByPower[pType]
-	if not atlas then return end
-	if texKey and texKey ~= "" and texKey ~= "DEFAULT" then return end
-	cfg = cfg or bar._cfg
-	local tex = bar:GetStatusBarTexture()
-	if tex and tex.SetAtlas then
-		local currentAtlas = tex.GetAtlas and tex:GetAtlas()
-		if currentAtlas ~= atlas then tex:SetAtlas(atlas, true) end
-		if tex.SetHorizTile then tex:SetHorizTile(false) end
-		if tex.SetVertTile then tex:SetVertTile(false) end
-	end
-end
-
-local function resolveTextDelimiter(delimiter)
-	if delimiter == nil or delimiter == "" then delimiter = " " end
-	if delimiter == " " then return " " end
-	return " " .. tostring(delimiter) .. " "
-end
-
-local function formatText(mode, cur, maxv, useShort, percentValue, delimiter, hidePercentSymbol)
-	if mode == "NONE" then return "" end
-	local join = resolveTextDelimiter(delimiter)
-	local percentSuffix = hidePercentSymbol and "" or "%"
-	if addon.variables and addon.variables.isMidnight and issecretvalue then
-		if (cur and issecretvalue(cur)) or (maxv and issecretvalue(maxv)) then
-			local scur = useShort and shortValue(cur) or BreakUpLargeNumbers(cur)
-			local smax = useShort and shortValue(maxv) or BreakUpLargeNumbers(maxv)
-			local percentText
-			if percentValue ~= nil then percentText = ("%s%s"):format(tostring(AbbreviateLargeNumbers(percentValue)), percentSuffix) end
-
-			if mode == "CURRENT" then return tostring(scur) end
-			if mode == "MAX" then return tostring(smax) end
-			if mode == "CURMAX" then return ("%s/%s"):format(tostring(scur), tostring(smax)) end
-			if mode == "PERCENT" then return percentText or "" end
-			if mode == "CURPERCENT" or mode == "CURPERCENTDASH" then return percentText and ("%s%s%s"):format(tostring(scur), join, percentText) or "" end
-			if mode == "CURMAXPERCENT" then return percentText and ("%s/%s%s%s"):format(tostring(scur), tostring(smax), join, percentText) or "" end
-			if mode == "MAXPERCENT" then return percentText and ("%s%s%s"):format(tostring(smax), join, percentText) or "" end
-			return ""
-		end
-	end
-	local percentText
-	if mode == "PERCENT" or mode == "CURPERCENT" or mode == "CURPERCENTDASH" or mode == "CURMAXPERCENT" or mode == "MAXPERCENT" then
-		if percentValue ~= nil then
-			percentText = ("%d%s"):format(floor(percentValue + 0.5), percentSuffix)
-		elseif not maxv or maxv == 0 then
-			percentText = "0" .. percentSuffix
-		else
-			percentText = ("%d%s"):format(floor((cur or 0) / maxv * 100 + 0.5), percentSuffix)
-		end
-	end
-	if mode == "PERCENT" then return percentText end
-	if mode == "MAX" then
-		local maxText = useShort == false and tostring(maxv or 0) or shortValue(maxv or 0)
-		return maxText
-	end
-	if mode == "CURMAX" then
-		local curText = useShort == false and tostring(cur or 0) or shortValue(cur or 0)
-		local maxText = useShort == false and tostring(maxv or 0) or shortValue(maxv or 0)
-		return ("%s/%s"):format(curText, maxText)
-	end
-	if mode == "CURPERCENT" or mode == "CURPERCENTDASH" then
-		if not percentText then return "" end
-		local curText = useShort == false and tostring(cur or 0) or shortValue(cur or 0)
-		return ("%s%s%s"):format(curText, join, percentText)
-	end
-	if mode == "CURMAXPERCENT" then
-		if not percentText then return "" end
-		local curText = useShort == false and tostring(cur or 0) or shortValue(cur or 0)
-		local maxText = useShort == false and tostring(maxv or 0) or shortValue(maxv or 0)
-		return ("%s/%s%s%s"):format(curText, maxText, join, percentText)
-	end
-	if mode == "MAXPERCENT" then
-		if not percentText then return "" end
-		local maxText = useShort == false and tostring(maxv or 0) or shortValue(maxv or 0)
-		return ("%s%s%s"):format(maxText, join, percentText)
-	end
-	if useShort == false then return tostring(cur or 0) end
-	return shortValue(cur or 0)
-end
-
-local nameWidthCache = {}
-
-local function getNameLimitWidth(fontPath, fontSize, fontOutline, maxChars)
-	if not maxChars or maxChars <= 0 then return nil end
-	local font = getFont(fontPath)
-	local size = fontSize or 14
-	local outline = fontOutline or "OUTLINE"
-	local key = tostring(font) .. "|" .. tostring(size) .. "|" .. tostring(outline) .. "|" .. tostring(maxChars)
-	if nameWidthCache[key] then return nameWidthCache[key] end
-	if not nameWidthCache._measure and UIParent and UIParent.CreateFontString then
-		nameWidthCache._measure = UIParent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-		if nameWidthCache._measure then nameWidthCache._measure:Hide() end
-	end
-	local measure = nameWidthCache._measure
-	if not measure then return nil end
-	measure:SetFont(font, size, outline)
-	measure:SetText(string.rep("i", maxChars))
-	local width = measure:GetStringWidth() or 0
-	nameWidthCache[key] = width
-	return width
-end
-
-local function applyNameCharLimit(st, scfg, defStatus)
-	if not st or not st.nameText then return end
-	local maxChars = scfg and scfg.nameMaxChars
-	if maxChars == nil and defStatus then maxChars = defStatus.nameMaxChars end
-	maxChars = tonumber(maxChars) or 0
-	if maxChars <= 0 then
-		if st.nameText.SetMaxLines then st.nameText:SetMaxLines(1) end
-		if st.nameText.SetWordWrap then st.nameText:SetWordWrap(false) end
-		st.nameText:SetWidth(0)
-		return
-	end
-	if st.nameText.SetMaxLines then st.nameText:SetMaxLines(1) end
-	if st.nameText.SetWordWrap then st.nameText:SetWordWrap(false) end
-	local width = getNameLimitWidth(scfg and scfg.font, scfg and scfg.fontSize or 14, scfg and scfg.fontOutline or "OUTLINE", maxChars)
-	if width and width > 0 then st.nameText:SetWidth(width) end
-end
-
-local function getTextDelimiter(cfg, def)
-	local defaultDelim = (def and def.textDelimiter) or " "
-	local delimiter = cfg and cfg.textDelimiter
-	if delimiter == nil or delimiter == "" then delimiter = defaultDelim end
-	return delimiter
 end
 
 local function getAbsorbColor(hc, unit)
@@ -1910,7 +1671,7 @@ local function applyCastLayout(cfg, unit)
 		st.castIcon:SetShown(ccfg.showIcon ~= false)
 	end
 	local texKey = ccfg.texture or defc.texture or "DEFAULT"
-	local castTexture = resolveCastTexture(texKey)
+	local castTexture = UFHelper.resolveCastTexture(texKey)
 	st.castBar:SetStatusBarTexture(castTexture)
 	do -- Cast backdrop
 		local bd = (ccfg and ccfg.backdrop) or (defc and defc.backdrop) or { enabled = true, color = { 0, 0, 0, 0.6 } }
@@ -2222,11 +1983,11 @@ local function updateHealth(cfg, unit)
 	end
 	local leftMode = hc.textLeft or "PERCENT"
 	local rightMode = hc.textRight or "CURMAX"
-	local leftDelimiter = getTextDelimiter(hc, defH)
-	local rightDelimiter = getTextDelimiter(hc, defH)
+	local leftDelimiter = UFHelper.getTextDelimiter(hc, defH)
+	local rightDelimiter = UFHelper.getTextDelimiter(hc, defH)
 	local hidePercentSymbol = hc.hidePercentSymbol == true
-	if st.healthTextLeft then st.healthTextLeft:SetText(formatText(leftMode, cur, maxv, hc.useShortNumbers ~= false, percentVal, leftDelimiter, hidePercentSymbol)) end
-	if st.healthTextRight then st.healthTextRight:SetText(formatText(rightMode, cur, maxv, hc.useShortNumbers ~= false, percentVal, rightDelimiter, hidePercentSymbol)) end
+	if st.healthTextLeft then st.healthTextLeft:SetText(UFHelper.formatText(leftMode, cur, maxv, hc.useShortNumbers ~= false, percentVal, leftDelimiter, hidePercentSymbol)) end
+	if st.healthTextRight then st.healthTextRight:SetText(UFHelper.formatText(rightMode, cur, maxv, hc.useShortNumbers ~= false, percentVal, rightDelimiter, hidePercentSymbol)) end
 end
 
 local function updatePower(cfg, unit)
@@ -2264,16 +2025,16 @@ local function updatePower(cfg, unit)
 	elseif not issecretvalue or (not issecretvalue(cur) and not issecretvalue(maxv)) then
 		percentVal = getPowerPercent(unit, powerEnum, cur, maxv)
 	end
-	local cr, cg, cb, ca = getPowerColor(powerToken)
+	local cr, cg, cb, ca = UFHelper.getPowerColor(powerToken)
 	bar:SetStatusBarColor(cr or 0.1, cg or 0.45, cb or 1, ca or 1)
-	if bar.SetStatusBarDesaturated then bar:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
+	if bar.SetStatusBarDesaturated then bar:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(powerToken)) end
 	if st.powerTextLeft then
 		if (issecretvalue and not issecretvalue(maxv) and maxv == 0) or (not addon.variables.isMidnight and maxv == 0) then
 			st.powerTextLeft:SetText("")
 		else
 			local leftMode = pcfg.textLeft or "PERCENT"
-			local leftDelimiter = getTextDelimiter(pcfg, defP)
-			st.powerTextLeft:SetText(formatText(leftMode, cur, maxv, pcfg.useShortNumbers ~= false, percentVal, leftDelimiter, hidePercentSymbol))
+			local leftDelimiter = UFHelper.getTextDelimiter(pcfg, defP)
+			st.powerTextLeft:SetText(UFHelper.formatText(leftMode, cur, maxv, pcfg.useShortNumbers ~= false, percentVal, leftDelimiter, hidePercentSymbol))
 		end
 	end
 	if (issecretvalue and not issecretvalue(maxv) and maxv == 0) or (not addon.variables.isMidnight and maxv == 0) then
@@ -2281,17 +2042,10 @@ local function updatePower(cfg, unit)
 	else
 		if st.powerTextRight then
 			local rightMode = pcfg.textRight or "CURMAX"
-			local rightDelimiter = getTextDelimiter(pcfg, defP)
-			st.powerTextRight:SetText(formatText(rightMode, cur, maxv, pcfg.useShortNumbers ~= false, percentVal, rightDelimiter, hidePercentSymbol))
+			local rightDelimiter = UFHelper.getTextDelimiter(pcfg, defP)
+			st.powerTextRight:SetText(UFHelper.formatText(rightMode, cur, maxv, pcfg.useShortNumbers ~= false, percentVal, rightDelimiter, hidePercentSymbol))
 		end
 	end
-end
-
-applyFont = function(fs, fontPath, size, outline)
-	if not fs then return end
-	fs:SetFont(getFont(fontPath), size or 14, outline or "OUTLINE")
-	fs:SetShadowColor(0, 0, 0, 0.5)
-	fs:SetShadowOffset(0.5, -0.5)
 end
 
 local function layoutTexts(bar, leftFS, rightFS, cfg, width)
@@ -2391,6 +2145,15 @@ local function updateUnitStatusIndicator(cfg, unit)
 	st.unitStatusText:SetShown(tag ~= nil)
 end
 
+local function shouldShowLevel(scfg, unit)
+	if not scfg or scfg.levelEnabled == false then return false end
+	if scfg.hideLevelAtMax and addon.variables and addon.variables.isMaxLevel then
+		local level = UnitLevel(unit) or 0
+		if addon.variables.isMaxLevel[level] then return false end
+	end
+	return true
+end
+
 local function updateStatus(cfg, unit)
 	cfg = cfg or (states[unit] and states[unit].cfg) or ensureDB(unit)
 	local st = states[unit]
@@ -2402,7 +2165,7 @@ local function updateStatus(cfg, unit)
 	local usDef = defStatus.unitStatus or {}
 	local usCfg = scfg.unitStatus or usDef or {}
 	local showName = scfg.enabled ~= false
-	local showLevel = scfg.levelEnabled ~= false
+	local showLevel = shouldShowLevel(scfg, unit)
 	local showUnitStatus = usCfg.enabled == true
 	local showStatus = showName or showLevel or showUnitStatus or (unit == UNIT.PLAYER and ciCfg.enabled ~= false)
 	local statusHeight = showStatus and (cfg.statusHeight or def.statusHeight) or 0.001
@@ -2412,22 +2175,22 @@ local function updateStatus(cfg, unit)
 	local levelFontSize = scfg.levelFontSize or scfg.fontSize or 14
 	local statusFontSize = scfg.fontSize or nameFontSize or levelFontSize or 14
 	if st.nameText then
-		applyFont(st.nameText, scfg.font, nameFontSize, scfg.fontOutline)
+		UFHelper.applyFont(st.nameText, scfg.font, nameFontSize, scfg.fontOutline)
 		local nameAnchor = scfg.nameAnchor or "LEFT"
 		st.nameText:ClearAllPoints()
 		st.nameText:SetPoint(nameAnchor, st.status, nameAnchor, (scfg.nameOffset and scfg.nameOffset.x) or 0, (scfg.nameOffset and scfg.nameOffset.y) or 0)
 		if st.nameText.SetJustifyH then st.nameText:SetJustifyH(nameAnchor) end
 		st.nameText:SetShown(showName)
-		applyNameCharLimit(st, scfg, defStatus)
+		UFHelper.applyNameCharLimit(st, scfg, defStatus)
 	end
 	if st.levelText then
-		applyFont(st.levelText, scfg.font, levelFontSize, scfg.fontOutline)
+		UFHelper.applyFont(st.levelText, scfg.font, levelFontSize, scfg.fontOutline)
 		st.levelText:ClearAllPoints()
 		st.levelText:SetPoint(scfg.levelAnchor or "RIGHT", st.status, scfg.levelAnchor or "RIGHT", (scfg.levelOffset and scfg.levelOffset.x) or 0, (scfg.levelOffset and scfg.levelOffset.y) or 0)
 		st.levelText:SetShown(showStatus and showLevel)
 	end
 	if st.unitStatusText then
-		applyFont(st.unitStatusText, scfg.font, statusFontSize, scfg.fontOutline)
+		UFHelper.applyFont(st.unitStatusText, scfg.font, statusFontSize, scfg.fontOutline)
 		local off = usCfg.offset or usDef.offset or {}
 		st.unitStatusText:ClearAllPoints()
 		st.unitStatusText:SetPoint("CENTER", st.status, "CENTER", off.x or 0, off.y or 0)
@@ -2584,7 +2347,7 @@ local function applyPortraitSeparator(cfg, unit, st, portraitEnabled)
 		return
 	end
 	local color = separatorColor or { 0, 0, 0, 0.8 }
-	st.portraitSeparator:SetTexture(resolveSeparatorTexture(separatorTexture))
+	st.portraitSeparator:SetTexture(UFHelper.resolveSeparatorTexture(separatorTexture))
 	st.portraitSeparator:SetVertexColor(color[1] or 0, color[2] or 0, color[3] or 0, color[4] or 1)
 	st.portraitSeparator:ClearAllPoints()
 	local side = st._portraitSide or "LEFT"
@@ -2645,7 +2408,7 @@ local function layoutFrame(cfg, unit)
 	local usDef = defStatus.unitStatus or {}
 	local usCfg = scfg.unitStatus or usDef or {}
 	local showName = scfg.enabled ~= false
-	local showLevel = scfg.levelEnabled ~= false
+	local showLevel = shouldShowLevel(scfg, unit)
 	local showUnitStatus = usCfg.enabled == true
 	local showStatus = showName or showLevel or showUnitStatus or (unit == UNIT.PLAYER and ciCfg.enabled ~= false)
 	local pcfg = cfg.power or {}
@@ -2881,7 +2644,7 @@ local function ensureFrames(unit)
 	if st.health.SetStatusBarDesaturated then st.health:SetStatusBarDesaturated(false) end
 	st.power = _G[info.powerName] or CreateFrame("StatusBar", info.powerName, st.barGroup, "BackdropTemplate")
 	local _, powerToken = getMainPower(unit)
-	if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
+	if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(powerToken)) end
 	if not st.portraitHolder then
 		st.portraitHolder = CreateFrame("Frame", nil, st.barGroup or st.frame, "BackdropTemplate")
 		st.portraitHolder:EnableMouse(false)
@@ -2984,16 +2747,16 @@ local function applyBars(cfg, unit)
 	local hc = cfg.health or {}
 	local pcfg = cfg.power or {}
 	local powerEnabled = pcfg.enabled ~= false
-	st.health:SetStatusBarTexture(resolveTexture(hc.texture))
+	st.health:SetStatusBarTexture(UFHelper.resolveTexture(hc.texture))
 	if st.health.SetStatusBarDesaturated then st.health:SetStatusBarDesaturated(false) end
-	configureSpecialTexture(st.health, "HEALTH", hc.texture, hc)
+	UFHelper.configureSpecialTexture(st.health, "HEALTH", hc.texture, hc)
 	applyBarBackdrop(st.health, hc)
 	if powerEnabled then
-		st.power:SetStatusBarTexture(resolveTexture(pcfg.texture))
+		st.power:SetStatusBarTexture(UFHelper.resolveTexture(pcfg.texture))
 		if unit == UNIT.PLAYER then refreshMainPower(unit) end
 		local _, powerToken = getMainPower(unit)
-		if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
-		configureSpecialTexture(st.power, powerToken, pcfg.texture, pcfg)
+		if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(powerToken)) end
+		UFHelper.configureSpecialTexture(st.power, powerToken, pcfg.texture, pcfg)
 		applyBarBackdrop(st.power, pcfg)
 		st.power:Show()
 	else
@@ -3003,9 +2766,9 @@ local function applyBars(cfg, unit)
 	end
 	if allowAbsorb and st.absorb then
 		local absorbTextureKey = hc.absorbTexture or hc.texture
-		st.absorb:SetStatusBarTexture(resolveTexture(absorbTextureKey))
+		st.absorb:SetStatusBarTexture(UFHelper.resolveTexture(absorbTextureKey))
 		if st.absorb.SetStatusBarDesaturated then st.absorb:SetStatusBarDesaturated(false) end
-		configureSpecialTexture(st.absorb, "HEALTH", absorbTextureKey, hc)
+		UFHelper.configureSpecialTexture(st.absorb, "HEALTH", absorbTextureKey, hc)
 		st.absorb:SetAllPoints(st.health)
 		local healthLevel = st.health:GetFrameLevel() or 0
 		local borderFrame = st.barGroup and st.barGroup._ufBorder
@@ -3031,21 +2794,21 @@ local function applyBars(cfg, unit)
 	if st.castBar and (unit == UNIT.TARGET or unit == UNIT.FOCUS or isBossUnit(unit)) then
 		local defc = (defaultsFor(unit) and defaultsFor(unit).cast) or {}
 		local ccfg = cfg.cast or defc
-		st.castBar:SetStatusBarTexture(resolveCastTexture((ccfg.texture or defc.texture or "DEFAULT")))
+		st.castBar:SetStatusBarTexture(UFHelper.resolveCastTexture((ccfg.texture or defc.texture or "DEFAULT")))
 		st.castBar:SetMinMaxValues(0, 1)
 		st.castBar:SetValue(0)
 		applyCastLayout(cfg, unit)
 		local castFont = ccfg.font or defc.font or hc.font
 		local castFontSize = ccfg.fontSize or defc.fontSize or hc.fontSize or 12
 		local castOutline = hc.fontOutline or "OUTLINE"
-		applyFont(st.castName, castFont, castFontSize, castOutline)
-		applyFont(st.castDuration, castFont, castFontSize, castOutline)
+		UFHelper.applyFont(st.castName, castFont, castFontSize, castOutline)
+		UFHelper.applyFont(st.castDuration, castFont, castFontSize, castOutline)
 	end
 
-	applyFont(st.healthTextLeft, hc.font, hc.fontSize or 14, hc.fontOutline)
-	applyFont(st.healthTextRight, hc.font, hc.fontSize or 14, hc.fontOutline)
-	applyFont(st.powerTextLeft, pcfg.font, pcfg.fontSize or 14, pcfg.fontOutline)
-	applyFont(st.powerTextRight, pcfg.font, pcfg.fontSize or 14, pcfg.fontOutline)
+	UFHelper.applyFont(st.healthTextLeft, hc.font, hc.fontSize or 14, hc.fontOutline)
+	UFHelper.applyFont(st.healthTextRight, hc.font, hc.fontSize or 14, hc.fontOutline)
+	UFHelper.applyFont(st.powerTextLeft, pcfg.font, pcfg.fontSize or 14, pcfg.fontOutline)
+	UFHelper.applyFont(st.powerTextRight, pcfg.font, pcfg.fontSize or 14, pcfg.fontOutline)
 	syncTextFrameLevels(st)
 end
 
@@ -3067,7 +2830,7 @@ local function updateNameAndLevel(cfg, unit)
 	end
 	if st.levelText then
 		local scfg = cfg.status or {}
-		local enabled = scfg.levelEnabled ~= false
+		local enabled = shouldShowLevel(scfg, unit)
 		st.levelText:SetShown(enabled)
 		if enabled then
 			local lc
@@ -3261,11 +3024,11 @@ local function applyBossEditSample(idx, cfg)
 	st.health:SetStatusBarColor(color[1] or 0, color[2] or 0.8, color[3] or 0, color[4] or 1)
 	local leftMode = hc.textLeft or "PERCENT"
 	local rightMode = hc.textRight or "CURMAX"
-	local leftDelimiter = getTextDelimiter(hc, defH)
-	local rightDelimiter = getTextDelimiter(hc, defH)
+	local leftDelimiter = UFHelper.getTextDelimiter(hc, defH)
+	local rightDelimiter = UFHelper.getTextDelimiter(hc, defH)
 	local hidePercentSymbol = hc.hidePercentSymbol == true
-	if st.healthTextLeft then st.healthTextLeft:SetText(formatText(leftMode, cur, maxv, hc.useShortNumbers ~= false, nil, leftDelimiter, hidePercentSymbol)) end
-	if st.healthTextRight then st.healthTextRight:SetText(formatText(rightMode, cur, maxv, hc.useShortNumbers ~= false, nil, rightDelimiter, hidePercentSymbol)) end
+	if st.healthTextLeft then st.healthTextLeft:SetText(UFHelper.formatText(leftMode, cur, maxv, hc.useShortNumbers ~= false, nil, leftDelimiter, hidePercentSymbol)) end
+	if st.healthTextRight then st.healthTextRight:SetText(UFHelper.formatText(rightMode, cur, maxv, hc.useShortNumbers ~= false, nil, rightDelimiter, hidePercentSymbol)) end
 
 	local powerEnabled = pcfg.enabled ~= false
 	if st.power then
@@ -3275,16 +3038,16 @@ local function applyBossEditSample(idx, cfg)
 			local pMax = UnitPowerMax("player", enumId or 0) or 0
 			st.power:SetMinMaxValues(0, pMax > 0 and pMax or 1)
 			st.power:SetValue(pCur)
-			local pr, pg, pb, pa = getPowerColor(token)
+			local pr, pg, pb, pa = UFHelper.getPowerColor(token)
 			st.power:SetStatusBarColor(pr or 0.1, pg or 0.45, pb or 1, pa or 1)
-			if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(token)) end
+			if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(token)) end
 			local pLeftMode = pcfg.textLeft or "PERCENT"
 			local pRightMode = pcfg.textRight or "CURMAX"
-			local pLeftDelimiter = getTextDelimiter(pcfg, defP)
-			local pRightDelimiter = getTextDelimiter(pcfg, defP)
+			local pLeftDelimiter = UFHelper.getTextDelimiter(pcfg, defP)
+			local pRightDelimiter = UFHelper.getTextDelimiter(pcfg, defP)
 			local pHidePercentSymbol = pcfg.hidePercentSymbol == true
-			if st.powerTextLeft then st.powerTextLeft:SetText(formatText(pLeftMode, pCur, pMax, pcfg.useShortNumbers ~= false, nil, pLeftDelimiter, pHidePercentSymbol)) end
-			if st.powerTextRight then st.powerTextRight:SetText(formatText(pRightMode, pCur, pMax, pcfg.useShortNumbers ~= false, nil, pRightDelimiter, pHidePercentSymbol)) end
+			if st.powerTextLeft then st.powerTextLeft:SetText(UFHelper.formatText(pLeftMode, pCur, pMax, pcfg.useShortNumbers ~= false, nil, pLeftDelimiter, pHidePercentSymbol)) end
+			if st.powerTextRight then st.powerTextRight:SetText(UFHelper.formatText(pRightMode, pCur, pMax, pcfg.useShortNumbers ~= false, nil, pRightDelimiter, pHidePercentSymbol)) end
 			st.power:Show()
 		else
 			st.power:SetValue(0)
@@ -3545,8 +3308,8 @@ local function ensureToTTicker()
 		if powerEnabled then
 			local _, powerToken = UnitPowerType(UNIT.TARGET_TARGET)
 			if st.power and powerToken and powerToken ~= st._lastPowerToken then
-				if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
-				configureSpecialTexture(st.power, powerToken, (cfg.power or {}).texture, cfg.power)
+				if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(powerToken)) end
+				UFHelper.configureSpecialTexture(st.power, powerToken, (cfg.power or {}).texture, cfg.power)
 				st._lastPowerToken = powerToken
 			end
 		else
@@ -3586,8 +3349,8 @@ local function updateTargetTargetFrame(cfg, forceApply)
 			updateHealth(cfg, UNIT.TARGET_TARGET)
 			if st.power and powerEnabled then
 				local _, powerToken = getMainPower(UNIT.TARGET_TARGET)
-				if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
-				configureSpecialTexture(st.power, powerToken, (cfg.power or {}).texture, cfg.power)
+				if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(powerToken)) end
+				UFHelper.configureSpecialTexture(st.power, powerToken, (cfg.power or {}).texture, cfg.power)
 				st._lastPowerToken = powerToken
 			elseif st.power then
 				st.power:Hide()
@@ -3637,8 +3400,8 @@ local function updateFocusFrame(cfg, forceApply)
 			updateHealth(cfg, UNIT.FOCUS)
 			if st.power and powerEnabled then
 				local _, powerToken = getMainPower(UNIT.FOCUS)
-				if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(isPowerDesaturated(powerToken)) end
-				configureSpecialTexture(st.power, powerToken, (cfg.power or {}).texture, cfg.power)
+				if st.power.SetStatusBarDesaturated then st.power:SetStatusBarDesaturated(UFHelper.isPowerDesaturated(powerToken)) end
+				UFHelper.configureSpecialTexture(st.power, powerToken, (cfg.power or {}).texture, cfg.power)
 				st._lastPowerToken = powerToken
 			elseif st.power then
 				st.power:Hide()
@@ -3744,7 +3507,7 @@ local function onEvent(self, event, unit, arg1)
 			updateHealth(targetCfg, unitToken)
 			if st.power and powerEnabled then
 				local _, powerToken = getMainPower(unitToken)
-				configureSpecialTexture(st.power, powerToken, (targetCfg.power or {}).texture, targetCfg.power)
+				UFHelper.configureSpecialTexture(st.power, powerToken, (targetCfg.power or {}).texture, targetCfg.power)
 			elseif st.power then
 				st.power:Hide()
 			end
@@ -3860,7 +3623,7 @@ local function onEvent(self, event, unit, arg1)
 			local pcfg = playerCfg.power or {}
 			if st and st.power and pcfg.enabled ~= false then
 				local _, powerToken = getMainPower(unit)
-				configureSpecialTexture(st.power, powerToken, (playerCfg.power or {}).texture, playerCfg.power)
+				UFHelper.configureSpecialTexture(st.power, powerToken, (playerCfg.power or {}).texture, playerCfg.power)
 			elseif st and st.power then
 				st.power:Hide()
 			end
@@ -3871,7 +3634,7 @@ local function onEvent(self, event, unit, arg1)
 			local pcfg = targetCfg.power or {}
 			if st and st.power and pcfg.enabled ~= false then
 				local _, powerToken = getMainPower(unit)
-				configureSpecialTexture(st.power, powerToken, (targetCfg.power or {}).texture, targetCfg.power)
+				UFHelper.configureSpecialTexture(st.power, powerToken, (targetCfg.power or {}).texture, targetCfg.power)
 			elseif st and st.power then
 				st.power:Hide()
 			end
@@ -3882,7 +3645,7 @@ local function onEvent(self, event, unit, arg1)
 			local pcfg = focusCfg.power or {}
 			if st and st.power and pcfg.enabled ~= false then
 				local _, powerToken = getMainPower(unit)
-				configureSpecialTexture(st.power, powerToken, (focusCfg.power or {}).texture, focusCfg.power)
+				UFHelper.configureSpecialTexture(st.power, powerToken, (focusCfg.power or {}).texture, focusCfg.power)
 			elseif st and st.power then
 				st.power:Hide()
 			end
@@ -3893,7 +3656,7 @@ local function onEvent(self, event, unit, arg1)
 			local pcfg = petCfg.power or {}
 			if st and st.power and pcfg.enabled ~= false then
 				local _, powerToken = getMainPower(unit)
-				configureSpecialTexture(st.power, powerToken, (petCfg.power or {}).texture, petCfg.power)
+				UFHelper.configureSpecialTexture(st.power, powerToken, (petCfg.power or {}).texture, petCfg.power)
 			elseif st and st.power then
 				st.power:Hide()
 			end
@@ -3905,7 +3668,7 @@ local function onEvent(self, event, unit, arg1)
 				local pcfg = bossCfg.power or {}
 				if st and st.power and pcfg.enabled ~= false then
 					local _, powerToken = getMainPower(unit)
-					configureSpecialTexture(st.power, powerToken, (bossCfg.power or {}).texture, bossCfg.power)
+					UFHelper.configureSpecialTexture(st.power, powerToken, (bossCfg.power or {}).texture, bossCfg.power)
 				elseif st and st.power then
 					st.power:Hide()
 				end

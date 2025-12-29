@@ -19,6 +19,7 @@
 - UF Plus: border offset control for unit frame textures.
 - UF Plus: new unit frame text modes (Cur/Max + percent combos) with separator dropdown.
 - UF Plus: status line name max width.
+- UF Plus: option to hide level display at max level.
 - UF Plus: unit status (AFK/DND/offline) indicator with adjustable offsets.
 - Data Panels: difficulty stream now opens a difficulty selection menu on click.
 - Data Panels: new Mythic+ Key stream with owned-key display.

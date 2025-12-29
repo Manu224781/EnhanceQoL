@@ -2701,12 +2701,8 @@ local function initSocial()
 	if addon.Ignore and addon.Ignore.SetEnabled then addon.Ignore:SetEnabled(addon.db["enableIgnore"]) end
 	if addon.Ignore and addon.Ignore.UpdateAnchor then addon.Ignore:UpdateAnchor() end
 	if addon.FriendsListDecor and addon.FriendsListDecor.SetEnabled then addon.FriendsListDecor:SetEnabled(addon.db["friendsListDecorEnabled"] == true) end
-	if addon.CommunityChatPrivacy and addon.CommunityChatPrivacy.SetMode then
-		addon.CommunityChatPrivacy:SetMode(addon.db["communityChatPrivacyMode"])
-	end
-	if addon.CommunityChatPrivacy and addon.CommunityChatPrivacy.SetEnabled then
-		addon.CommunityChatPrivacy:SetEnabled(addon.db["communityChatPrivacyEnabled"])
-	end
+	if addon.CommunityChatPrivacy and addon.CommunityChatPrivacy.SetMode then addon.CommunityChatPrivacy:SetMode(addon.db["communityChatPrivacyMode"]) end
+	if addon.CommunityChatPrivacy and addon.CommunityChatPrivacy.SetEnabled then addon.CommunityChatPrivacy:SetEnabled(addon.db["communityChatPrivacyEnabled"]) end
 end
 
 local initLootToast
@@ -4510,6 +4506,10 @@ local eventHandlers = {
 			addon.variables.unitRole = GetSpecializationRole(addon.variables.unitSpec)
 			addon.variables.unitSpecId = specId
 		end
+
+		if not addon.variables.maxLevel then addon.variables.maxLevel = GetMaxLevelForPlayerExpansion() end
+		addon.variables.isMaxLevel = {}
+		addon.variables.isMaxLevel[addon.variables.maxLevel] = true
 
 		if addon.db["moneyTracker"] then
 			addon.db["moneyTracker"][UnitGUID("player")] = {
