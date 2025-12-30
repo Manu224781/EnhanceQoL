@@ -534,6 +534,7 @@ globals = {
 	"MenuConstants",
 	"ChatTypeGroup",
 	"ButtonStateBehaviorMixin",
+	"UnitSelectionType",
 	"DefaultTooltipMixin",
 	"BankButtonIDToInvSlotID",
 	"BarberShopReset",

@@ -7,6 +7,7 @@ else
 	error(parentAddonName .. " is not loaded")
 end
 
+-- TODO remove when midnight releases
 if addon.variables.isMidnight then return end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_MythicPlus")
