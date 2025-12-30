@@ -583,6 +583,9 @@ local function hookClassResourceFrame(frame)
 	if not frame or classResourceHooks[frame] then return end
 	classResourceHooks[frame] = true
 	frame:HookScript("OnShow", onClassResourceShow)
+	if hooksecurefunc and frame.SetFrameLevel then hooksecurefunc(frame, "SetFrameLevel", function(self)
+		if frame:GetFrameLevel() < 7 then frame:SetFrameLevel(7) end
+	end) end
 end
 
 applyClassResourceLayout = function(cfg)

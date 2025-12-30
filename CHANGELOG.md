@@ -98,6 +98,7 @@
   - Channeling animation for castbar was in the wrong direction.
   - Font/outline bug fixed.
   - Click Casting modifiers for Target/Menu weren’t working.
+  - Class resources (e.g., combo points) now stay above unit frame borders after form swaps.
 
 - **Mover**
 
