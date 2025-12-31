@@ -29,7 +29,7 @@ Thanks for sharing your idea! Please fill out as much as you can; the more detai
 
 | Item | Value (if relevant) |
 | ---- | ------------------- |
-| **Enhance QoL version** | `3.x.x` |
+| **Enhance QoL version** | `6.x.x` |
 | **WoW client** | Retail / PTR / Beta – patch `11.x.x` |
 
 ### 📝 Additional context

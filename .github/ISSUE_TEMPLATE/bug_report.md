@@ -19,7 +19,7 @@ Thanks for taking the time to file a report!
 
 | Item | Value (fill in) |
 | ---- | -------------- |
-| **Enhance QoL version** | `3.x.x` (see `/eqol -> About` or CurseForge) |
+| **Enhance QoL version** | `6.x.x` (see CurseForge) |
 | **WoW client** | Retail / PTR / Beta – patch `11.x.x` |
 | **Locale** | `enUS`, `deDE`, … |
 | **Other addons enabled** | List major ones, or “Only EQoL” |

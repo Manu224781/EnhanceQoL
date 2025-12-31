@@ -20,7 +20,7 @@ local UFHelper = addon.Aura and addon.Aura.UFHelper
 if not (UF and settingType) then return end
 
 local MIN_WIDTH = 50
-local OFFSET_RANGE = 700
+local OFFSET_RANGE = 400
 local defaultStrata = (_G.PlayerFrame and _G.PlayerFrame.GetFrameStrata and _G.PlayerFrame:GetFrameStrata()) or "MEDIUM"
 local defaultLevel = (_G.PlayerFrame and _G.PlayerFrame.GetFrameLevel and _G.PlayerFrame:GetFrameLevel()) or 0
 
