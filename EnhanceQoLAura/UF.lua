@@ -2734,6 +2734,18 @@ local function layoutFrame(cfg, unit)
 		local pf = _G.PlayerFrame
 		if pf and pf.GetFrameStrata then st.frame:SetFrameStrata(pf:GetFrameStrata()) end
 	end
+	local selection = st.frame.Selection
+	if selection and selection.SetFrameStrata then
+		if not st._selectionBaseStrata then
+			local baseStrata = (selection.GetFrameStrata and selection:GetFrameStrata()) or "MEDIUM"
+			st._selectionBaseStrata = baseStrata
+			st._selectionBaseStrataIndex = STRATA_INDEX[baseStrata] or STRATA_INDEX.MEDIUM
+		end
+		local baseIndex = st._selectionBaseStrataIndex or STRATA_INDEX.MEDIUM
+		local targetIndex = cfg.strata and STRATA_INDEX[cfg.strata]
+		local targetStrata = (targetIndex and targetIndex > baseIndex) and cfg.strata or st._selectionBaseStrata
+		if targetStrata and selection.GetFrameStrata and selection:GetFrameStrata() ~= targetStrata then selection:SetFrameStrata(targetStrata) end
+	end
 	if cfg.frameLevel then
 		st.frame:SetFrameLevel(cfg.frameLevel)
 	else

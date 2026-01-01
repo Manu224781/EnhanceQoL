@@ -16,6 +16,10 @@
   - Auto-release in PvP/BGs.
   - Quick-skip cinematics option (auto-confirms the skip prompt on Esc/Space/Enter).
 
+### 🐛 Fixed
+
+- Unit Frame Strata set at least "High" blocks options window
+
 ---
 
 ## [6.6.2] – 2025-12-31
