@@ -4576,6 +4576,10 @@ local function setAllHooks()
 		if addon.Sounds.functions.InitDB then addon.Sounds.functions.InitDB() end
 		if addon.Sounds.functions.InitState then addon.Sounds.functions.InitState() end
 	end
+	if addon.Tooltip and addon.Tooltip.functions then
+		if addon.Tooltip.functions.InitDB then addon.Tooltip.functions.InitDB() end
+		if addon.Tooltip.functions.InitState then addon.Tooltip.functions.InitState() end
+	end
 end
 
 function loadMain()
@@ -4757,7 +4761,6 @@ local eventHandlers = {
 			loadSubAddon("EnhanceQoLSharedMedia")
 			loadSubAddon("EnhanceQoLMythicPlus")
 			if not addon.variables.isMidnight then loadSubAddon("EnhanceQoLCombatMeter") end
-			loadSubAddon("EnhanceQoLTooltip")
 			loadSubAddon("EnhanceQoLVendor")
 
 			if addon.Events and addon.Events.LegionRemix and addon.Events.LegionRemix.Init then addon.Events.LegionRemix:Init() end

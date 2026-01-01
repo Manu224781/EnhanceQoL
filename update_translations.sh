@@ -22,7 +22,7 @@ declare -A locale_files=(
   ["MythicPlus"]="EnhanceQoLMythicPlus/Locales/enUS.lua"
   ["SharedMedia"]="EnhanceQoLSharedMedia/Locales/enUS.lua"
   ["Sound"]="EnhanceQoL/Modules/Sound/Locales/enUS.lua"
-  ["Tooltip"]="EnhanceQoLTooltip/Locales/enUS.lua"
+  ["Tooltip"]="EnhanceQoL/Modules/Tooltip/Locales/enUS.lua"
   ["Vendor"]="EnhanceQoLVendor/Locales/enUS.lua"
 )
 

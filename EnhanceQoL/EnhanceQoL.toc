@@ -89,3 +89,7 @@ Modules\Mover\Mover.xml
 # Sound
 Modules\Sound\Locales\[TextLocale].lua
 Modules\Sound\Sound.xml
+
+# Tooltip
+Modules\Tooltip\Locales\[TextLocale].lua
+Modules\Tooltip\Tooltip.xml

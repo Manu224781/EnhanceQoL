@@ -1,0 +1,5 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Init.lua" />
+	<Script file="EnhanceQoLTooltip.lua" />
+	<Script file="Settings_Tooltip.lua" />
+</Ui>

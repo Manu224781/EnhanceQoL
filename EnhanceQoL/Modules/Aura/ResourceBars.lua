@@ -61,7 +61,6 @@ local ResourcebarVars = {
 	DEFAULT_HEALTH_HEIGHT = 20,
 	DEFAULT_POWER_WIDTH = 200,
 	DEFAULT_POWER_HEIGHT = 20,
-	RUNES_BORDER_ID = "EQOL_BORDER_RUNES",
 	BLIZZARD_TEX = "Interface\\TargetingFrame\\UI-StatusBar",
 	SMOOTH_SPEED = 12,
 	DEFAULT_SMOOTH_DEADZONE = 0.75,
@@ -1130,47 +1129,22 @@ local function ensureBackdropFrames(frame)
 	return bg, border
 end
 
--- Shared media helpers for custom (nine-slice) borders
-ResourceBars.CustomBorders = (addon.SharedMedia and addon.SharedMedia.customBorders) or ResourceBars.CustomBorders or {}
+local LEGACY_CUSTOM_BORDER_IDS = {
+	EQOL_BORDER_RUNES = true,
+	EQOL_BORDER_GOLDEN = true,
+	EQOL_BORDER_MODERN = true,
+	EQOL_BORDER_CLASSIC = true,
+}
 
-local function getCustomBorder(id)
-	local sm = addon.SharedMedia
-	local smf = sm and sm.functions
-	if smf and smf.GetCustomBorder then return smf.GetCustomBorder(id) end
-	if sm and sm.customBorders then return sm.customBorders[id] end
-	return nil
-end
-
-local function getCustomBorderOptions()
-	local sm = addon.SharedMedia
-	local smf = sm and sm.functions
-	if smf and smf.GetCustomBorderOptions then return smf.GetCustomBorderOptions() end
-	if sm and sm.customBorders then
-		local map = {}
-		for borderId, info in pairs(sm.customBorders) do
-			map[borderId] = (info and info.label) or borderId
-		end
-		return map
+local function normalizeBorderTexture(bd)
+	if not bd then return nil end
+	local borderTexture = bd.borderTexture
+	if borderTexture and LEGACY_CUSTOM_BORDER_IDS[borderTexture] then
+		borderTexture = "Interface\\Tooltips\\UI-Tooltip-Border"
+		bd.borderTexture = borderTexture
 	end
-	return nil
+	return borderTexture
 end
-
-function ResourceBars.GetCustomBorderOptions() return getCustomBorderOptions() end
-function ResourceBars.GetCustomBorder(id) return getCustomBorder(id) end
-
-local function hideCustomBorders(borderFrame)
-	local smf = addon.SharedMedia and addon.SharedMedia.functions
-	if smf and smf.HideCustomBorders then return smf.HideCustomBorders(borderFrame) end
-end
-
-local function applyCustomBorder(borderFrame, bd)
-	local smf = addon.SharedMedia and addon.SharedMedia.functions
-	if smf and smf.ApplyCustomBorder then return smf.ApplyCustomBorder(borderFrame, bd) end
-	return false
-end
-
-local runeDef = getCustomBorder(RB.RUNES_BORDER_ID)
-ResourceBars.RUNE_BORDER_LABEL = (runeDef and runeDef.label) or "EQOL: Runes"
 
 -- Statusbar content inset controller
 local ZERO_INSETS = { left = 0, right = 0, top = 0, bottom = 0 }
@@ -1292,7 +1266,6 @@ local function applyBackdrop(frame, cfg)
 	if bd.enabled == false then
 		if bgFrame:IsShown() then bgFrame:Hide() end
 		if borderFrame:IsShown() then borderFrame:Hide() end
-		hideCustomBorders(borderFrame)
 		state.enabled = false
 		return
 	end
@@ -1334,29 +1307,9 @@ local function applyBackdrop(frame, cfg)
 		if not bgFrame:IsShown() then bgFrame:Show() end
 	end
 
-	hideCustomBorders(borderFrame)
-	local customApplied = false
-	if getCustomBorder(bd.borderTexture) then
-		if borderFrame.SetBackdrop then
-			if state.borderTexture or state.borderEdgeSize then
-				borderFrame:SetBackdrop(nil)
-				state.borderTexture = nil
-				state.borderEdgeSize = nil
-			end
-		end
-		state.borderR, state.borderG, state.borderB, state.borderA = nil, nil, nil, nil
-		if (bd.edgeSize or 0) > 0 then customApplied = applyCustomBorder(borderFrame, bd) end
-		if customApplied then
-			if not borderFrame:IsShown() then borderFrame:Show() end
-			return
-		end
-		if borderFrame:IsShown() then borderFrame:Hide() end
-		return
-	end
-
 	if borderFrame.SetBackdrop then
-		if bd.borderTexture and bd.borderTexture ~= "" and (bd.edgeSize or 0) > 0 then
-			local borderTexture = bd.borderTexture or "Interface\\Tooltips\\UI-Tooltip-Border"
+		local borderTexture = normalizeBorderTexture(bd)
+		if borderTexture and borderTexture ~= "" and (bd.edgeSize or 0) > 0 then
 			local edgeSize = bd.edgeSize or 3
 			local borderChanged = false
 			if state.borderTexture ~= borderTexture or state.borderEdgeSize ~= edgeSize or (borderFrame.GetBackdrop and not borderFrame:GetBackdrop()) then
@@ -2218,8 +2171,6 @@ ResourceBars.separatorEligible = {
 	VOID_METAMORPHOSIS = true,
 	RUNES = true,
 }
-ResourceBars.RUNE_BORDER_ID = RB.RUNES_BORDER_ID
-ResourceBars.RUNE_BORDER_LABEL = ResourceBars.RUNE_BORDER_LABEL or (getCustomBorder and getCustomBorder(RB.RUNES_BORDER_ID) or {}).label or "EQOL: Runes"
 
 function getBarSettings(pType)
 	local class = addon.variables.unitClass

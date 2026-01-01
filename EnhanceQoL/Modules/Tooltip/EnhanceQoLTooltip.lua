@@ -54,6 +54,7 @@ local function DoesKeyMatchConfiguredModifier(key)
 end
 
 local function UpdateInspectEventRegistration()
+	if not addon.db then return end
 	if not fInspect then return end
 	fInspect:UnregisterEvent("INSPECT_READY")
 	fInspect:UnregisterEvent("MODIFIER_STATE_CHANGED")
@@ -910,6 +911,7 @@ end
 
 if TooltipDataProcessor then
 	TooltipDataProcessor.AddTooltipPostCall(TooltipDataProcessor.AllTypes, function(tooltip, data)
+		if not addon.db then return end
 		if not data or not data.type then return end
 
 		local id, name, _, timeLimit, kind
@@ -970,84 +972,91 @@ if TooltipDataProcessor then
 	end)
 end
 
--- Apply initial tooltip scale once the UI is ready
-C_Timer.After(0, function()
-	if addon.Tooltip and addon.Tooltip.ApplyScale then addon.Tooltip.ApplyScale() end
-end)
-
-hooksecurefunc("GameTooltip_SetDefaultAnchor", function(s, p)
-	if addon.db["TooltipAnchorType"] == 1 then return end
-	local anchor
-	if addon.db["TooltipAnchorType"] == 2 then anchor = "ANCHOR_CURSOR" end
-	if addon.db["TooltipAnchorType"] == 3 then anchor = "ANCHOR_CURSOR_LEFT" end
-	if addon.db["TooltipAnchorType"] == 4 then anchor = "ANCHOR_CURSOR_RIGHT" end
-	local xOffset = addon.db["TooltipAnchorOffsetX"]
-	local yOffset = addon.db["TooltipAnchorOffsetY"]
-	s:SetOwner(p, anchor, xOffset, yOffset)
-end)
-
--- Initial registration based on current settings (opt-in)
-UpdateInspectEventRegistration()
-
-if Menu and Menu.ModifyMenu then
-	local function AddTargetWowheadEntry(owner, root)
-		if not addon.db["TooltipShowNPCWowheadLink"] then return end
-		if not UnitExists("target") or UnitPlayerControlled("target") then return end
-		local guid = UnitGUID("target")
-		if issecretvalue and issecretvalue(guid) then return end
-		local npcID = GetNPCIDFromGUID()
-		if not npcID then return end
-
-		root:CreateDivider()
-		local btn = root:CreateButton(L["CopyWowheadURL"], function() ShowCopyURL(("https://www.wowhead.com/npc=%d"):format(npcID)) end)
-		if not btn then return end
-		btn:AddInitializer(function()
-			btn:SetTooltip(function(tt)
-				GameTooltip_SetTitle(tt, "Wowhead")
-				GameTooltip_AddNormalLine(tt, ("npc=%d"):format(npcID))
-			end)
-		end)
-	end
-
-	Menu.ModifyMenu("MENU_UNIT_TARGET", AddTargetWowheadEntry)
-end
-
-hooksecurefunc("QuestMapLogTitleButton_OnEnter", function(self)
-	if addon.db["TooltipShowQuestID"] then
-		if self then
-			if self.questID and GameTooltip:IsShown() then
-				GameTooltip:AddDoubleLine(ID, self.questID)
-				GameTooltip:Show()
-			end
-		end
-	end
-end)
-
 local function IsUnitTooltip(tt)
 	local owner = tt and tt:GetOwner()
 	if not owner then return false end
 	return owner.unit or (owner.GetAttribute and owner:GetAttribute("unit"))
 end
 
--- Optionally hide the default "Right-click for options" instruction on unit tooltips
-hooksecurefunc("GameTooltip_AddInstructionLine", function(tt, text)
-	if not addon.db["TooltipUnitHideRightClickInstruction"] then return end
-	if tt ~= GameTooltip then return end
-	if text ~= UNIT_POPUP_RIGHT_CLICK then return end
-	if not IsUnitTooltip(tt) then return end
+local function registerTooltipHooks()
+	if addon.Tooltip.variables.hooksInitialized then return end
+	addon.Tooltip.variables.hooksInitialized = true
 
-	local i = tt:NumLines()
-	local line = _G[tt:GetName() .. "TextLeft" .. i]
-	if line then
-		local tmpText = line:GetText()
-		if issecretvalue and issecretvalue(tmpText) then return end
-		if line:GetText() == text then
-			line:SetText("")
-			line:Hide()
+	-- Apply initial tooltip scale once the UI is ready
+	C_Timer.After(0, function()
+		if addon.Tooltip and addon.Tooltip.ApplyScale then addon.Tooltip.ApplyScale() end
+	end)
 
-			local mLine = _G[tt:GetName() .. "TextLeft" .. (i - 1)]
-			if mLine and mLine.GetText and mLine:GetText() == " " then mLine:Hide() end
-			tt:Show()
+	hooksecurefunc("GameTooltip_SetDefaultAnchor", function(s, p)
+		if not addon.db then return end
+		if addon.db["TooltipAnchorType"] == 1 then return end
+		local anchor
+		if addon.db["TooltipAnchorType"] == 2 then anchor = "ANCHOR_CURSOR" end
+		if addon.db["TooltipAnchorType"] == 3 then anchor = "ANCHOR_CURSOR_LEFT" end
+		if addon.db["TooltipAnchorType"] == 4 then anchor = "ANCHOR_CURSOR_RIGHT" end
+		local xOffset = addon.db["TooltipAnchorOffsetX"]
+		local yOffset = addon.db["TooltipAnchorOffsetY"]
+		s:SetOwner(p, anchor, xOffset, yOffset)
+	end)
+
+	if Menu and Menu.ModifyMenu then
+		local function AddTargetWowheadEntry(owner, root)
+			if not addon.db or not addon.db["TooltipShowNPCWowheadLink"] then return end
+			if not UnitExists("target") or UnitPlayerControlled("target") then return end
+			local guid = UnitGUID("target")
+			if issecretvalue and issecretvalue(guid) then return end
+			local npcID = GetNPCIDFromGUID()
+			if not npcID then return end
+
+			root:CreateDivider()
+			local btn = root:CreateButton(L["CopyWowheadURL"], function() ShowCopyURL(("https://www.wowhead.com/npc=%d"):format(npcID)) end)
+			if not btn then return end
+			btn:AddInitializer(function()
+				btn:SetTooltip(function(tt)
+					GameTooltip_SetTitle(tt, "Wowhead")
+					GameTooltip_AddNormalLine(tt, ("npc=%d"):format(npcID))
+				end)
+			end)
 		end
+
+		Menu.ModifyMenu("MENU_UNIT_TARGET", AddTargetWowheadEntry)
 	end
-end)
+
+	hooksecurefunc("QuestMapLogTitleButton_OnEnter", function(self)
+		if not addon.db or not addon.db["TooltipShowQuestID"] then return end
+		if self then
+			if self.questID and GameTooltip:IsShown() then
+				GameTooltip:AddDoubleLine(ID, self.questID)
+				GameTooltip:Show()
+			end
+		end
+	end)
+
+	-- Optionally hide the default "Right-click for options" instruction on unit tooltips
+	hooksecurefunc("GameTooltip_AddInstructionLine", function(tt, text)
+		if not addon.db or not addon.db["TooltipUnitHideRightClickInstruction"] then return end
+		if tt ~= GameTooltip then return end
+		if text ~= UNIT_POPUP_RIGHT_CLICK then return end
+		if not IsUnitTooltip(tt) then return end
+
+		local i = tt:NumLines()
+		local line = _G[tt:GetName() .. "TextLeft" .. i]
+		if line then
+			local tmpText = line:GetText()
+			if issecretvalue and issecretvalue(tmpText) then return end
+			if line:GetText() == text then
+				line:SetText("")
+				line:Hide()
+
+				local mLine = _G[tt:GetName() .. "TextLeft" .. (i - 1)]
+				if mLine and mLine.GetText and mLine:GetText() == " " then mLine:Hide() end
+				tt:Show()
+			end
+		end
+	end)
+end
+
+function addon.Tooltip.functions.InitState()
+	registerTooltipHooks()
+	UpdateInspectEventRegistration()
+end
