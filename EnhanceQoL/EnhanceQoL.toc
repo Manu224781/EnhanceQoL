@@ -35,6 +35,7 @@ libs\LibDBIcon-1.0\lib.xml
 libs\AceGUI-3.0\AceGUI-3.0.xml
 libs\LibDeflate\lib.xml
 libs\LibSharedMedia-3.0\lib.xml
+libs\LibOpenKeystone\LibOpenKeystone.lua
 libs\AceSerializer-3.0\AceSerializer-3.0.xml
 libs\AceComm-3.0\AceComm-3.0.xml
 libs\LibEQOL\LibEQOL.xml
@@ -93,6 +94,10 @@ Modules\Sound\Sound.xml
 # Tooltip
 Modules\Tooltip\Locales\[TextLocale].lua
 Modules\Tooltip\Tooltip.xml
+
+# MythicPlus
+Modules\MythicPlus\Locales\[TextLocale].lua
+Modules\MythicPlus\MythicPlus.xml
 
 # Vendor
 Modules\Vendor\Locales\[TextLocale].lua

@@ -4572,6 +4572,11 @@ local function setAllHooks()
 		if addon.Mover.functions.InitRegistry then addon.Mover.functions.InitRegistry() end
 		if addon.Mover.functions.InitSettings then addon.Mover.functions.InitSettings() end
 	end
+	if addon.MythicPlus and addon.MythicPlus.functions then
+		if addon.MythicPlus.functions.InitDB then addon.MythicPlus.functions.InitDB() end
+		if addon.MythicPlus.functions.InitState then addon.MythicPlus.functions.InitState() end
+		if addon.MythicPlus.functions.InitSettings then addon.MythicPlus.functions.InitSettings() end
+	end
 	if addon.Sounds and addon.Sounds.functions then
 		if addon.Sounds.functions.InitDB then addon.Sounds.functions.InitDB() end
 		if addon.Sounds.functions.InitState then addon.Sounds.functions.InitState() end
@@ -4764,7 +4769,6 @@ local eventHandlers = {
 			loadSubAddon("EnhanceQoLQuery")
 			--@end-debug@
 			loadSubAddon("EnhanceQoLSharedMedia")
-			loadSubAddon("EnhanceQoLMythicPlus")
 			if not addon.variables.isMidnight then loadSubAddon("EnhanceQoLCombatMeter") end
 
 			if addon.Events and addon.Events.LegionRemix and addon.Events.LegionRemix.Init then addon.Events.LegionRemix:Init() end

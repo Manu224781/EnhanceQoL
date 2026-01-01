@@ -4,7 +4,7 @@ local SettingsLib = LibStub("LibEQOLSettingsMode-1.0")
 
 local rootCategories = {
 	{ id = "UI", label = L["UI"] or "UI" },
-	{ id = "ITEMS", label = _G["ITEMS"] },
+	{ id = "GENERAL", label = _G["GENERAL"] },
 	{ id = "GAMEPLAY", label = _G["SETTING_GROUP_GAMEPLAY"] },
 	{ id = "SOCIAL", label = _G["SOCIAL_LABEL"] },
 	{ id = "ECONOMY", label = L["Economy"] or "Economy" },

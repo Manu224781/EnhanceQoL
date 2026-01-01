@@ -72,13 +72,14 @@ local function buildFontDropdown()
 	return list
 end
 
-local function createActionBarVisibility(category)
+local function createActionBarVisibility(category, expandable)
 	if #ACTIONBAR_RULE_OPTIONS == 0 then return end
 
-	addon.functions.SettingsCreateHeadline(category, L["visibilityScenarioGroupTitle"] or ACTIONBARS_LABEL)
+	addon.functions.SettingsCreateHeadline(category, L["visibilityScenarioGroupTitle"] or ACTIONBARS_LABEL, { parentSection = expandable })
+
 	local explain = L["ActionbarVisibilityExplain2"]
 	if explain and _G["HUD_EDIT_MODE_SETTING_ACTION_BAR_VISIBLE_SETTING_ALWAYS"] and _G["HUD_EDIT_MODE_MENU"] then
-		addon.functions.SettingsCreateText(category, explain:format(_G["HUD_EDIT_MODE_SETTING_ACTION_BAR_VISIBLE_SETTING_ALWAYS"], _G["HUD_EDIT_MODE_MENU"]))
+		addon.functions.SettingsCreateText(category, explain:format(_G["HUD_EDIT_MODE_SETTING_ACTION_BAR_VISIBLE_SETTING_ALWAYS"], _G["HUD_EDIT_MODE_MENU"]), { parentSection = expandable })
 	end
 
 	local bars, seenVars = {}, {}
@@ -112,6 +113,7 @@ local function createActionBarVisibility(category)
 					local normalized = NormalizeActionBarVisibilityConfig(info.var, working)
 					UpdateActionBarMouseover(info.name, normalized, info.var)
 				end,
+				--parentSection = expandable,
 			})
 		end
 	end
@@ -130,6 +132,7 @@ local function createActionBarVisibility(category)
 			end
 			RefreshAllActionBarVisibilityAlpha()
 		end,
+		parentSection = expandable,
 	})
 
 	local function getFadePercent()
@@ -155,13 +158,14 @@ local function createActionBarVisibility(category)
 			addon.db.actionBarFadeStrength = pct / 100
 			RefreshAllActionBarVisibilityAlpha(true)
 		end,
+		parentSection = expandable,
 	})
 end
 
-local function createAnchorControls(category)
+local function createAnchorControls(category, expandable)
 	if #ACTION_BAR_FRAME_NAMES == 0 then return end
 
-	addon.functions.SettingsCreateHeadline(category, L["actionBarAnchorSectionTitle"] or "Button growth")
+	addon.functions.SettingsCreateHeadline(category, L["actionBarAnchorSectionTitle"] or "Button growth", { parentSection = expandable })
 
 	local anchorToggle = addon.functions.SettingsCreateCheckbox(category, {
 		var = "actionBarAnchorEnabled",
@@ -171,6 +175,7 @@ local function createAnchorControls(category)
 			addon.db["actionBarAnchorEnabled"] = value and true or false
 			RefreshAllActionBarAnchors()
 		end,
+		parentSection = expandable,
 	})
 
 	local anchorOptions = {
@@ -212,12 +217,13 @@ local function createAnchorControls(category)
 			parent = true,
 			element = anchorToggle.element,
 			parentCheck = function() return anchorToggle.setting and anchorToggle.setting:GetValue() == true end,
+			parentSection = expandable,
 		})
 	end
 end
 
-local function createButtonAppearanceControls(category)
-	addon.functions.SettingsCreateHeadline(category, L["actionBarAppearanceHeader"] or "Button appearance")
+local function createButtonAppearanceControls(category, expandable)
+	addon.functions.SettingsCreateHeadline(category, L["actionBarAppearanceHeader"] or "Button appearance", { parentSection = expandable })
 
 	addon.functions.SettingsCreateCheckbox(category, {
 		var = "actionBarHideBorders",
@@ -227,6 +233,7 @@ local function createButtonAppearanceControls(category)
 			addon.db.actionBarHideBorders = value and true or false
 			if ActionBarLabels and ActionBarLabels.RefreshActionButtonBorders then ActionBarLabels.RefreshActionButtonBorders() end
 		end,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateCheckbox(category, {
@@ -237,6 +244,7 @@ local function createButtonAppearanceControls(category)
 			addon.db.actionBarHideAssistedRotation = value and true or false
 			if addon.functions.UpdateAssistedCombatFrameHiding then addon.functions.UpdateAssistedCombatFrameHiding() end
 		end,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateCheckbox(category, {
@@ -247,11 +255,12 @@ local function createButtonAppearanceControls(category)
 			addon.db.hideExtraActionArtwork = value and true or false
 			if addon.functions.ApplyExtraActionArtworkSetting then addon.functions.ApplyExtraActionArtworkSetting() end
 		end,
+		parentSection = expandable,
 	})
 end
 
-local function createLabelControls(category)
-	addon.functions.SettingsCreateHeadline(category, L["actionBarLabelGroupTitle"] or "Button text")
+local function createLabelControls(category, expandable)
+	addon.functions.SettingsCreateHeadline(category, L["actionBarLabelGroupTitle"] or "Button text", { parentSection = expandable })
 
 	local outlineOrder = { "NONE", "OUTLINE", "THICKOUTLINE", "MONOCHROMEOUTLINE" }
 	local outlineOptions = {
@@ -288,6 +297,7 @@ local function createLabelControls(category)
 			if ActionBarLabels and ActionBarLabels.RefreshAllMacroNameVisibility then ActionBarLabels.RefreshAllMacroNameVisibility() end
 			if ActionBarLabels and ActionBarLabels.RefreshAllHotkeyStyles then ActionBarLabels.RefreshAllHotkeyStyles() end
 		end,
+		parentSection = expandable,
 	})
 
 	local function macroParentCheck() return macroOverride.setting and macroOverride.setting:GetValue() == true and hideMacro.setting and hideMacro.setting:GetValue() ~= true end
@@ -312,6 +322,7 @@ local function createLabelControls(category)
 		parent = true,
 		element = macroOverride.element,
 		parentCheck = macroParentCheck,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateDropdown(category, {
@@ -329,6 +340,7 @@ local function createLabelControls(category)
 		parent = true,
 		element = macroOverride.element,
 		parentCheck = macroParentCheck,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateSlider(category, {
@@ -355,6 +367,7 @@ local function createLabelControls(category)
 		parent = true,
 		element = macroOverride.element,
 		parentCheck = macroParentCheck,
+		parentSection = expandable,
 	})
 
 	local hotkeyOverride = addon.functions.SettingsCreateCheckbox(category, {
@@ -365,6 +378,7 @@ local function createLabelControls(category)
 			if ActionBarLabels and ActionBarLabels.RefreshAllHotkeyVisibility then ActionBarLabels.RefreshAllHotkeyVisibility() end
 			if ActionBarLabels and ActionBarLabels.RefreshAllHotkeyStyles then ActionBarLabels.RefreshAllHotkeyStyles() end
 		end,
+		parentSection = expandable,
 	})
 
 	local function hotkeyParentCheck() return hotkeyOverride.setting and hotkeyOverride.setting:GetValue() == true end
@@ -389,6 +403,7 @@ local function createLabelControls(category)
 		parent = true,
 		element = hotkeyOverride.element,
 		parentCheck = hotkeyParentCheck,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateDropdown(category, {
@@ -406,6 +421,7 @@ local function createLabelControls(category)
 		parent = true,
 		element = hotkeyOverride.element,
 		parentCheck = hotkeyParentCheck,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateSlider(category, {
@@ -432,9 +448,10 @@ local function createLabelControls(category)
 		parent = true,
 		element = hotkeyOverride.element,
 		parentCheck = hotkeyParentCheck,
+		parentSection = expandable,
 	})
 
-	addon.functions.SettingsCreateHeadline(category, L["actionBarKeybindVisibilityHeader"] or "Keybind label visibility")
+	addon.functions.SettingsCreateHeadline(category, L["actionBarKeybindVisibilityHeader"] or "Keybind label visibility", { parentSection = expandable })
 
 	local barOptions = {}
 	for _, info in ipairs(addon.variables.actionBarNames or {}) do
@@ -450,6 +467,7 @@ local function createLabelControls(category)
 			addon.db.actionBarShortHotkeys = value and true or false
 			if ActionBarLabels and ActionBarLabels.RefreshAllHotkeyStyles then ActionBarLabels.RefreshAllHotkeyStyles() end
 		end,
+		parentSection = expandable,
 	})
 
 	local rangeToggle = addon.functions.SettingsCreateCheckbox(category, {
@@ -461,6 +479,7 @@ local function createLabelControls(category)
 			if ActionBarLabels and ActionBarLabels.UpdateRangeOverlayEvents then ActionBarLabels.UpdateRangeOverlayEvents() end
 			if ActionBarLabels and ActionBarLabels.RefreshAllRangeOverlays then ActionBarLabels.RefreshAllRangeOverlays() end
 		end,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateColorPicker(category, {
@@ -473,6 +492,7 @@ local function createLabelControls(category)
 		element = rangeToggle.element,
 		parentCheck = function() return rangeToggle.setting and rangeToggle.setting:GetValue() == true end,
 		colorizeLabel = true,
+		parentSection = expandable,
 	})
 
 	addon.functions.SettingsCreateMultiDropdown(category, {
@@ -490,17 +510,25 @@ local function createLabelControls(category)
 			if ActionBarLabels and ActionBarLabels.RefreshAllHotkeyStyles then ActionBarLabels.RefreshAllHotkeyStyles() end
 		end,
 		desc = L["actionBarHideHotkeysDesc"],
+		parentSection = expandable,
 	})
 end
 
 local function createActionBarCategory()
-	local category = addon.functions.SettingsCreateCategory(nil, L["visibilityKindActionBars"] or ACTIONBARS_LABEL, nil, "ActionBar")
-	addon.SettingsLayout.actionBarCategory = category
+	--local category = addon.functions.SettingsCreateCategory(nil, L["visibilityKindActionBars"] or ACTIONBARS_LABEL, nil, "ActionBar")
+	--addon.SettingsLayout.actionBarCategory = category
+	local category = addon.SettingsLayout.rootUI
 
-	createActionBarVisibility(category)
-	createAnchorControls(category)
-	createButtonAppearanceControls(category)
-	createLabelControls(category)
+	local expandable = addon.functions.SettingsCreateExpandableSection(category, {
+		name = ACTIONBARS_LABEL,
+		expanded = false,
+		colorizeTitle = false,
+	})
+
+	createActionBarVisibility(category, expandable)
+	createAnchorControls(category, expandable)
+	createButtonAppearanceControls(category, expandable)
+	createLabelControls(category, expandable)
 end
 
 local function setFrameRule(info, key, shouldSelect)

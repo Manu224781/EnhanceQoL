@@ -1,0 +1,11 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/">
+	<Script file="Init.lua" />
+	<Script file="CooldownTracker.lua" />
+	<Script file="DungeonPortal.lua" />
+	<Script file="TalentReminder.lua" />
+	<Script file="DungeonFilter.lua" />
+	<Script file="ObjectiveTracker.lua" />
+	<Script file="WorldMapDungeonPortals.lua" />
+	<Script file="EnhanceQoLMythicPlus.lua" />
+	<Script file="Settings_MythicPlus.lua" />
+</Ui>
