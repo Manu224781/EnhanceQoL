@@ -9,13 +9,17 @@ end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Tooltip")
 
-local cTooltip = addon.functions.SettingsCreateCategory(nil, L["Tooltip"], nil, "Tooltip")
-addon.SettingsLayout.tooltipCategory = cTooltip
+local cTooltip = addon.SettingsLayout.rootUI
 
-local sectionBuff = addon.functions.SettingsCreateExpandableSection(cTooltip, {
-	name = L["Buff_Debuff"],
-	expanded = true,
+local expandable = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+	name = L["Tooltip"],
+	expanded = false,
 	colorizeTitle = false,
+})
+
+addon.functions.SettingsCreateHeadline(cTooltip, {
+	name = L["Buff_Debuff"],
+	parentSection = expandable,
 })
 
 local data = {
@@ -26,7 +30,7 @@ local data = {
 	default = 1,
 	var = "TooltipBuffHideType",
 	type = Settings.VarType.Number,
-	parentSection = sectionBuff,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateDropdown(cTooltip, data)
 
@@ -44,7 +48,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipBuffHideType"].setting:GetValue() == 2
 		end,
 		element = addon.SettingsLayout.elements["TooltipBuffHideType"].element,
-		parentSection = sectionBuff,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipBuffHideInDungeon",
@@ -59,16 +63,15 @@ data = {
 				and addon.SettingsLayout.elements["TooltipBuffHideType"].setting:GetValue() == 2
 		end,
 		element = addon.SettingsLayout.elements["TooltipBuffHideType"].element,
-		parentSection = sectionBuff,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cTooltip, data)
 
-local sectionItem = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = AUCTION_HOUSE_HEADER_ITEM,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 data = {
@@ -79,7 +82,7 @@ data = {
 	default = 1,
 	var = "TooltipItemHideType",
 	type = Settings.VarType.Number,
-	parentSection = sectionItem,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateDropdown(cTooltip, data)
 
@@ -97,7 +100,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipItemHideType"].setting:GetValue() == 2
 		end,
 		element = addon.SettingsLayout.elements["TooltipItemHideType"].element,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipItemHideInDungeon",
@@ -112,7 +115,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipItemHideType"].setting:GetValue() == 2
 		end,
 		element = addon.SettingsLayout.elements["TooltipItemHideType"].element,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowItemID",
@@ -120,7 +123,7 @@ data = {
 		func = function(v) addon.db["TooltipShowItemID"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowItemIcon",
@@ -128,7 +131,7 @@ data = {
 		func = function(v) addon.db["TooltipShowItemIcon"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionItem,
+		parentSection = expandable,
 		children = {
 
 			{
@@ -148,7 +151,7 @@ data = {
 						and addon.SettingsLayout.elements["TooltipShowItemIcon"].setting:GetValue() == true
 				end,
 				element = addon.SettingsLayout.elements["TooltipShowItemIcon"] and addon.SettingsLayout.elements["TooltipShowItemIcon"].element,
-				parentSection = sectionItem,
+				parentSection = expandable,
 			},
 		},
 	},
@@ -159,7 +162,7 @@ data = {
 		func = function(v) addon.db["TooltipShowTempEnchant"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowItemCount",
@@ -167,7 +170,7 @@ data = {
 		func = function(v) addon.db["TooltipShowItemCount"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowSeperateItemCount",
@@ -175,7 +178,7 @@ data = {
 		func = function(v) addon.db["TooltipShowSeperateItemCount"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipHousingAutoPreview",
@@ -184,7 +187,7 @@ data = {
 		func = function(v) addon.db["TooltipHousingAutoPreview"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionItem,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
@@ -193,10 +196,9 @@ addon.functions.SettingsCreateCheckboxes(cTooltip, data)
 
 ---- Spell
 
-local sectionSpell = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = STAT_CATEGORY_SPELL,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 data = {
@@ -207,7 +209,7 @@ data = {
 	default = 1,
 	var = "TooltipSpellHideType",
 	type = Settings.VarType.Number,
-	parentSection = sectionSpell,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateDropdown(cTooltip, data)
 
@@ -225,7 +227,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipSpellHideType"].setting:GetValue() == 2
 		end,
 		element = addon.SettingsLayout.elements["TooltipSpellHideType"].element,
-		parentSection = sectionSpell,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipSpellHideInDungeon",
@@ -240,7 +242,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipSpellHideType"].setting:GetValue() == 2
 		end,
 		element = addon.SettingsLayout.elements["TooltipSpellHideType"].element,
-		parentSection = sectionSpell,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowSpellID",
@@ -248,7 +250,7 @@ data = {
 		func = function(v) addon.db["TooltipShowSpellID"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionSpell,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowSpellIcon",
@@ -256,7 +258,7 @@ data = {
 		func = function(v) addon.db["TooltipShowSpellIcon"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionSpell,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowSpellIconInline",
@@ -264,7 +266,7 @@ data = {
 		func = function(v) addon.db["TooltipShowSpellIconInline"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionSpell,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
@@ -273,10 +275,9 @@ addon.functions.SettingsCreateCheckboxes(cTooltip, data)
 
 -- Quest
 
-local sectionQuest = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = LOOT_JOURNAL_LEGENDARIES_SOURCE_QUEST,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 data = {
@@ -286,7 +287,7 @@ data = {
 		func = function(v) addon.db["TooltipShowQuestID"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionQuest,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
@@ -295,10 +296,9 @@ addon.functions.SettingsCreateCheckboxes(cTooltip, data)
 
 -- Unit
 
-local sectionUnit = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = GROUPMANAGER_UNIT_MARKER,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 data = {
@@ -309,7 +309,7 @@ data = {
 	default = 1,
 	var = "TooltipUnitHideType",
 	type = Settings.VarType.Number,
-	parentSection = sectionUnit,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateDropdown(cTooltip, data)
 
@@ -327,7 +327,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipUnitHideType"].setting:GetValue() > 1
 		end,
 		element = addon.SettingsLayout.elements["TooltipUnitHideType"].element,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipUnitHideInDungeon",
@@ -342,7 +342,7 @@ data = {
 				and addon.SettingsLayout.elements["TooltipUnitHideType"].setting:GetValue() > 1
 		end,
 		element = addon.SettingsLayout.elements["TooltipUnitHideType"].element,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
@@ -356,7 +356,7 @@ data = {
 		func = function(v) addon.db["TooltipUnitHideHealthBar"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipUnitHideRightClickInstruction",
@@ -364,7 +364,7 @@ data = {
 		func = function(v) addon.db["TooltipUnitHideRightClickInstruction"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipHideFaction",
@@ -372,7 +372,7 @@ data = {
 		func = function(v) addon.db["TooltipHideFaction"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipHidePVP",
@@ -380,7 +380,7 @@ data = {
 		func = function(v) addon.db["TooltipHidePVP"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowGuildRank",
@@ -388,7 +388,7 @@ data = {
 		func = function(v) addon.db["TooltipShowGuildRank"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 		children = {
 			{
 				var = "TooltipGuildRankColor",
@@ -401,7 +401,7 @@ data = {
 				end,
 				colorizeLabel = true,
 				sType = "colorpicker",
-				parentSection = sectionUnit,
+				parentSection = expandable,
 			},
 		},
 	},
@@ -411,7 +411,7 @@ data = {
 		func = function(v) addon.db["TooltipColorGuildName"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionUnit,
+		parentSection = expandable,
 		children = {
 			{
 				var = "TooltipGuildNameColor",
@@ -424,7 +424,7 @@ data = {
 				end,
 				colorizeLabel = true,
 				sType = "colorpicker",
-				parentSection = sectionUnit,
+				parentSection = expandable,
 			},
 		},
 	},
@@ -437,10 +437,9 @@ local guildRankToggle = addon.SettingsLayout.elements["TooltipShowGuildRank"]
 
 -- Player
 
-local sectionPlayer = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = PLAYER,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 local function TooltipPlayerHasMythicDetails() return addon.db["TooltipShowMythicScore"] and true or false end
@@ -514,7 +513,7 @@ addon.functions.SettingsCreateMultiDropdown(cTooltip, {
 	optionfunc = BuildTooltipPlayerDetailOptions,
 	isSelectedFunc = IsTooltipPlayerDetailSelected,
 	setSelectedFunc = SetTooltipPlayerDetailSelected,
-	parentSection = sectionPlayer,
+	parentSection = expandable,
 })
 
 local playerDetailsElement = addon.SettingsLayout.elements["TooltipPlayerDetailsLabel"]
@@ -529,7 +528,7 @@ addon.functions.SettingsCreateCheckbox(cTooltip, {
 	element = playerDetailsInitializer,
 	parentCheck = TooltipPlayerHasMythicDetails,
 	notify = "TooltipPlayerDetailsLabel",
-	parentSection = sectionPlayer,
+	parentSection = expandable,
 })
 
 addon.functions.SettingsCreateCheckbox(cTooltip, {
@@ -544,7 +543,7 @@ addon.functions.SettingsCreateCheckbox(cTooltip, {
 	element = playerDetailsInitializer,
 	parentCheck = TooltipPlayerHasInspectDetails,
 	notify = "TooltipPlayerDetailsLabel",
-	parentSection = sectionPlayer,
+	parentSection = expandable,
 })
 
 local modifierList = {
@@ -576,7 +575,7 @@ addon.functions.SettingsCreateDropdown(cTooltip, {
 				and addon.db["TooltipShowMythicScore"]
 		)
 	end,
-	parentSection = sectionPlayer,
+	parentSection = expandable,
 })
 
 addon.functions.SettingsCreateMultiDropdown(cTooltip, {
@@ -589,13 +588,12 @@ addon.functions.SettingsCreateMultiDropdown(cTooltip, {
 	parent = true,
 	element = playerDetailsInitializer,
 	parentCheck = TooltipPlayerHasMythicDetails,
-	parentSection = sectionPlayer,
+	parentSection = expandable,
 })
 
-local sectionNPC = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = L["TooltipUnitNPCGroup"],
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 addon.functions.SettingsCreateCheckbox(cTooltip, {
@@ -603,7 +601,7 @@ addon.functions.SettingsCreateCheckbox(cTooltip, {
 	text = L["TooltipShowNPCID"],
 	func = function(value) addon.db["TooltipShowNPCID"] = value and true or false end,
 	default = false,
-	parentSection = sectionNPC,
+	parentSection = expandable,
 })
 addon.functions.SettingsCreateCheckbox(cTooltip, {
 	var = "TooltipShowNPCWowheadLink",
@@ -611,13 +609,12 @@ addon.functions.SettingsCreateCheckbox(cTooltip, {
 	func = function(value) addon.db["TooltipShowNPCWowheadLink"] = value and true or false end,
 	default = false,
 	desc = L["TooltipShowNPCWowheadLink_desc"],
-	parentSection = sectionNPC,
+	parentSection = expandable,
 })
 
-local sectionGeneral = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = GENERAL,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 
 data = {
@@ -628,7 +625,7 @@ data = {
 	default = 1,
 	var = "TooltipAnchorType",
 	type = Settings.VarType.Number,
-	parentSection = sectionGeneral,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateDropdown(cTooltip, data)
 
@@ -648,7 +645,7 @@ data = {
 	parent = true,
 	element = addon.SettingsLayout.elements["TooltipAnchorType"].element,
 	default = 0,
-	parentSection = sectionGeneral,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateSlider(cTooltip, data)
 
@@ -668,7 +665,7 @@ data = {
 	parent = true,
 	element = addon.SettingsLayout.elements["TooltipAnchorType"].element,
 	default = 0,
-	parentSection = sectionGeneral,
+	parentSection = expandable,
 }
 addon.functions.SettingsCreateSlider(cTooltip, data)
 
@@ -684,13 +681,12 @@ addon.functions.SettingsCreateSlider(cTooltip, {
 	max = 1.5,
 	step = 0.05,
 	default = 1,
-	parentSection = sectionGeneral,
+	parentSection = expandable,
 })
 
-local sectionCurrency = addon.functions.SettingsCreateExpandableSection(cTooltip, {
+addon.functions.SettingsCreateHeadline(cTooltip, {
 	name = CURRENCY,
-	expanded = true,
-	colorizeTitle = false,
+	parentSection = expandable,
 })
 data = {
 	{
@@ -699,7 +695,7 @@ data = {
 		func = function(v) addon.db["TooltipShowCurrencyAccountWide"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionCurrency,
+		parentSection = expandable,
 	},
 	{
 		var = "TooltipShowCurrencyID",
@@ -707,7 +703,7 @@ data = {
 		func = function(v) addon.db["TooltipShowCurrencyID"] = v end,
 		default = false,
 		type = Settings.VarType.Boolean,
-		parentSection = sectionCurrency,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
