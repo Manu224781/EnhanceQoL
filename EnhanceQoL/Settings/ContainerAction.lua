@@ -2,8 +2,14 @@ local addonName, addon = ...
 
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
-local cContainer, cLayout = addon.functions.SettingsCreateCategory(nil, L["ContainerActions"], nil, "ContainerAction")
-addon.SettingsLayout.containerActionCategory = cContainer
+local cContainer = addon.SettingsLayout.rootGENERAL
+
+local expandable = addon.functions.SettingsCreateExpandableSection(cContainer, {
+	name = L["ContainerActions"],
+	expanded = false,
+	colorizeTitle = false,
+})
+
 local wOpen = false -- Variable to ignore multiple checks for openItems
 local function openItems(items)
 	local function openNextItem()
@@ -55,11 +61,12 @@ local data = {
 	text = L["automaticallyOpenContainer"],
 	func = function(value) addon.db["automaticallyOpenContainer"] = value and true or false end,
 	desc = L["containerActionsFeatureDesc2"],
+	parentSection = expandable,
 }
 
-addon.functions.SettingsCreateText(cContainer, L["containerActionsFeatureDesc2"])
+addon.functions.SettingsCreateText(cContainer, L["containerActionsFeatureDesc2"], { parentSection = expandable })
 addon.functions.SettingsCreateCheckbox(cContainer, data)
-addon.functions.SettingsCreateText(cContainer, L["containerActionsEditModeHint"] .. "\n" .. "|cff99e599" .. L["containerActionsBlacklistHint"] .. "|r")
+addon.functions.SettingsCreateText(cContainer, L["containerActionsEditModeHint"] .. "\n" .. "|cff99e599" .. L["containerActionsBlacklistHint"] .. "|r",{parentSection = expandable})
 
 data = {
 	listFunc = function()
@@ -77,6 +84,7 @@ data = {
 		end
 		return list
 	end,
+	parentSection = expandable,
 	text = L["containerActionsBlacklistLabel"],
 	parentCheck = function() return addon.SettingsLayout.elements["automaticallyOpenContainer"].setting and addon.SettingsLayout.elements["automaticallyOpenContainer"].setting:GetValue() == true end,
 	element = addon.SettingsLayout.elements["automaticallyOpenContainer"].element,

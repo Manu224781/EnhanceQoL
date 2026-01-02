@@ -1498,15 +1498,23 @@ end
 ---- END REGION
 
 ---- REGION SETTINGS
-local cInventory = addon.functions.SettingsCreateCategory(nil, L["ItemsInventory"], nil, "ItemsInventory")
-addon.SettingsLayout.inventoryCategory = cInventory
-addon.functions.SettingsCreateHeadline(cInventory, BAGSLOT)
+
+local cInventory = addon.SettingsLayout.rootGENERAL
+
+local expandable = addon.functions.SettingsCreateExpandableSection(cInventory, {
+	name = L["ItemsInventory"],
+	expanded = false,
+	colorizeTitle = false,
+})
+
+addon.functions.SettingsCreateHeadline(cInventory, BAGSLOT, { parentSection = expandable })
 
 local data = {
 	{
 		var = "showIlvlOnMerchantframe",
 		text = L["showIlvlOnMerchantframe"],
 		func = function(value) addon.db["showIlvlOnMerchantframe"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "showIlvlOnBagItems",
@@ -1518,6 +1526,7 @@ local data = {
 			end
 			if ContainerFrameCombinedBags:IsShown() then addon.functions.updateBags(ContainerFrameCombinedBags) end
 		end,
+		parentSection = expandable,
 		children = {
 			{
 				list = {
@@ -1544,6 +1553,7 @@ local data = {
 				var = "bagIlvlPosition",
 				type = Settings.VarType.String,
 				sType = "dropdown",
+				parentSection = expandable,
 			},
 		},
 	},
@@ -1574,6 +1584,7 @@ local data = {
 			end
 			if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 		end,
+		parentSection = expandable,
 	},
 	{
 		var = "fadeBagQualityIcons",
@@ -1586,6 +1597,7 @@ local data = {
 			if ContainerFrameCombinedBags:IsShown() then addon.functions.updateBags(ContainerFrameCombinedBags) end
 			if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 		end,
+		parentSection = expandable,
 	},
 	{
 		var = "showIlvlOnBankFrame",
@@ -1609,6 +1621,7 @@ local data = {
 			end
 			if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 		end,
+		parentSection = expandable,
 	},
 	{
 		var = "showBindOnBagItems",
@@ -1620,6 +1633,7 @@ local data = {
 			end
 			if ContainerFrameCombinedBags:IsShown() then addon.functions.updateBags(ContainerFrameCombinedBags) end
 		end,
+		parentSection = expandable,
 	},
 	{
 		var = "showUpgradeArrowOnBagItems",
@@ -1632,6 +1646,7 @@ local data = {
 			if ContainerFrameCombinedBags:IsShown() then addon.functions.updateBags(ContainerFrameCombinedBags) end
 			if _G.BankPanel and _G.BankPanel:IsShown() then addon.functions.updateBags(_G.BankPanel) end
 		end,
+		parentSection = expandable,
 		children = {
 			{
 				list = {
@@ -1665,6 +1680,7 @@ local data = {
 				var = "bagUpgradeIconPosition",
 				type = Settings.VarType.String,
 				sType = "dropdown",
+				parentSection = expandable,
 			},
 		},
 	},
@@ -1672,6 +1688,7 @@ local data = {
 		text = L["closeBagsOnAuctionHouse"],
 		var = "closeBagsOnAuctionHouse",
 		func = function(value) addon.db["closeBagsOnAuctionHouse"] = value end,
+		parentSection = expandable,
 	},
 	-- moved Money Tracker to Vendors & Economy → Money
 }
@@ -1693,7 +1710,7 @@ end)
 
 addon.functions.SettingsCreateCheckboxes(cInventory, data)
 
-addon.functions.SettingsCreateHeadline(cInventory, ENABLE_DIALOG)
+addon.functions.SettingsCreateHeadline(cInventory, ENABLE_DIALOG, { parentSection = expandable })
 
 data = {
 	{
@@ -1701,42 +1718,49 @@ data = {
 		text = L["deleteItemFillDialog"]:format(DELETE_ITEM_CONFIRM_STRING),
 		desc = L["deleteItemFillDialogDesc"],
 		func = function(value) addon.db["deleteItemFillDialog"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "confirmPatronOrderDialog",
 		text = (L["confirmPatronOrderDialog"]):format(PROFESSIONS_CRAFTER_ORDER_TAB_NPC),
 		desc = L["confirmPatronOrderDialogDesc"],
 		func = function(value) addon.db["confirmPatronOrderDialog"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "confirmTimerRemovalTrade",
 		text = L["confirmTimerRemovalTrade"],
 		desc = L["confirmTimerRemovalTradeDesc"],
 		func = function(value) addon.db["confirmTimerRemovalTrade"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "confirmReplaceEnchant",
 		text = L["confirmReplaceEnchant"],
 		desc = L["confirmReplaceEnchantDesc"],
 		func = function(value) addon.db["confirmReplaceEnchant"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "confirmSocketReplace",
 		text = L["confirmSocketReplace"],
 		desc = L["confirmSocketReplaceDesc"],
 		func = function(value) addon.db["confirmSocketReplace"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "confirmPurchaseTokenItem",
 		text = L["confirmPurchaseTokenItem"],
 		desc = L["confirmPurchaseTokenItemDesc"],
 		func = function(value) addon.db["confirmPurchaseTokenItem"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "confirmHighCostItem",
 		text = L["confirmHighCostItem"],
 		desc = L["confirmHighCostItemDesc"],
 		func = function(value) addon.db["confirmHighCostItem"] = value end,
+		parentSection = expandable,
 	},
 }
 

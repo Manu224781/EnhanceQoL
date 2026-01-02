@@ -64,7 +64,7 @@ function addon.functions.SettingsCreateCheckbox(cat, cbData)
 			elseif sType == "slider" then
 				addon.functions.SettingsCreateSlider(cat, v)
 			elseif sType == "hint" then
-				addon.functions.SettingsCreateText(cat, v.text, v.parentSection)
+				addon.functions.SettingsCreateText(cat, v.text, {parentSection =v.parentSection})
 			elseif sType == "colorpicker" then
 				addon.functions.SettingsCreateColorPicker(cat, v)
 			elseif sType == "button" then

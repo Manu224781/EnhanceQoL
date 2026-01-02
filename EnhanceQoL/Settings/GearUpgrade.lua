@@ -2,10 +2,15 @@ local addonName, addon = ...
 
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
-local cGearUpgrade = addon.functions.SettingsCreateCategory(nil, L["GearUpgrades"], nil, "GearUpgrade")
+local cGearUpgrade = addon.SettingsLayout.rootGENERAL
+local expandable = addon.functions.SettingsCreateExpandableSection(cGearUpgrade, {
+	name = L["GearUpgrades"],
+	expanded = false,
+	colorizeTitle = false,
+})
 addon.SettingsLayout.gearUpgradeCategory = cGearUpgrade
 
-addon.functions.SettingsCreateHeadline(cGearUpgrade, L["Show on Character Frame"])
+addon.functions.SettingsCreateHeadline(cGearUpgrade, L["Show on Character Frame"], { parentSection = expandable })
 
 local data = {
 	{
@@ -16,6 +21,7 @@ local data = {
 			addon.functions.setCharFrame()
 		end,
 		get = function() return addon.db.charDisplayOptions["ilvl"] end,
+		parentSection = expandable,
 		children = {
 			{
 				list = {
@@ -45,6 +51,7 @@ local data = {
 				var = "charIlvlPosition",
 				type = Settings.VarType.String,
 				sType = "dropdown",
+				parentSection = expandable,
 			},
 		},
 	},
@@ -60,24 +67,28 @@ local data = {
 			end
 		end,
 		get = function() return addon.db["movementSpeedStatEnabled"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "charframe_gems",
 		text = AUCTION_CATEGORY_GEMS,
 		func = function(value) addon.db.charDisplayOptions["gems"] = value and true or false end,
 		get = function() return addon.db.charDisplayOptions["gems"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "charframe_enchants",
 		text = ENCHANTS,
 		func = function(value) addon.db.charDisplayOptions["enchants"] = value and true or false end,
 		get = function() return addon.db.charDisplayOptions["enchants"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "charframe_gemtip",
 		text = L["Gem slot tooltip"],
 		func = function(value) addon.db.charDisplayOptions["gemtip"] = value and true or false end,
 		get = function() return addon.db.charDisplayOptions["gemtip"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "charframe_durability",
@@ -87,18 +98,20 @@ local data = {
 			addon.functions.calculateDurability()
 		end,
 		get = function() return addon.db["showDurabilityOnCharframe"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "charframe_catalyst",
 		text = L["Catalyst Charges"],
 		func = function(value) addon.db["showCatalystChargesOnCharframe"] = value and true or false end,
 		get = function() return addon.db["showCatalystChargesOnCharframe"] end,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cGearUpgrade, data)
 
-addon.functions.SettingsCreateHeadline(cGearUpgrade, L["Show on Inspect Frame"])
+addon.functions.SettingsCreateHeadline(cGearUpgrade, L["Show on Inspect Frame"], { parentSection = expandable })
 
 data = {
 	{
@@ -106,30 +119,34 @@ data = {
 		text = STAT_AVERAGE_ITEM_LEVEL,
 		func = function(value) addon.db.inspectDisplayOptions["ilvl"] = value and true or false end,
 		get = function() return addon.db.inspectDisplayOptions["ilvl"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "inspect_gems",
 		text = AUCTION_CATEGORY_GEMS,
 		func = function(value) addon.db.inspectDisplayOptions["gems"] = value and true or false end,
 		get = function() return addon.db.inspectDisplayOptions["gems"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "inspect_enchants",
 		text = ENCHANTS,
 		func = function(value) addon.db.inspectDisplayOptions["enchants"] = value and true or false end,
 		get = function() return addon.db.inspectDisplayOptions["enchants"] end,
+		parentSection = expandable,
 	},
 	{
 		var = "inspect_gemtip",
 		text = L["Gem slot tooltip"],
 		func = function(value) addon.db.inspectDisplayOptions["gemtip"] = value and true or false end,
 		get = function() return addon.db.inspectDisplayOptions["gemtip"] end,
+		parentSection = expandable,
 	},
 }
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cGearUpgrade, data)
 
-addon.functions.SettingsCreateHeadline(cGearUpgrade, AUCTION_CATEGORY_GEMS)
+addon.functions.SettingsCreateHeadline(cGearUpgrade, AUCTION_CATEGORY_GEMS, { parentSection = expandable })
 
 data = {
 	{
@@ -144,11 +161,12 @@ data = {
 		end,
 		get = function() return addon.db["enableGemHelper"] end,
 		desc = L["enableGemHelperDesc"],
+		parentSection = expandable,
 	},
 }
 addon.functions.SettingsCreateCheckboxes(cGearUpgrade, data)
 
-addon.functions.SettingsCreateHeadline(cGearUpgrade, AUCTION_CATEGORY_MISCELLANEOUS)
+addon.functions.SettingsCreateHeadline(cGearUpgrade, AUCTION_CATEGORY_MISCELLANEOUS, { parentSection = expandable })
 
 data = {
 	{
@@ -160,12 +178,14 @@ data = {
 		end,
 		get = function() return addon.db["instantCatalystEnabled"] end,
 		desc = L["instantCatalystEnabledDesc"],
+		parentSection = expandable,
 	},
 	{
 		var = "openCharframeOnUpgrade",
 		text = L["openCharframeOnUpgrade"],
 		func = function(value) addon.db["openCharframeOnUpgrade"] = value and true or false end,
 		get = function() return addon.db["openCharframeOnUpgrade"] end,
+		parentSection = expandable,
 	},
 }
 

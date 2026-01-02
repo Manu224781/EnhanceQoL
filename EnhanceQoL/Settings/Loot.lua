@@ -2,10 +2,15 @@ local addonName, addon = ...
 
 local L = LibStub("AceLocale-3.0"):GetLocale(addonName)
 
-local cLoot = addon.functions.SettingsCreateCategory(nil, L["Loot"], nil, "Loot")
+local cLoot = addon.SettingsLayout.rootGENERAL
+local expandable = addon.functions.SettingsCreateExpandableSection(cLoot, {
+	name = L["Loot"],
+	expanded = false,
+	colorizeTitle = false,
+})
 addon.SettingsLayout.vendorEconomyCalootCategorytegory = cLoot
 
-addon.functions.SettingsCreateHeadline(cLoot, L["LootPopups"])
+addon.functions.SettingsCreateHeadline(cLoot, L["LootPopups"], { parentSection = expandable })
 
 local data = {
 	{
@@ -13,9 +18,9 @@ local data = {
 		text = L["autoQuickLoot"],
 		desc = L["autoQuickLootDesc"],
 		func = function(value) addon.db["autoQuickLoot"] = value end,
+		parentSection = expandable,
 		children = {
 			{
-
 				var = "autoQuickLootWithShift",
 				text = L["autoQuickLootWithShift"],
 				func = function(v) addon.db["autoQuickLootWithShift"] = v end,
@@ -28,6 +33,7 @@ local data = {
 				default = false,
 				type = Settings.VarType.Boolean,
 				sType = "checkbox",
+				parentSection = expandable,
 			},
 		},
 	},
@@ -36,6 +42,7 @@ local data = {
 		text = L["autoHideBossBanner"],
 		desc = L["autoHideBossBannerDesc"],
 		func = function(value) addon.db["autoHideBossBanner"] = value end,
+		parentSection = expandable,
 	},
 	{
 		var = "hideAzeriteToast",
@@ -53,13 +60,14 @@ local data = {
 				addon.functions.checkReloadFrame()
 			end
 		end,
+		parentSection = expandable,
 	},
 }
 
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cLoot, data)
 
-addon.functions.SettingsCreateHeadline(cLoot, L["groupLootRollFrames"])
+addon.functions.SettingsCreateHeadline(cLoot, L["groupLootRollFrames"], { parentSection = expandable })
 
 data = {
 	{
@@ -71,6 +79,7 @@ data = {
 			if addon.LootToast and addon.LootToast.OnGroupRollAnchorOptionChanged then addon.LootToast:OnGroupRollAnchorOptionChanged(addon.db.enableGroupLootAnchor) end
 			addon.functions.initLootToast()
 		end,
+		parentSection = expandable,
 		children = {
 			{
 				var = "groupLootScale",
@@ -94,6 +103,7 @@ data = {
 				parent = true,
 				default = 1,
 				sType = "slider",
+				parentSection = expandable,
 			},
 		},
 	},
@@ -102,7 +112,7 @@ data = {
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cLoot, data)
 
-addon.functions.SettingsCreateHeadline(cLoot, L["lootToastSectionTitle"])
+addon.functions.SettingsCreateHeadline(cLoot, L["lootToastSectionTitle"], { parentSection = expandable })
 
 data = {
 	{
@@ -113,10 +123,12 @@ data = {
 			addon.db.enableLootToastAnchor = value and true or false
 			addon.functions.initLootToast()
 		end,
+		parentSection = expandable,
 		children = {
 			{
 				text = "|cffffd700" .. L["lootToastAnchorEditModeHint"] .. "|r",
 				sType = "hint",
+				parentSection = expandable,
 			},
 		},
 	},
@@ -125,7 +137,7 @@ data = {
 table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cLoot, data)
 
-addon.functions.SettingsCreateHeadline(cLoot, L["lootToastFilterSettings"])
+addon.functions.SettingsCreateHeadline(cLoot, L["lootToastFilterSettings"], { parentSection = expandable })
 
 data = {
 	{
@@ -137,6 +149,7 @@ data = {
 			addon.functions.initLootToast()
 		end,
 		notify = "enableLootToastCustomSound",
+		parentSection = expandable,
 		children = {
 			{
 				var = "enableLootToastCustomSound",
@@ -152,6 +165,7 @@ data = {
 				default = false,
 				type = Settings.VarType.Boolean,
 				sType = "checkbox",
+				parentSection = expandable,
 				children = {
 					{
 						optionfunc = function()
@@ -182,6 +196,7 @@ data = {
 						var = "lootToastCustomSound",
 						type = Settings.VarType.String,
 						sType = "sounddropdown",
+						parentSection = expandable,
 					},
 				},
 			},
@@ -193,7 +208,7 @@ table.sort(data, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cLoot, data)
 
 for i = 3, 5 do
-	addon.functions.SettingsCreateText(cLoot, "|c" .. ITEM_QUALITY_COLORS[i].color:GenerateHexColor() .. _G["ITEM_QUALITY" .. i .. "_DESC"] .. "|r")
+	addon.functions.SettingsCreateText(cLoot, "|c" .. ITEM_QUALITY_COLORS[i].color:GenerateHexColor() .. _G["ITEM_QUALITY" .. i .. "_DESC"] .. "|r", { parentSection = expandable })
 
 	data = {
 		{
@@ -205,6 +220,7 @@ for i = 3, 5 do
 				addon.db.lootToastFilters[i] = addon.db.lootToastFilters[i] or {}
 				addon.db.lootToastFilters[i].ilvl = value
 			end,
+			parentSection = expandable,
 			children = {
 				{
 					var = "lootToastItemLevel_" .. i,
@@ -230,6 +246,7 @@ for i = 3, 5 do
 					parent = true,
 					default = 0,
 					sType = "slider",
+					parentSection = expandable,
 				},
 			},
 			parent = true,
@@ -250,6 +267,7 @@ for i = 3, 5 do
 		var = "lootToastFilters_" .. i,
 		subvar = i,
 		text = L["lootToastAlwaysShow"],
+		parentSection = expandable,
 		parent = true,
 		element = addon.SettingsLayout.elements["enableLootToastFilter"].element,
 		parentCheck = function()
@@ -347,11 +365,12 @@ StaticPopupDialogs[includeDialogKey].EditBoxOnEnterPressed = function(editBox)
 	if parent and parent.button1 then parent.button1:Click() end
 end
 
-addon.functions.SettingsCreateHeadline(cLoot, L["Include"])
+addon.functions.SettingsCreateHeadline(cLoot, L["Include"], { parentSection = expandable })
 
 local lootLayout = SettingsPanel:GetLayout(cLoot)
 local includeButton = CreateSettingsButtonInitializer("", L["Include"], function() StaticPopup_Show(includeDialogKey) end, L["includeInfoLoot"], true)
 includeButton:SetParentInitializer(addon.SettingsLayout.elements["enableLootToastFilter"].element, isLootToastFilterEnabled)
+includeButton:AddShownPredicate(function() return expandable:IsExpanded() ~= false end)
 lootLayout:AddInitializer(includeButton)
 
 local function buildIncludeDropdownList()
@@ -411,9 +430,10 @@ addon.functions.SettingsCreateDropdown(cLoot, {
 	parentCheck = isLootToastFilterEnabled,
 	default = "",
 	type = Settings.VarType.String,
+	parentSection = expandable,
 })
 
-addon.functions.SettingsCreateHeadline(cLoot, L["dungeonJournalLootSpecIcons"])
+addon.functions.SettingsCreateHeadline(cLoot, L["dungeonJournalLootSpecIcons"], { parentSection = expandable })
 
 data = {
 	{
@@ -424,6 +444,7 @@ data = {
 			addon.db["dungeonJournalLootSpecIcons"] = value
 			if addon.DungeonJournalLootSpec and addon.DungeonJournalLootSpec.SetEnabled then addon.DungeonJournalLootSpec:SetEnabled(value) end
 		end,
+		parentSection = expandable,
 		children = {
 			{
 				list = {
@@ -446,6 +467,7 @@ data = {
 				var = "dungeonJournalLootSpecAnchor",
 				type = Settings.VarType.Number,
 				sType = "dropdown",
+				parentSection = expandable,
 			},
 			{
 				var = "dungeonJournalLootSpecOffsetX",
@@ -466,6 +488,7 @@ data = {
 				parent = true,
 				default = 0,
 				sType = "slider",
+				parentSection = expandable,
 			},
 			{
 				var = "dungeonJournalLootSpecOffsetY",
@@ -486,6 +509,7 @@ data = {
 				parent = true,
 				default = 0,
 				sType = "slider",
+				parentSection = expandable,
 			},
 			{
 				var = "dungeonJournalLootSpecSpacing",
@@ -506,6 +530,7 @@ data = {
 				parent = true,
 				default = 0,
 				sType = "slider",
+				parentSection = expandable,
 			},
 			{
 				var = "dungeonJournalLootSpecScale",
@@ -530,6 +555,7 @@ data = {
 				parent = true,
 				default = 1,
 				sType = "slider",
+				parentSection = expandable,
 			},
 			{
 				var = "dungeonJournalLootSpecIconPadding",
@@ -550,9 +576,9 @@ data = {
 				parent = true,
 				default = 0,
 				sType = "slider",
+				parentSection = expandable,
 			},
 			{
-
 				var = "dungeonJournalLootSpecShowAll",
 				text = L["dungeonJournalLootSpecShowAll"],
 				desc = L["dungeonJournalLootSpecShowAllDesc"],
@@ -566,6 +592,7 @@ data = {
 				default = false,
 				type = Settings.VarType.Boolean,
 				sType = "checkbox",
+				parentSection = expandable,
 			},
 		},
 	},
