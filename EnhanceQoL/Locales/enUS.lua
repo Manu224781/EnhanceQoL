@@ -422,6 +422,8 @@ L["questTrackerShowQuestCount"] = "Show quest count under tracker"
 L["questTrackerShowQuestCount_desc"] = "Displays your current quest total versus the maximum directly beneath the Quest Tracker header."
 L["questTrackerQuestCountOffsetX"] = "Horizontal offset"
 L["questTrackerQuestCountOffsetY"] = "Vertical offset"
+L["questTrackerMinimizeButtonOnly"] = "Minimize to '+' only"
+L["questTrackerMinimizeButtonOnly_desc"] = "When the Objective Tracker is collapsed, hide the header bar and show only the (+) button."
 
 L["autoQuickLoot"] = "Quick loot items"
 L["autoQuickLootDesc"] = "Fixes a default-UI bug that sometimes prevents you from looting. For best results, turn off WoW’s built-in Auto Loot option."

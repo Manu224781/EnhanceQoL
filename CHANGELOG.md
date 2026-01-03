@@ -22,6 +22,8 @@
   - Auto-release in PvP/BGs.
   - Latency stream: configurable ping colors + display mode (FPS/Latency).
   - Quick-skip cinematics option (auto-confirms the skip prompt on Esc/Space/Enter).
+- **Questing**
+  - Objective Tracker can minimize to the (+) button only.
 - **Minimap**
   - Hide addon minimap buttons until you mouse over the minimap.
   - Unclamp the minimap cluster so it can sit closer to the screen edge.

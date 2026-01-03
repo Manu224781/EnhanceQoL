@@ -24,6 +24,8 @@ local QUEST_TRACKER_QUEST_COUNT_COLOR = { r = 1, g = 210 / 255, b = 0 }
 local questTrackerQuestCountFrame
 local questTrackerQuestCountText
 local questTrackerQuestCountWatcher
+local objectiveTrackerMinimizeWatcher
+local objectiveTrackerMinimizeHooked
 
 local function GetQuestTrackerQuestCountText()
 	if not C_QuestLog or not C_QuestLog.GetNumQuestLogEntries then return "" end
@@ -118,6 +120,47 @@ local function EnsureQuestTrackerQuestCountWatcher()
 			C_Timer.After(0.5, UpdateQuestTrackerQuestCount)
 		else
 			UpdateQuestTrackerQuestCount()
+		end
+	end)
+end
+
+local function ApplyObjectiveTrackerMinimizeStyle()
+	if not addon or not addon.db then return end
+	local tracker = _G.ObjectiveTrackerFrame
+	local header = tracker and tracker.Header
+	if not header then return end
+	local bg = header.Background
+	local text = header.Text
+	if bg and bg._eqolAlpha == nil and bg.GetAlpha then bg._eqolAlpha = bg:GetAlpha() end
+	if text and text._eqolAlpha == nil and text.GetAlpha then text._eqolAlpha = text:GetAlpha() end
+	local collapsed = tracker.IsCollapsed and tracker:IsCollapsed()
+	local hideHeader = addon.db.questTrackerMinimizeButtonOnly == true and collapsed
+	if bg and bg.SetAlpha then bg:SetAlpha(hideHeader and 0 or (bg._eqolAlpha or 1)) end
+	if text and text.SetAlpha then text:SetAlpha(hideHeader and 0 or (text._eqolAlpha or 1)) end
+end
+addon.functions.UpdateObjectiveTrackerMinimizeStyle = ApplyObjectiveTrackerMinimizeStyle
+
+local function EnsureObjectiveTrackerMinimizeHook()
+	if objectiveTrackerMinimizeHooked then return end
+	local tracker = _G.ObjectiveTrackerFrame
+	local header = tracker and tracker.Header
+	if not header then return end
+	objectiveTrackerMinimizeHooked = true
+	if hooksecurefunc then hooksecurefunc(header, "SetCollapsed", function() ApplyObjectiveTrackerMinimizeStyle() end) end
+	ApplyObjectiveTrackerMinimizeStyle()
+end
+
+local function EnsureObjectiveTrackerMinimizeWatcher()
+	if objectiveTrackerMinimizeWatcher then return end
+	objectiveTrackerMinimizeWatcher = CreateFrame("Frame")
+	objectiveTrackerMinimizeWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+	objectiveTrackerMinimizeWatcher:RegisterEvent("ADDON_LOADED")
+	objectiveTrackerMinimizeWatcher:SetScript("OnEvent", function(_, event, name)
+		if event == "ADDON_LOADED" and name ~= "Blizzard_ObjectiveTracker" then return end
+		if C_Timer and C_Timer.After then
+			C_Timer.After(0, EnsureObjectiveTrackerMinimizeHook)
+		else
+			EnsureObjectiveTrackerMinimizeHook()
 		end
 	end)
 end
@@ -323,6 +366,16 @@ local data = {
 			},
 		},
 	},
+	{
+		var = "questTrackerMinimizeButtonOnly",
+		text = L["questTrackerMinimizeButtonOnly"],
+		desc = L["questTrackerMinimizeButtonOnly_desc"],
+		func = function(value)
+			addon.db["questTrackerMinimizeButtonOnly"] = value and true or false
+			ApplyObjectiveTrackerMinimizeStyle()
+		end,
+		default = false,
+	},
 }
 
 applyParentSection(data, questingExpandable)
@@ -338,9 +391,13 @@ function addon.functions.initQuest()
 	addon.functions.InitDBValue("questTrackerShowQuestCount", false)
 	addon.functions.InitDBValue("questTrackerQuestCountOffsetX", 0)
 	addon.functions.InitDBValue("questTrackerQuestCountOffsetY", 0)
+	addon.functions.InitDBValue("questTrackerMinimizeButtonOnly", false)
 	addon.functions.InitDBValue("questWowheadLink", false)
 	addon.functions.InitDBValue("ignoredQuestNPC", {})
 	addon.functions.InitDBValue("autogossipID", {})
+
+	EnsureObjectiveTrackerMinimizeWatcher()
+	EnsureObjectiveTrackerMinimizeHook()
 
 	local function EQOL_GetQuestIDFromMenu(owner, ctx)
 		if ctx and (ctx.questID or ctx.questId) then return ctx.questID or ctx.questId end
