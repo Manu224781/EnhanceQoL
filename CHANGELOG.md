@@ -67,6 +67,8 @@
   - Button Sink labels and tooltips refreshed for clarity.
 - **Mythic+ Teleports**
   - Teleports now collapse to owned items when multiple variants exist (ex. Kirin Tor Rings); tooltip shows `X other variants available`.
+- **Tooltip**
+  - Optional modifier override to show hidden tooltips while in combat/dungeons.
 
 ### 🐛 Fixed
 

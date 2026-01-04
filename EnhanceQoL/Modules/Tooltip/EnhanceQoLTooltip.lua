@@ -44,6 +44,15 @@ local function IsConfiguredModifierDown()
 	return (mod == "SHIFT" and IsShiftKeyDown()) or (mod == "ALT" and IsAltKeyDown()) or (mod == "CTRL" and IsControlKeyDown())
 end
 
+local function IsTooltipHideOverrideActive()
+	if not addon.db or not addon.db["TooltipHideOverrideEnabled"] then return false end
+	local mod = addon.db["TooltipHideOverrideModifier"] or "CTRL"
+	if mod == "SHIFT" then return IsShiftKeyDown() end
+	if mod == "ALT" then return IsAltKeyDown() end
+	if mod == "CTRL" then return IsControlKeyDown() end
+	return false
+end
+
 local function DoesKeyMatchConfiguredModifier(key)
 	if not key or not addon.db then return false end
 	local mod = addon.db["TooltipMythicScoreModifier"] or "SHIFT"
@@ -339,6 +348,7 @@ local function checkSpell(tooltip, id, name, isSpell)
 	if addon.db["TooltipSpellHideType"] == 1 then return end -- only hide when ON
 	if addon.db["TooltipSpellHideInDungeon"] and select(1, IsInInstance()) == false then return end -- only hide in dungeons
 	if addon.db["TooltipSpellHideInCombat"] and UnitAffectingCombat("player") == false then return end -- only hide in combat
+	if IsTooltipHideOverrideActive() then return end
 	tooltip:Hide()
 end
 
@@ -692,9 +702,10 @@ local function checkUnit(tooltip)
 		checkAdditionalTooltip(tooltip)
 		return
 	end -- hide never
-	if addon.db["TooltipUnitHideType"] == 4 then tooltip:Hide() end -- hide always because we selected BOTH
-	if addon.db["TooltipUnitHideType"] == 2 and UnitCanAttack("player", "mouseover") then tooltip:Hide() end
-	if addon.db["TooltipUnitHideType"] == 3 and UnitCanAttack("player", "mouseover") == false then tooltip:Hide() end
+	local override = IsTooltipHideOverrideActive()
+	if addon.db["TooltipUnitHideType"] == 4 and not override then tooltip:Hide() end -- hide always because we selected BOTH
+	if addon.db["TooltipUnitHideType"] == 2 and UnitCanAttack("player", "mouseover") and not override then tooltip:Hide() end
+	if addon.db["TooltipUnitHideType"] == 3 and UnitCanAttack("player", "mouseover") == false and not override then tooltip:Hide() end
 	checkAdditionalTooltip(tooltip)
 end
 
@@ -828,6 +839,7 @@ local function checkItem(tooltip, id, name, guid)
 	if addon.db["TooltipItemHideType"] == 1 then return end -- only hide when ON
 	if addon.db["TooltipItemHideInDungeon"] and select(1, IsInInstance()) == false then return end -- only hide in dungeons
 	if addon.db["TooltipItemHideInCombat"] and UnitAffectingCombat("player") == false then return end -- only hide in combat
+	if IsTooltipHideOverrideActive() then return end
 	tooltip:Hide()
 end
 
@@ -880,6 +892,7 @@ local function checkAura(tooltip, id, name)
 	if addon.db["TooltipBuffHideType"] == 1 then return end -- only hide when ON
 	if addon.db["TooltipBuffHideInDungeon"] and select(1, IsInInstance()) == false then return end -- only hide in dungeons
 	if addon.db["TooltipBuffHideInCombat"] and UnitAffectingCombat("player") == false then return end -- only hide in combat
+	if IsTooltipHideOverrideActive() then return end
 	tooltip:Hide()
 end
 

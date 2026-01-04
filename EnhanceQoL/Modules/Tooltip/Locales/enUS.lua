@@ -12,6 +12,7 @@ L["CursorLeft"] = "Left of Cursor"
 L["CursorRight"] = "Right of Cursor"
 L["TooltipAnchorOffsetX"] = "Horizontal Offset"
 L["TooltipAnchorOffsetY"] = "Vertical Offset"
+L["TooltipHideOverride"] = "Show hidden tooltips with a modifier"
 
 -- Tabs
 L["Unit"] = "Unit"

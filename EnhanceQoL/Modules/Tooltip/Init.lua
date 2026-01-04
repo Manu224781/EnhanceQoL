@@ -17,6 +17,8 @@ function addon.Tooltip.functions.InitDB()
 	init("TooltipAnchorType", 1)
 	init("TooltipAnchorOffsetX", 0)
 	init("TooltipAnchorOffsetY", 0)
+	init("TooltipHideOverrideEnabled", false)
+	init("TooltipHideOverrideModifier", "CTRL")
 
 	init("TooltipUnitHideType", 1)
 	init("TooltipUnitHideInCombat", false)

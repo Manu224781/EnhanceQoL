@@ -617,6 +617,39 @@ addon.functions.SettingsCreateHeadline(cTooltip, {
 	parentSection = expandable,
 })
 
+addon.functions.SettingsCreateCheckbox(cTooltip, {
+	var = "TooltipHideOverrideEnabled",
+	text = L["TooltipHideOverride"],
+	func = function(value) addon.db["TooltipHideOverrideEnabled"] = value and true or false end,
+	default = false,
+	parentSection = expandable,
+})
+
+local overrideModifierList = {
+	SHIFT = SHIFT_KEY_TEXT,
+	ALT = ALT_KEY_TEXT,
+	CTRL = CTRL_KEY_TEXT,
+}
+local overrideModifierListOrder = { "SHIFT", "ALT", "CTRL" }
+
+addon.functions.SettingsCreateDropdown(cTooltip, {
+	var = "TooltipHideOverrideModifier",
+	text = MODIFIERS_COLON,
+	list = overrideModifierList,
+	order = overrideModifierListOrder,
+	get = function() return addon.db["TooltipHideOverrideModifier"] or "CTRL" end,
+	set = function(value) addon.db["TooltipHideOverrideModifier"] = value end,
+	default = "CTRL",
+	parent = true,
+	element = addon.SettingsLayout.elements["TooltipHideOverrideEnabled"] and addon.SettingsLayout.elements["TooltipHideOverrideEnabled"].element,
+	parentCheck = function()
+		return addon.SettingsLayout.elements["TooltipHideOverrideEnabled"]
+			and addon.SettingsLayout.elements["TooltipHideOverrideEnabled"].setting
+			and addon.SettingsLayout.elements["TooltipHideOverrideEnabled"].setting:GetValue() == true
+	end,
+	parentSection = expandable,
+})
+
 data = {
 	list = { [1] = DEFAULT, [2] = L["CursorCenter"], [3] = L["CursorLeft"], [4] = L["CursorRight"] },
 	text = L["TooltipAnchorType"],
