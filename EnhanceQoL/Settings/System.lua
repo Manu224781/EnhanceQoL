@@ -133,8 +133,36 @@ addon.functions.SettingsCreateMultiDropdown(cGeneral, {
 	parentSection = dialogExpandable,
 })
 
+local utilitiesExpandable = addon.functions.SettingsCreateExpandableSection(cGeneral, {
+	name = L["UIUtilities"] or "UI Utilities",
+	expanded = false,
+	colorizeTitle = false,
+})
+
+addon.functions.SettingsCreateCheckbox(cGeneral, {
+	var = "autoUnwrapMounts",
+	text = L["autoUnwrapMounts"],
+	desc = L["autoUnwrapMountsDesc"],
+	func = function(v)
+		addon.db["autoUnwrapMounts"] = v
+		if addon.functions.UpdateAutoUnwrapWatcher then addon.functions.UpdateAutoUnwrapWatcher() end
+	end,
+	parentSection = utilitiesExpandable,
+})
+
+addon.functions.SettingsCreateCheckbox(cGeneral, {
+	var = "showTrainAllButton",
+	text = L["showTrainAllButton"],
+	desc = L["showTrainAllButtonDesc"],
+	func = function(v)
+		addon.db["showTrainAllButton"] = v
+		if addon.functions.applyTrainAllButton then addon.functions.applyTrainAllButton() end
+	end,
+	parentSection = utilitiesExpandable,
+})
+
 local systemExpandable = addon.functions.SettingsCreateExpandableSection(cGeneral, {
-	name = L["System"] or _G.SYSTEM or "System",
+	name = L["SystemAndDebug"] or "System & Debug",
 	expanded = false,
 	colorizeTitle = false,
 })

@@ -20,6 +20,15 @@ local expandable = addon.functions.SettingsCreateExpandableSection(cMouse, {
 	colorizeTitle = false,
 })
 
+addon.functions.SettingsCreateCheckbox(cMouse, {
+	var = "enableMouseoverCast",
+	text = (LMain and LMain["enableMouseoverCast"]) or "Enable Mouseover Cast",
+	get = function() return getCVarOptionState("enableMouseoverCast") end,
+	func = function(value) setCVarOptionState("enableMouseoverCast", value) end,
+	default = false,
+	parentSection = expandable,
+})
+
 addon.functions.SettingsCreateHeadline(cMouse, L["mouseRing"], { parentSection = expandable })
 
 local data = {
@@ -253,15 +262,6 @@ data = {
 }
 table.sort(data[1].children, function(a, b) return a.text < b.text end)
 addon.functions.SettingsCreateCheckboxes(cMouse, data)
-
-addon.functions.SettingsCreateCheckbox(cMouse, {
-	var = "enableMouseoverCast",
-	text = (LMain and LMain["enableMouseoverCast"]) or "Enable Mouseover Cast",
-	get = function() return getCVarOptionState("enableMouseoverCast") end,
-	func = function(value) setCVarOptionState("enableMouseoverCast", value) end,
-	default = false,
-	parentSection = expandable,
-})
 
 ----- REGION END
 

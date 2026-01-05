@@ -132,6 +132,7 @@ local function UpdateAutoUnwrapWatcher()
 		autoUnwrapEventFrame:RegisterEvent("NEW_TOY_ADDED")
 	end
 end
+addon.functions.UpdateAutoUnwrapWatcher = UpdateAutoUnwrapWatcher
 
 local cUIInput = addon.SettingsLayout.rootUI
 
@@ -471,31 +472,11 @@ data = {
 		parentSection = interfaceExpandable,
 	},
 	{
-		var = "autoUnwrapMounts",
-		text = L["autoUnwrapMounts"],
-		desc = L["autoUnwrapMountsDesc"],
-		func = function(v)
-			addon.db["autoUnwrapMounts"] = v
-			UpdateAutoUnwrapWatcher()
-		end,
-		parentSection = interfaceExpandable,
-	},
-	{
 		var = "hideZoneText",
 		text = L["hideZoneText"],
 		func = function(v)
 			addon.db["hideZoneText"] = v
 			addon.functions.toggleZoneText(addon.db["hideZoneText"])
-		end,
-		parentSection = interfaceExpandable,
-	},
-	{
-		var = "showTrainAllButton",
-		text = L["showTrainAllButton"],
-		desc = L["showTrainAllButtonDesc"],
-		func = function(v)
-			addon.db["showTrainAllButton"] = v
-			if addon.functions.applyTrainAllButton then addon.functions.applyTrainAllButton() end
 		end,
 		parentSection = interfaceExpandable,
 	},
