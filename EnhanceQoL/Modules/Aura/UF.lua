@@ -266,7 +266,7 @@ local defaults = {
 			levelOffset = { x = 0, y = 0 },
 			levelEnabled = true,
 			hideLevelAtMax = false,
-			nameMaxChars = 15,
+			nameMaxChars = 0,
 			unitStatus = {
 				enabled = false,
 				fontSize = nil,
