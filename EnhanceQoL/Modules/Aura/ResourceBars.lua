@@ -193,6 +193,12 @@ local function getPowerPercent(unit, powerEnum, curPower, maxPower)
 	return 0
 end
 
+local function formatSoulShardValue(value)
+	if value == nil then return "0" end
+	local text = string.format("%.1f", value)
+	return text:gsub("%.0$", "")
+end
+
 ResourceBars.PowerLabels = {
 	MAELSTROM_WEAPON = (C_Spell.GetSpellName(RB.MAELSTROM_WEAPON_SPELL_ID)) or "Maelstrom Weapon",
 	VOID_METAMORPHOSIS = (C_Spell.GetSpellName(RB.VOID_METAMORPHOSIS_SPELL_ID)) or "Void Metamorphosis",
@@ -1370,9 +1376,7 @@ updateAbsorbOverfill = function(bar, cfg, absorbValue, maxHealth)
 		absorb:Hide()
 	end
 	absorb._lastMax = 1
-	if not (addon.variables and addon.variables.isMidnight) then
-		absorb._lastVal = abs
-	end
+	if not (addon.variables and addon.variables.isMidnight) then absorb._lastVal = abs end
 end
 
 local function applyBackdrop(frame, cfg)
@@ -2919,13 +2923,22 @@ function updatePowerBar(type, runeSlot)
 	if not pType then return end
 	local cfg = getBarSettings(type) or {}
 	local cfgDef = (RB.POWER_CONFIG and RB.POWER_CONFIG[type]) or {}
+	local isSoulShards = type == "SOUL_SHARDS"
+	local useRaw = isSoulShards == true
 	local maxPower = bar._lastMax
-	if not maxPower then
-		maxPower = UnitPowerMax("player", pType)
+	if not maxPower or bar._lastMaxRaw ~= useRaw then
+		maxPower = UnitPowerMax("player", pType, useRaw)
 		bar._lastMax = maxPower
+		bar._lastMaxRaw = useRaw
 		bar:SetMinMaxValues(0, maxPower)
 	end
-	local curPower = UnitPower("player", pType)
+	local curPower = UnitPower("player", pType, useRaw)
+	local displayCur = curPower
+	local displayMax = maxPower
+	if isSoulShards then
+		displayCur = (curPower or 0) / 10
+		displayMax = (maxPower or 0) / 10
+	end
 
 	local style = bar._style or ((type == "MANA") and "PERCENT" or "CURMAX")
 	local smooth = cfg.smoothFill == true
@@ -2976,10 +2989,18 @@ function updatePowerBar(type, runeSlot)
 			if style == "PERCENT" then
 				text = percentStr
 			elseif style == "CURRENT" then
-				text = AbbreviateLargeNumbers(curPower)
-				text = tostring(curPower)
+				if isSoulShards then
+					text = formatSoulShardValue(displayCur)
+				else
+					text = AbbreviateLargeNumbers(curPower)
+					text = tostring(curPower)
+				end
 			else -- CURMAX
-				text = AbbreviateLargeNumbers(curPower) .. " / " .. (AbbreviateLargeNumbers(maxPower))
+				if isSoulShards then
+					text = formatSoulShardValue(displayCur) .. " / " .. formatSoulShardValue(displayMax)
+				else
+					text = AbbreviateLargeNumbers(curPower) .. " / " .. (AbbreviateLargeNumbers(maxPower))
+				end
 			end
 			if (not addon.variables.isMidnight or (issecretvalue and not issecretvalue(text))) and bar._lastText ~= text then
 				bar.text:SetText(text)
