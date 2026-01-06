@@ -2233,7 +2233,6 @@ local function buildSpecToggles(specIndex, specName, available, expandable)
 
 	local varKey = ("rb_spec_%s"):format(specIndex)
 	specSettingVars[varKey] = true
-	local class = addon.variables.unitClass
 
 	return {
 		sType = "multidropdown",
@@ -2252,8 +2251,10 @@ local function buildSpecToggles(specIndex, specName, available, expandable)
 				or false
 		end,
 		setSelectedFunc = function(key, shouldSelect)
-			addon.db.personalResourceBarSettings[class][specIndex][key] = addon.db.personalResourceBarSettings[class][specIndex][key] or {}
-			addon.db.personalResourceBarSettings[class][specIndex][key].enabled = shouldSelect and true or false
+			local specCfg = ensureSpecCfg(specIndex)
+			if not specCfg then return end
+			specCfg[key] = specCfg[key] or {}
+			specCfg[key].enabled = shouldSelect and true or false
 			setBarEnabled(specIndex, key, shouldSelect)
 		end,
 		parent = true,
@@ -2363,11 +2364,19 @@ local function buildSettings()
 		},
 	}
 
-	local class = addon.variables.unitClassID
-	if class and ResourceBars.powertypeClasses and ResourceBars.powertypeClasses[addon.variables.unitClass] then
-		for specIndex = 1, C_SpecializationInfo.GetNumSpecializationsForClassID(class) do
-			local specID, specName = GetSpecializationInfoForClassID(class, specIndex)
-			local available = ResourceBars.powertypeClasses[addon.variables.unitClass][specIndex] or {}
+	local classID = addon.variables and addon.variables.unitClassID
+	local classTag = addon.variables and addon.variables.unitClass
+	if (not classID) or not classTag then
+		local _, tag, id = UnitClass("player")
+		if not classTag then classTag = tag end
+		if not classID then classID = id end
+	end
+	classID = tonumber(classID)
+	if classID and classID > 0 and classTag and ResourceBars.powertypeClasses and ResourceBars.powertypeClasses[classTag] then
+		local specCount = C_SpecializationInfo.GetNumSpecializationsForClassID(classID)
+		for specIndex = 1, (specCount or 0) do
+			local specID, specName = GetSpecializationInfoForClassID(classID, specIndex)
+			local available = ResourceBars.powertypeClasses[classTag][specIndex] or {}
 			if specID and specName then
 				local entry = buildSpecToggles(specIndex, specName, available, expandable)
 				if entry then table.insert(data[1].children, entry) end
@@ -2403,7 +2412,8 @@ addon.Aura.functions.AddResourceBarsProfileSettings = function()
 		if not classTag then classTag = tag end
 		if not classID then classID = id end
 	end
-	if classID and classTag and C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID and ResourceBars.powertypeClasses and ResourceBars.powertypeClasses[classTag] then
+	classID = tonumber(classID)
+	if classID and classID > 0 and classTag and C_SpecializationInfo and C_SpecializationInfo.GetNumSpecializationsForClassID and ResourceBars.powertypeClasses and ResourceBars.powertypeClasses[classTag] then
 		local specCount = C_SpecializationInfo.GetNumSpecializationsForClassID(classID)
 		for specIndex = 1, (specCount or 0) do
 			local _, specName = GetSpecializationInfoForClassID(classID, specIndex)

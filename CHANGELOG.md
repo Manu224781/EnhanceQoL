@@ -91,6 +91,7 @@
 - Blizzard Boss Frame visibility rule now hides when EQoL Boss Frames are enabled.
 - UF Plus Edit Mode samples now show percent text for Boss frame power/health.
 - Resource Bars: Warlock Soul Shards now show partial values (e.g. 3.4).
+- Resource Bars: Spec toggles now initialize unused specs and profile scope no longer errors on invalid class IDs.
 
 ---
 
