@@ -32,6 +32,7 @@
   - DataPanels: Item Level stream with per-slot tooltip breakdown.
   - DataPanels: Mythic+ Rating stream (current season score + run list tooltip).
   - DataPanels: Equipment Sets stream with left-click swap menu.
+  - DataPanels: Micro Bar stream with a quick-access menu.
   - Quick-skip cinematics option (auto-confirms the skip prompt on Esc/Space/Enter).
   - Added missing Dalaran teleport ring variants.
 - **Chat**
@@ -103,6 +104,7 @@
 - Resource Bars: Warlock Soul Shards now show partial values (e.g. 3.4).
 - Resource Bars: Spec toggles now initialize unused specs and profile scope no longer errors on missing data (invalid class IDs or scope table).
 - UF Plus: Level text now refreshes on level-up.
+- DataPanels: Micro Bar missions entry no longer errors when Covenant data is unavailable.
 
 ---
 
