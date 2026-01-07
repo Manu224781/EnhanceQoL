@@ -28,7 +28,7 @@
   - Auto-release in PvP/BGs.
   - Latency stream: configurable ping colors + display mode (FPS/Latency).
   - Master volume stream: DataPanel popup slider for Sound_MasterVolume.
-  - DataPanels: new Location and Time streams (subzone + zone color + time format + time color options).
+  - DataPanels: new Location, Time, and Realm streams (subzone + zone color + time format + time color options).
   - Quick-skip cinematics option (auto-confirms the skip prompt on Esc/Space/Enter).
   - Added missing Dalaran teleport ring variants.
 - **Chat**

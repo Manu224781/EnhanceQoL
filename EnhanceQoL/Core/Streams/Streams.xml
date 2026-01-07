@@ -2,6 +2,7 @@
         <Script file="Stream_Currency.lua"/>
         <Script file="Stream_Coordinates.lua"/>
         <Script file="Stream_Location.lua"/>
+        <Script file="Stream_Realm.lua"/>
         <Script file="Stream_Difficulty.lua"/>
         <Script file="Stream_Durability.lua"/>
         <Script file="Stream_Friends.lua"/>
