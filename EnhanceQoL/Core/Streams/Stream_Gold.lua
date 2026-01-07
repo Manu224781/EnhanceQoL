@@ -21,6 +21,7 @@ local function ensureDB()
 	db = addon.db.datapanel.gold
 	db.fontSize = db.fontSize or 14
 	db.displayMode = db.displayMode or "character"
+	if db.displayMode == "account" then db.displayMode = "warband" end
 end
 local function RestorePosition(frame)
 	if db.point and db.x and db.y then
@@ -77,59 +78,55 @@ local function formatGoldString(copper)
 	return gText, s, c
 end
 
-local function getAccountTotalMoney()
-	local total, hasEntry = 0, false
+local function formatMoney(value)
+	if addon.functions and addon.functions.formatMoney then return addon.functions.formatMoney(value or 0, "tracker") end
+	return tostring(value or 0)
+end
+
+local function collectCharacterMoney()
+	local list, total = {}, 0
 	if addon.db and type(addon.db.moneyTracker) == "table" then
 		for _, info in pairs(addon.db.moneyTracker) do
 			if type(info) == "table" and type(info.money) == "number" then
 				total = total + info.money
-				hasEntry = true
+				list[#list + 1] = info
 			end
 		end
 	end
-	local warband = addon.db and tonumber(addon.db.warbandGold)
-	if warband and warband > 0 then
-		total = total + warband
-		hasEntry = true
-	end
-	if hasEntry then return total end
-	return nil
+	table.sort(list, function(a, b)
+		local am = a.money or 0
+		local bm = b.money or 0
+		if am == bm then return (a.name or "") < (b.name or "") end
+		return am > bm
+	end)
+	return list, total
 end
 
 local function getDisplayLabel()
-	if db and db.displayMode == "account" then return L["goldPanelDisplayAccount"] or "Account total" end
+	if db and db.displayMode == "warband" then return L["warbandGold"] or "Warband gold" end
 	return L["goldPanelDisplayCharacter"] or "Character"
 end
 
 local function toggleDisplayMode()
 	ensureDB()
-	if db.displayMode == "account" then
+	if db.displayMode == "warband" then
 		db.displayMode = "character"
 	else
-		db.displayMode = "account"
+		db.displayMode = "warband"
 	end
 	addon.DataHub:RequestUpdate(stream)
 end
 
 local function checkMoney(stream)
 	ensureDB()
+	if db.displayMode == "account" then db.displayMode = "warband" end
 	local money = GetMoney() or 0
-	if db.displayMode == "account" then
-		local total = getAccountTotalMoney()
-		if total ~= nil then money = total end
-	end
+	if db.displayMode == "warband" then money = addon.db and addon.db.warbandGold or 0 end
 	local gText, s, c = formatGoldString(money)
 	local size = db and db.fontSize or 12
 	stream.snapshot.fontSize = size
 	stream.snapshot.text = ("|TInterface\\MoneyFrame\\UI-GoldIcon:%d:%d:0:0|t %s"):format(size, size, gText)
-	local clickHint = L["goldPanelClickHint"] or "Left-click to toggle account/character gold"
-	local modeHint = (L["goldPanelDisplay"] or "Gold display") .. ": " .. getDisplayLabel()
-	local hint = getOptionsHint()
-	if hint then
-		stream.snapshot.tooltip = clickHint .. "\n" .. modeHint .. "\n" .. hint
-	else
-		stream.snapshot.tooltip = clickHint .. "\n" .. modeHint
-	end
+	stream.snapshot.tooltip = nil
 end
 
 local provider = {
@@ -148,6 +145,39 @@ local provider = {
 		elseif btn == "RightButton" then
 			createAceWindow()
 		end
+	end,
+	OnMouseEnter = function(btn)
+		local tip = GameTooltip
+		tip:ClearLines()
+		tip:SetOwner(btn, "ANCHOR_TOPLEFT")
+
+		local warband = addon.db and addon.db.warbandGold
+		if warband ~= nil then tip:AddDoubleLine(L["warbandGold"] or "Warband gold", formatMoney(warband)) end
+
+		local list, total = collectCharacterMoney()
+		if #list > 0 then
+			if warband ~= nil then tip:AddLine(" ") end
+			tip:AddLine((L["goldPanelDisplayCharacter"] or "Character") .. ":")
+			for _, info in ipairs(list) do
+				local name = info.name or UNKNOWN
+				local color = (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[info.class]
+				if color then name = string.format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, name) end
+				tip:AddDoubleLine(name, formatMoney(info.money))
+			end
+			tip:AddLine(" ")
+			tip:AddDoubleLine(TOTAL or "Total", formatMoney(total))
+		end
+
+		local clickHint = L["goldPanelClickHint"] or "Left-click to toggle warband/character gold"
+		local modeHint = (L["goldPanelDisplay"] or "Gold display") .. ": " .. getDisplayLabel()
+		local hint = getOptionsHint()
+		if clickHint or modeHint or hint then
+			tip:AddLine(" ")
+			if clickHint then tip:AddLine(clickHint, 0.7, 0.7, 0.7) end
+			if modeHint then tip:AddLine(modeHint, 0.7, 0.7, 0.7) end
+			if hint then tip:AddLine(hint, 0.7, 0.7, 0.7) end
+		end
+		tip:Show()
 	end,
 }
 

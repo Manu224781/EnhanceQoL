@@ -29,6 +29,7 @@
   - Latency stream: configurable ping colors + display mode (FPS/Latency).
   - Master volume stream: DataPanel popup slider for Sound_MasterVolume.
   - DataPanels: new Location, Time, and Realm streams (subzone + zone color + time format + time color options).
+  - DataPanels: Item Level stream with per-slot tooltip breakdown.
   - Quick-skip cinematics option (auto-confirms the skip prompt on Esc/Space/Enter).
   - Added missing Dalaran teleport ring variants.
 - **Chat**

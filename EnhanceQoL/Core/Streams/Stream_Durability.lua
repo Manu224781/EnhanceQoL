@@ -69,6 +69,10 @@ local GetInventoryItemDurability = GetInventoryItemDurability
 local GetInventoryItemLink = GetInventoryItemLink
 local GetInventoryItemID = GetInventoryItemID
 local GetItemInfo = GetItemInfo
+local GetItemInfoInstant = GetItemInfoInstant
+local C_Item = C_Item
+local GetItemQualityByID = C_Item and C_Item.GetItemQualityByID or nil
+local GetItemIconByID = C_Item and C_Item.GetItemIconByID or nil
 
 local itemSlots = {
 	[1] = INVTYPE_HEAD,
@@ -117,17 +121,45 @@ local function colorizeText(text, quality)
 	return text
 end
 
+local itemCache = {}
+
+local function getCachedItemInfo(itemID, link)
+	if not itemID and not link then return end
+	local key = itemID or link
+	local cached = itemCache[key]
+	if not cached then
+		cached = {}
+		itemCache[key] = cached
+	end
+
+	if (not cached.name or cached.quality == nil or not cached.icon) and GetItemInfo then
+		local name, _, quality, _, _, _, _, _, _, icon = GetItemInfo(link or itemID)
+		if name then cached.name = name end
+		if quality ~= nil then cached.quality = quality end
+		if icon then cached.icon = icon end
+	end
+	if cached.quality == nil and itemID and GetItemQualityByID then
+		local quality = GetItemQualityByID(itemID)
+		if quality ~= nil then cached.quality = quality end
+	end
+	if not cached.icon and itemID then
+		if GetItemIconByID then
+			cached.icon = GetItemIconByID(itemID)
+		elseif GetItemInfoInstant then
+			local _, _, _, _, icon = GetItemInfoInstant(itemID)
+			if icon then cached.icon = icon end
+		end
+	end
+
+	return cached.name, cached.quality, cached.icon
+end
+
 local function resolveItemInfo(line)
 	if not line then return end
-	if line.link then
-		local name, _, quality = GetItemInfo(line.link)
-		if name then line.name = name end
-		if quality ~= nil then line.quality = quality end
-	end
-	if line.quality == nil and line.itemID and C_Item and C_Item.GetItemQualityByID then
-		local quality = C_Item.GetItemQualityByID(line.itemID)
-		if quality ~= nil then line.quality = quality end
-	end
+	local name, quality, icon = getCachedItemInfo(line.itemID, line.link)
+	if name then line.name = name end
+	if quality ~= nil then line.quality = quality end
+	if icon then line.icon = icon end
 end
 local function calculateDurability(stream)
 	ensureDB()
@@ -160,13 +192,13 @@ local function calculateDurability(stream)
 			if fDur < 50 then critDura = critDura + 1 end
 			local link = GetInventoryItemLink("player", slot)
 			local itemID = GetInventoryItemID and GetInventoryItemID("player", slot) or nil
-			local itemName = link and GetItemInfo(link)
-			local quality = itemID and C_Item and C_Item.GetItemQualityByID and C_Item.GetItemQualityByID(itemID) or nil
+			local itemName, quality, icon = getCachedItemInfo(itemID, link)
 			lines[#lines + 1] = {
 				slot = name,
 				name = itemName or name,
 				quality = quality,
 				itemID = itemID,
+				icon = icon,
 				link = link,
 				cur = cur,
 				max = max,
@@ -215,38 +247,22 @@ local provider = {
 		PLAYER_LOGIN = function(stream) addon.DataHub:RequestUpdate(stream) end,
 	},
 	OnMouseEnter = function(b)
+		ensureDB()
 		local tip = GameTooltip
 		tip:ClearLines()
 		tip:SetOwner(b, "ANCHOR_TOPLEFT")
 		tip:AddLine(DURABILITY)
-		tip:AddLine(" ")
-		tip:AddLine(L["Repair Info"] or "Repair Info")
-		local r, g, bColor = NORMAL_FONT_COLOR:GetRGB()
-		tip:AddDoubleLine(ITEMS or "Items", DURABILITY or "Durability", r, g, bColor)
+		local iconSize = db and db.fontSize or 13
 		for _, v in ipairs(lines) do
 			resolveItemInfo(v)
 			local leftText = v.name or v.slot
-			if v.cur and v.max then leftText = ("%s (%d/%d)"):format(leftText, v.cur, v.max) end
 			local left = colorizeText(leftText, v.quality)
+			if v.icon then left = ("|T%s:%d:%d:0:0|t %s"):format(v.icon, iconSize, iconSize, left) end
 			tip:AddDoubleLine(left, formatPercentColored(v.percent or 0))
 		end
 		tip:AddLine(" ")
 		tip:AddDoubleLine(TOTAL or "Total", formatPercentColored(math.floor((summary.totalPercent or 0) + 0.5)))
 		if summary.critCount and summary.critCount > 0 then tip:AddDoubleLine(ITEMS .. " < 50%", tostring(summary.critCount)) end
-		if CanMerchantRepair and CanMerchantRepair() then
-			local repairCost = GetRepairAllCost and GetRepairAllCost() or 0
-			if repairCost and repairCost > 0 then
-				tip:AddLine(" ")
-				local costText = addon.functions and addon.functions.formatMoney and addon.functions.formatMoney(repairCost) or tostring(repairCost)
-				tip:AddDoubleLine(L["Repair Cost"] or "Repair Cost", costText)
-				if addon.db then
-					local autoRepair = addon.db["autoRepair"] and true or false
-					local guildRepair = addon.db["autoRepairGuildBank"] and true or false
-					tip:AddDoubleLine(L["Auto-Repair"] or "Auto-Repair", autoRepair and YES or NO)
-					if autoRepair then tip:AddDoubleLine(L["Guild Repair"] or "Guild Repair", guildRepair and YES or NO) end
-				end
-			end
-		end
 		local hint = getOptionsHint()
 		if hint then tip:AddLine(hint) end
 		tip:Show()
