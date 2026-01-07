@@ -143,13 +143,9 @@ local function queueSecureUpdate(data)
 				pendingSecure[entry] = nil
 				local payload = entry.pendingPayload
 				entry.pendingPayload = nil
-				if entry.applyPayload and payload then
-					entry.applyPayload(payload, true)
-				end
+				if entry.applyPayload and payload then entry.applyPayload(payload, true) end
 			end
-			if not next(pendingSecure) then
-				pendingSecureFrame:UnregisterEvent("PLAYER_REGEN_ENABLED")
-			end
+			if not next(pendingSecure) then pendingSecureFrame:UnregisterEvent("PLAYER_REGEN_ENABLED") end
 		end)
 	end
 	pendingSecureFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -263,6 +259,9 @@ local function registerEditModePanel(panel)
 		settings = settings,
 		buttons = buttons,
 		showOutsideEditMode = true,
+		enableOverlayToggle = true,
+		showReset = false,
+		showSettingsReset = false,
 	})
 	panel.editModeRegistered = true
 	panel.editModeId = id
@@ -764,21 +763,15 @@ function DataPanel.Create(id, name, existingOnly)
 								end
 							end
 							if secureSpec and secureSpec.forwardRightClick then
-								if not (secureAttributes and secureAttributes.type2) then
-									child:SetAttribute("type2", "click")
-								end
-								if not (secureAttributes and secureAttributes.clickbutton2) then
-									child:SetAttribute("clickbutton2", button)
-								end
+								if not (secureAttributes and secureAttributes.type2) then child:SetAttribute("type2", "click") end
+								if not (secureAttributes and secureAttributes.clickbutton2) then child:SetAttribute("clickbutton2", button) end
 							end
 							child.secureConfigured = true
 							child.secureKey = secureKey
 						end
 					end
 					if isNew or heightChanged then child:SetHeight(buttonHeight) end
-					if isNew or partsFontChanged then
-						child.text:SetFont(font, size, "OUTLINE")
-					end
+					if isNew or partsFontChanged then child.text:SetFont(font, size, "OUTLINE") end
 					local iconSpec = part.icon
 					local overlaySpec = part.iconOverlay
 					local useIcons = iconSpec ~= nil or overlaySpec ~= nil
@@ -792,9 +785,7 @@ function DataPanel.Create(id, name, existingOnly)
 								if tex then tex:Hide() end
 								return tex
 							end
-							if not tex then
-								tex = child:CreateTexture(nil, "ARTWORK", nil, sublevel)
-							end
+							if not tex then tex = child:CreateTexture(nil, "ARTWORK", nil, sublevel) end
 							if spec.atlas then
 								tex:SetAtlas(spec.atlas, true)
 							elseif spec.texture then
@@ -860,9 +851,7 @@ function DataPanel.Create(id, name, existingOnly)
 				if totalWidth ~= data.lastWidth then
 					data.lastWidth = totalWidth
 					data.button:SetWidth(totalWidth)
-					if self.lastWidths and self.lastWidths[name] then
-						self.lastWidths[name] = totalWidth
-					end
+					if self.lastWidths and self.lastWidths[name] then self.lastWidths[name] = totalWidth end
 				end
 			else
 				data.usingParts = nil
@@ -890,9 +879,7 @@ function DataPanel.Create(id, name, existingOnly)
 					if width ~= data.lastWidth then
 						data.lastWidth = width
 						data.button:SetWidth(width)
-						if self.lastWidths and self.lastWidths[name] then
-							self.lastWidths[name] = width
-						end
+						if self.lastWidths and self.lastWidths[name] then self.lastWidths[name] = width end
 					end
 				end
 			end

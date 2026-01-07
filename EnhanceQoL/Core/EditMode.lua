@@ -468,6 +468,8 @@ function EditMode:RegisterFrame(id, opts)
 			checkboxColorHeight = opts.checkboxColorHeight,
 			multiDropdownSummaryHeight = opts.multiDropdownSummaryHeight,
 			dividerHeight = opts.dividerHeight,
+			showSettingsReset = opts.showSettingsReset,
+			showReset = opts.showReset,
 		}
 
 		self.lib:AddFrame(frame, function(_, layoutName, point, x, y)
