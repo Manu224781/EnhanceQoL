@@ -783,6 +783,8 @@ function TradeMailLog:ShowTradePreview(payload)
 	local frame = self:EnsureTradePreview()
 	if not frame then return end
 
+	setFrameTitle(frame, TRADE or "Trade")
+
 	local playerName = (payload.playerName and payload.playerName ~= "" and payload.playerName) or (UnitName and UnitName("player")) or (YOU or "You")
 	if frame.playerNameText and frame.playerNameText.SetText then frame.playerNameText:SetText(playerName or "") end
 	if frame.recipientNameText and frame.recipientNameText.SetText then frame.recipientNameText:SetText(payload.partner or "") end
@@ -828,8 +830,8 @@ function TradeMailLog:ShowTradePreview(payload)
 		end
 	end
 
-	if frame.playerMoneyText and frame.playerMoneyText.SetText then frame.playerMoneyText:SetText(formatMoneyText(payload.playerMoney) or "") end
-	if frame.recipientMoneyText and frame.recipientMoneyText.SetText then frame.recipientMoneyText:SetText(formatMoneyText(payload.targetMoney) or "") end
+	if frame.playerMoneyText and frame.playerMoneyText.SetText then frame.playerMoneyText:SetText(formatMoney(payload.playerMoney) or "") end
+	if frame.recipientMoneyText and frame.recipientMoneyText.SetText then frame.recipientMoneyText:SetText(formatMoney(payload.targetMoney) or "") end
 
 	frame:Show()
 	frame:Raise()

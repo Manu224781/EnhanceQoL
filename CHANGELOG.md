@@ -111,6 +111,7 @@
 - Resource Bars: Spec toggles now initialize unused specs and profile scope no longer errors on missing data (invalid class IDs or scope table).
 - UF Plus: Level text now refreshes on level-up.
 - DataPanels: Micro Bar missions entry no longer errors when Covenant data is unavailable.
+- Show Leader/Assist Icon on Raidframes expanded the size in edit mode for the selection overlay
 
 ---
 

@@ -168,16 +168,16 @@
                 </Anchors>
                 <Layers>
                     <Layer level="ARTWORK">
-                        <FontString parentKey="RecipientNameText" inherits="GameFontNormal" text="Player Name">
-                            <Size x="80" y="12"/>
+                        <FontString parentKey="PlayerNameText" inherits="GameFontNormal" text="Recipient Name" justifyH="LEFT">
+                            <Size x="120" y="12"/>
                             <Anchors>
-                                <Anchor point="TOPLEFT" relativeTo="$parent" x="230" y="-5"/>
+                                <Anchor point="TOPLEFT" relativeTo="$parent" x="20" y="-5"/>
                             </Anchors>
                         </FontString>
-                        <FontString parentKey="PlayerNameText" inherits="GameFontNormal" text="Recipient Name">
-                            <Size x="100" y="12"/>
+                        <FontString parentKey="RecipientNameText" inherits="GameFontNormal" text="Player Name" justifyH="RIGHT">
+                            <Size x="120" y="12"/>
                             <Anchors>
-                                <Anchor point="TOPLEFT" relativeTo="$parent" x="65" y="-5"/>
+                                <Anchor point="TOPRIGHT" relativeTo="$parent" x="-40" y="-5"/>
                             </Anchors>
                         </FontString>
                     </Layer>
@@ -684,12 +684,14 @@
                 </Anchors>
             </Frame>
             <Frame parentKey="PlayerMoneyFrame">
+                <Size x="150" y="16"/>
                 <Anchors>
-                    <Anchor point="TOPLEFT" relativeTo="$parent" x="11" y="-61"/>
+                    <Anchor point="LEFT" relativeKey="$parent.PlayerInputMoneyInset" relativePoint="LEFT" x="6" y="0"/>
                 </Anchors>
                 <Layers>
                     <Layer level="ARTWORK">
                         <FontString parentKey="Text" inherits="GameFontHighlightSmall" justifyH="LEFT">
+                            <Size x="150" y="16"/>
                             <Anchors>
                                 <Anchor point="LEFT"/>
                             </Anchors>
@@ -698,12 +700,14 @@
                 </Layers>
             </Frame>
             <Frame parentKey="RecipientMoneyFrame">
+                <Size x="150" y="16"/>
                 <Anchors>
-                    <Anchor point="TOPRIGHT" relativeTo="$parent" x="-5" y="-64"/>
+                    <Anchor point="RIGHT" relativeKey="$parent.RecipientMoneyInset" relativePoint="RIGHT" x="-6" y="0"/>
                 </Anchors>
                 <Layers>
                     <Layer level="ARTWORK">
                         <FontString parentKey="Text" inherits="GameFontHighlightSmall" justifyH="RIGHT">
+                            <Size x="150" y="16"/>
                             <Anchors>
                                 <Anchor point="RIGHT"/>
                             </Anchors>

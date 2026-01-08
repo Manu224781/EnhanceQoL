@@ -380,6 +380,7 @@ end
 addon.functions.removeLeaderIcon = removeLeaderIcon
 
 local function setLeaderIcon()
+	if addon.EditModeLib:IsInEditMode() then return end
 	local leaderFound = false
 	if UnitInParty("player") and not UnitInRaid("player") then
 		for i = 1, 5 do
@@ -2365,6 +2366,15 @@ local function initParty()
 		else
 			removeLeaderIcon()
 		end
+	end)
+
+	addon.EditModeLib:RegisterCallback("enter", function()
+		removeLeaderIcon()
+		removeAssistIcon()
+		CompactRaidFrameContainer:Layout()
+	end)
+	addon.EditModeLib:RegisterCallback("exit", function()
+		if addon.db["showLeaderIconRaidFrame"] then setLeaderIcon() end
 	end)
 end
 
