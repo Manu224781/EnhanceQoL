@@ -71,6 +71,8 @@ ChannelHistory.defaultFilters = {
 	SYSTEM = true,
 	OPENING = true,
 	MONSTER = true,
+	TRADE = true,
+	MAIL = true,
 }
 ChannelHistory.ui = ChannelHistory.ui or {}
 ChannelHistory.runtime = ChannelHistory.runtime or { guidClassCache = {}, guidClassCacheSize = 0, refreshPending = false, formattedCache = nil, bnetTagCache = {} }
@@ -172,6 +174,8 @@ cacheBNetTag = function(accountID, tag)
 end
 
 local function buildFilterOptions()
+	local tradeLabel = TRADE or "Trade"
+	local mailLabel = MAIL_LABEL or MAIL or INBOX or "Mail"
 	return {
 		{ key = "SAY", label = string.format("|T2056011:14:14:0:0|t %s", SAY) },
 		{ key = "YELL", label = string.format("|T892447:14:14:0:0|t %s", YELL) },
@@ -189,6 +193,8 @@ local function buildFilterOptions()
 		{ key = "ACHIEVEMENT", label = string.format("|T236507:14:14:0:0|t %s", ACHIEVEMENTS) },
 		{ key = "SYSTEM", label = SYSTEM_MESSAGES or SYSTEM },
 		{ key = "OPENING", label = OPENING },
+		{ key = "TRADE", label = string.format("|TInterface\\Icons\\INV_Misc_Coin_01:14:14:0:0|t %s", tradeLabel) },
+		{ key = "MAIL", label = string.format("|TInterface\\MailFrame\\Mail-Icon:14:14:0:0|t %s", mailLabel) },
 		{ key = "MONSTER", label = EXAMPLE_TARGET_MONSTER or "Monster" },
 	}
 end
@@ -392,6 +398,10 @@ local function isLoggingEnabled(filterKey)
 	local val = filters[filterKey]
 	if val == nil then return true end
 	return val and true or false
+end
+
+function ChannelHistory:IsLoggingEnabled(filterKey)
+	return isLoggingEnabled(filterKey)
 end
 
 local function buildEventSet()
@@ -841,6 +851,10 @@ function ChannelHistory:Store(event, ...)
 	slot.senderRealmKey = nil
 	slot.ownerRealmKey = nil
 	slot.ownerFaction = nil
+	slot.searchText = nil
+	slot.eqolId = nil
+	slot.eqolType = nil
+	slot.eqolPayload = nil
 	slot.time = stamp
 	slot.filterKey = filterKey
 	slot.outbound = event == "CHAT_MSG_WHISPER_INFORM" or event == "CHAT_MSG_BN_WHISPER_INFORM"
@@ -869,6 +883,124 @@ function ChannelHistory:Store(event, ...)
 	if self.debugFrame and self.debugFrame:IsShown() then
 		if self:ShouldDisplayLive(slot, currentCharKey) then self:AppendLineToLog(slot) end
 	end
+end
+
+function ChannelHistory:StoreCustom(filterKey, channelKey, channelLabel, lineData)
+	if self.maxLines == 0 then return end
+	if not self.history or not self.keys then self:InitStorage() end
+	local charBucket = getCharacterBucket(true)
+	if not charBucket then return end
+
+	local currentCharKey = self.keys and self.keys.charKey
+	local msg = lineData and lineData.message or ""
+	local sender = lineData and lineData.sender or ""
+	local stamp = (lineData and lineData.time) or now()
+	local channel = channelKey or filterKey or "SYSTEM"
+	local label = channelLabel or channel
+
+	self.runtime.seq = (self.runtime.seq or 0) + 1
+
+	charBucket.channels = charBucket.channels or {}
+	local channelBucket = charBucket.channels[channel] or { label = label, lines = {} }
+	channelBucket.label = label or channelBucket.label or channel
+
+	local slot = appendLine(channelBucket)
+	if not slot then return end
+	local cache = self.runtime and self.runtime.formattedCache
+	if cache then cache[slot] = nil end
+
+	slot.color = nil
+	slot.event = nil
+	slot.senderBTag = nil
+	slot.senderName = nil
+	slot.senderRealmKey = nil
+	slot.ownerRealmKey = nil
+	slot.ownerFaction = nil
+	slot.searchText = nil
+	slot.eqolId = nil
+	slot.eqolType = nil
+	slot.eqolPayload = nil
+	slot.time = stamp
+	slot.filterKey = filterKey
+	slot.outbound = lineData and lineData.outbound or false
+	slot.event = lineData and lineData.event or nil
+	slot.message = msg
+	slot.sender = sender
+	slot.ownerCharKey = self.keys.charKey
+	slot.ownerRealmKey = self.keys.realmKey
+	slot.ownerFaction = self.keys.faction
+	slot.senderClassFile = lineData and lineData.senderClassFile or nil
+	slot.lineID = lineData and lineData.lineID or nil
+	slot.guid = lineData and lineData.guid or nil
+	slot.seq = self.runtime.seq
+	slot.bnetIDAccount = lineData and lineData.bnetIDAccount or nil
+	slot.color = lineData and lineData.color or nil
+	slot.senderName = lineData and lineData.senderName or nil
+	slot.senderRealmKey = lineData and lineData.senderRealmKey or nil
+	slot.searchText = lineData and lineData.searchText and lineData.searchText:lower() or nil
+	slot.eqolId = lineData and lineData.eqolId or nil
+	slot.eqolType = lineData and lineData.eqolType or nil
+	slot.eqolPayload = lineData and lineData.eqolPayload or nil
+	if filterKey == "BN_WHISPER" and slot.bnetIDAccount then slot.senderBTag = resolveBNetTag(slot.bnetIDAccount) end
+
+	channelBucket.lastUpdated = stamp
+	charBucket.channels[channel] = channelBucket
+	charBucket.lastUpdated = slot.time
+	if not charBucket.classFile then
+		local className, classFile, classID = UnitClass("player")
+		charBucket.className = className
+		charBucket.classFile = classFile
+		charBucket.classID = classID
+	end
+
+	if slot.eqolId then
+		self.runtime = self.runtime or {}
+		self.runtime.eqolIndex = self.runtime.eqolIndex or {}
+		self.runtime.eqolIndex[slot.eqolId] = slot
+	end
+
+	if self.debugFrame and self.debugFrame:IsShown() then
+		if self:ShouldDisplayLive(slot, currentCharKey) then self:AppendLineToLog(slot) end
+	end
+end
+
+function ChannelHistory:FindEQOLLine(eqolId)
+	if not eqolId or eqolId == "" then return nil end
+	self.runtime = self.runtime or {}
+	if self.runtime.eqolIndex and self.runtime.eqolIndex[eqolId] then return self.runtime.eqolIndex[eqolId] end
+	if not self.history then return nil end
+
+	local found
+	for fKey, faction in pairs(self.history) do
+		if isVisibleKey(fKey) and type(faction) == "table" then
+			for _, realm in pairs(faction) do
+				if type(realm) == "table" and realm.characters then
+					for _, bucket in pairs(realm.characters) do
+						if type(bucket.channels) == "table" then
+							for _, channelData in pairs(bucket.channels) do
+								for line in iterChannelLines(channelData) do
+									if line.eqolId == eqolId then
+										found = line
+										break
+									end
+								end
+								if found then break end
+							end
+						end
+						if found then break end
+					end
+				end
+				if found then break end
+			end
+		end
+		if found then break end
+	end
+
+	if found then
+		self.runtime.eqolIndex = self.runtime.eqolIndex or {}
+		self.runtime.eqolIndex[eqolId] = found
+	end
+	return found
 end
 
 local function iterCharacters(scope, realmKey, charKey, factionKey)
@@ -1078,6 +1210,8 @@ local CHAT_COLOR_KEYS = {
 	SYSTEM = "SYSTEM",
 	OPENING = "OPENING",
 	MONSTER = "MONSTER_SAY",
+	TRADE = "SYSTEM",
+	MAIL = "SYSTEM",
 }
 
 local CHAT_COLOR_FALLBACK = {
@@ -1367,8 +1501,9 @@ function formatLine(self, line, opts)
 	return text
 end
 
-local function matchesSearchLower(needle, message, sender, channelKey)
+local function matchesSearchLower(needle, message, sender, channelKey, searchText)
 	if not needle or needle == "" then return true end
+	if searchText and searchText:find(needle, 1, true) then return true end
 	if message and message:lower():find(needle, 1, true) then return true end
 	if sender and sender:lower():find(needle, 1, true) then return true end
 	if channelKey and type(channelKey) == "string" and channelKey:lower():find(needle, 1, true) then return true end
@@ -1516,7 +1651,7 @@ function ChannelHistory:ShouldDisplayLive(line, currentCharKey)
 		needle = (self.ui.rightSearch:GetText() or ""):lower()
 		self.ui.searchNeedleLower = needle
 	end
-	if not matchesSearchLower(needle, line.message, line.sender, line.filterKey) then return false end
+	if not matchesSearchLower(needle, line.message, line.sender, line.filterKey, line.searchText) then return false end
 	return true
 end
 
@@ -1680,7 +1815,7 @@ local function collectLines(self, scope, realmKey, charKey, factionKey, searchNe
 	local function matches(line)
 		ensureFilter(line)
 		if not isEnabled(line.filterKey) then return false end
-		return matchesSearchLower(searchNeedle, line.message, line.sender, line.filterKey)
+		return matchesSearchLower(searchNeedle, line.message, line.sender, line.filterKey, line.searchText)
 	end
 
 	local function pullNext(stream)
@@ -2872,7 +3007,7 @@ function ChannelHistory:CreateFilterUI()
 	local filterGroups = {
 		{ title = L["CH_FILTER_CAT_CHAT"] or CHAT or "Chat", keys = { "SAY", "YELL", "WHISPER", "BN_WHISPER", "PARTY", "INSTANCE", "RAID", "GUILD", "OFFICER", "GENERAL" } },
 		{ title = L["CH_FILTER_CAT_SYSTEM"] or SYSTEM_MESSAGES or "System", keys = { "LOOT", "MONEY", "CURRENCY", "ACHIEVEMENT", "SYSTEM", "OPENING" } },
-		{ title = L["CH_FILTER_CAT_MISC"] or OTHER or "Other", keys = { "MONSTER" } },
+		{ title = L["CH_FILTER_CAT_MISC"] or OTHER or "Other", keys = { "MONSTER", "TRADE", "MAIL" } },
 	}
 	local hideUnlogged = addon.db and addon.db.chatHistoryHideUnlogged
 	local loggingEnabled = addon.db and addon.db.chatChannelFiltersEnable or {}
@@ -2969,6 +3104,13 @@ function ChannelHistory:EnsureLogFrame()
 			local payload = link:match("^url:(.+)$")
 			showCopyDialog(payload)
 			return
+		end
+		if link then
+			local linkType, payload = link:match("^(%a+):(.+)$")
+			if linkType == "eqoltrade" or linkType == "eqolmail" then
+				if addon.TradeMailLog and addon.TradeMailLog.HandleLink then addon.TradeMailLog:HandleLink(linkType, payload) end
+				return
+			end
 		end
 		if SetItemRef then
 			local chatFrame = SELECTED_CHAT_FRAME or DEFAULT_CHAT_FRAME or ChatFrame1 or frame

@@ -117,6 +117,7 @@ local COOLDOWN_VIEWER_VISIBILITY_MODES = {
 	WHILE_MOUNTED = "WHILE_MOUNTED",
 	WHILE_NOT_MOUNTED = "WHILE_NOT_MOUNTED",
 	MOUSEOVER = "MOUSEOVER",
+	PLAYER_HAS_TARGET = "PLAYER_HAS_TARGET",
 }
 addon.constants.COOLDOWN_VIEWER_VISIBILITY_MODES = COOLDOWN_VIEWER_VISIBILITY_MODES
 
@@ -1316,6 +1317,7 @@ local function normalizeCooldownViewerConfigValue(val, acc)
 	if val == COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_MOUNTED then acc[COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_MOUNTED] = true end
 	if val == COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_NOT_MOUNTED then acc[COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_NOT_MOUNTED] = true end
 	if val == COOLDOWN_VIEWER_VISIBILITY_MODES.MOUSEOVER then acc[COOLDOWN_VIEWER_VISIBILITY_MODES.MOUSEOVER] = true end
+	if val == COOLDOWN_VIEWER_VISIBILITY_MODES.PLAYER_HAS_TARGET then acc[COOLDOWN_VIEWER_VISIBILITY_MODES.PLAYER_HAS_TARGET] = true end
 	-- Legacy mapping: "hide while mounted" -> show while not mounted
 	if val == "HIDE_WHILE_MOUNTED" then acc[COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_NOT_MOUNTED] = true end
 	if val == "HIDE_IN_COMBAT" then acc[COOLDOWN_VIEWER_VISIBILITY_MODES.IN_COMBAT] = nil end
@@ -1352,12 +1354,14 @@ local function computeCooldownViewerHidden(cfg, state)
 	local mounted = (IsMounted and IsMounted()) or IsInDruidTravelForm()
 	local inCombat = (InCombatLockdown and InCombatLockdown()) or (UnitAffectingCombat and UnitAffectingCombat("player"))
 	local hovered = state and state.hovered
+	local hasTarget = UnitExists and UnitExists("target")
 
 	local shouldShow = false
 	if cfg[COOLDOWN_VIEWER_VISIBILITY_MODES.IN_COMBAT] and inCombat then shouldShow = true end
 	if cfg[COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_MOUNTED] and mounted then shouldShow = true end
 	if cfg[COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_NOT_MOUNTED] and not mounted then shouldShow = true end
 	if cfg[COOLDOWN_VIEWER_VISIBILITY_MODES.MOUSEOVER] and hovered then shouldShow = true end
+	if cfg[COOLDOWN_VIEWER_VISIBILITY_MODES.PLAYER_HAS_TARGET] and hasTarget then shouldShow = true end
 
 	return not shouldShow
 end
@@ -1584,6 +1588,7 @@ local function EnsureCooldownViewerWatcher()
 	watcher:RegisterEvent("PLAYER_REGEN_DISABLED")
 	watcher:RegisterEvent("PLAYER_MOUNT_DISPLAY_CHANGED")
 	watcher:RegisterEvent("UPDATE_SHAPESHIFT_FORM")
+	watcher:RegisterEvent("PLAYER_TARGET_CHANGED")
 	watcher:SetScript("OnEvent", function(_, event, name)
 		if event == "CVAR_UPDATE" and name ~= "cooldownViewerEnabled" then return end
 		if addon.variables then addon.variables.cooldownViewerRetryCount = nil end

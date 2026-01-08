@@ -484,6 +484,8 @@ local CHAT_FILTER_OPTIONS = {
 	{ key = "ACHIEVEMENT", label = makeFilterLabel("ACHIEVEMENT", "236507", ACHIEVEMENTS) },
 	{ key = "SYSTEM", label = makeFilterLabel("SYSTEM", nil, SYSTEM_MESSAGES or SYSTEM) },
 	{ key = "OPENING", label = makeFilterLabel("OPENING", nil, OPENING) },
+	{ key = "TRADE", label = makeFilterLabel("TRADE", "Interface\\Icons\\INV_Misc_Coin_01", TRADE or "Trade") },
+	{ key = "MAIL", label = makeFilterLabel("MAIL", "Interface\\MailFrame\\Mail-Icon", MAIL_LABEL or MAIL or INBOX or "Mail") },
 	{ key = "MONSTER", label = makeFilterLabel("MONSTER", nil, EXAMPLE_TARGET_MONSTER or "Monster") },
 }
 

@@ -33,6 +33,7 @@
   - DataPanels: Mythic+ Rating stream (current season score + run list tooltip).
   - DataPanels: Equipment Sets stream with left-click swap menu.
   - DataPanels: Micro Bar stream with a quick-access menu.
+  - DataPanels: text outline/shadow toggles + in/out-of-combat opacity sliders.
   - Quick-skip cinematics option (auto-confirms the skip prompt on Esc/Space/Enter).
   - Added missing Dalaran teleport ring variants.
 - **Chat**
@@ -50,6 +51,8 @@
   - Login UI scale preset (applies on login; changing it reloads the UI).
 - **Action Tracker**
   - Edit Mode-driven tracker for recent player spells with size/spacing/direction/fade and max icon count.
+- **Cooldown Viewer**
+  - Added a “When I have a target” visibility rule in the Cooldown Manager “Show when” options.
 - **GCD Bar (Midnight)**
   - Edit Mode bar for the global cooldown with size, texture, and color controls.
 - **Mailbox**

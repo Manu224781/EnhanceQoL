@@ -60,6 +60,8 @@ Submodules\GCDBar.lua
 Submodules\ChatIM\ChannelHistory.lua
 Submodules\ChatIM\UI.lua
 Submodules\ChatIM\Core.lua
+Submodules\TradeMailLog.xml
+Submodules\TradeMailLog.lua
 Submodules\LootToast.lua
 Submodules\ChatIcons.lua
 Submodules\CommunityChatPrivacy.lua

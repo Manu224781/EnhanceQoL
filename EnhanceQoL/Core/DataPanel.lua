@@ -6,6 +6,13 @@ local L = addon.L
 local EditMode = addon.EditMode
 local SettingType = EditMode and EditMode.lib and EditMode.lib.SettingType
 
+local DEFAULT_TEXT_ALPHA = 100
+local DEFAULT_FONT_OUTLINE = true
+local DEFAULT_FONT_SHADOW = false
+local SHADOW_OFFSET_X = 1
+local SHADOW_OFFSET_Y = -1
+local SHADOW_ALPHA = 0.8
+
 local DELETE_BUTTON_LABEL = L["DataPanelDelete"] or "Delete panel"
 local DELETE_CONFIRM_TEXT = L["DataPanelDeleteConfirm"] or 'Are you sure you want to delete "%s"? This cannot be undone.'
 
@@ -31,6 +38,35 @@ local STRATA_ORDER = { "BACKGROUND", "LOW", "MEDIUM", "HIGH", "DIALOG", "FULLSCR
 local VALID_STRATA = {}
 for _, strata in ipairs(STRATA_ORDER) do
 	VALID_STRATA[strata] = true
+end
+
+local function normalizePercent(value, fallback)
+	local num = tonumber(value)
+	if not num then num = tonumber(fallback) end
+	if not num then return DEFAULT_TEXT_ALPHA end
+	if num < 0 then return 0 end
+	if num > 100 then return 100 end
+	return num
+end
+
+local fadeWatcher
+local function ensureFadeWatcher()
+	if fadeWatcher then return end
+	fadeWatcher = CreateFrame("Frame")
+	fadeWatcher:RegisterEvent("PLAYER_ENTERING_WORLD")
+	fadeWatcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+	fadeWatcher:RegisterEvent("PLAYER_REGEN_ENABLED")
+	fadeWatcher:SetScript("OnEvent", function(_, event)
+		local inCombat
+		if event == "PLAYER_REGEN_ENABLED" then
+			inCombat = false
+		elseif event == "PLAYER_REGEN_DISABLED" then
+			inCombat = true
+		end
+		for _, panel in pairs(panels) do
+			if panel and panel.ApplyAlpha then panel:ApplyAlpha(inCombat) end
+		end
+	end)
 end
 
 local function normalizeStrata(strata, fallback)
@@ -178,6 +214,10 @@ local function registerEditModePanel(panel)
 		hideBorder = panel.info.noBorder or false,
 		strata = normalizeStrata(panel.info.strata, panel.frame:GetFrameStrata()),
 		streams = copyList(panel.info.streams),
+		fontOutline = panel.info.fontOutline ~= false,
+		fontShadow = panel.info.fontShadow == true,
+		textAlphaInCombat = normalizePercent(panel.info.textAlphaInCombat, DEFAULT_TEXT_ALPHA),
+		textAlphaOutOfCombat = normalizePercent(panel.info.textAlphaOutOfCombat, panel.info.textAlphaInCombat),
 	}
 	panel.info.strata = defaults.strata
 
@@ -239,6 +279,38 @@ local function registerEditModePanel(panel)
 						end)
 					end
 				end,
+			},
+			{
+				name = L["DataPanelTextOutline"] or "Text outline",
+				kind = SettingType.Checkbox,
+				field = "fontOutline",
+				default = defaults.fontOutline,
+			},
+			{
+				name = L["DataPanelTextShadow"] or "Text shadow",
+				kind = SettingType.Checkbox,
+				field = "fontShadow",
+				default = defaults.fontShadow,
+			},
+			{
+				name = L["DataPanelOpacityInCombat"] or "Opacity in combat",
+				kind = SettingType.Slider,
+				field = "textAlphaInCombat",
+				default = defaults.textAlphaInCombat,
+				minValue = 0,
+				maxValue = 100,
+				valueStep = 1,
+				formatter = function(value) return string.format("%d%%", math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["DataPanelOpacityOutOfCombat"] or "Opacity out of combat",
+				kind = SettingType.Slider,
+				field = "textAlphaOutOfCombat",
+				default = defaults.textAlphaOutOfCombat,
+				minValue = 0,
+				maxValue = 100,
+				valueStep = 1,
+				formatter = function(value) return string.format("%d%%", math.floor((tonumber(value) or 0) + 0.5)) end,
 			},
 		}
 	end
@@ -338,6 +410,10 @@ local function ensureSettings(id, name)
 			name = name or ((L["Panel"] or "Panel") .. " " .. id),
 			noBorder = false,
 			strata = "MEDIUM",
+			fontOutline = DEFAULT_FONT_OUTLINE,
+			fontShadow = DEFAULT_FONT_SHADOW,
+			textAlphaInCombat = DEFAULT_TEXT_ALPHA,
+			textAlphaOutOfCombat = DEFAULT_TEXT_ALPHA,
 		}
 	else
 		info.streams = info.streams or {}
@@ -345,6 +421,10 @@ local function ensureSettings(id, name)
 		info.name = info.name or name or ((L["Panel"] or "Panel") .. " " .. id)
 		if info.noBorder == nil then info.noBorder = false end
 		info.strata = normalizeStrata(info.strata, "MEDIUM")
+		if info.fontOutline == nil then info.fontOutline = DEFAULT_FONT_OUTLINE end
+		if info.fontShadow == nil then info.fontShadow = DEFAULT_FONT_SHADOW end
+		info.textAlphaInCombat = normalizePercent(info.textAlphaInCombat, DEFAULT_TEXT_ALPHA)
+		info.textAlphaOutOfCombat = normalizePercent(info.textAlphaOutOfCombat, info.textAlphaInCombat)
 	end
 
 	addon.db.dataPanels[id] = info
@@ -458,10 +538,113 @@ function DataPanel.Create(id, name, existingOnly)
 		self:SyncEditModeValue("strata", normalized)
 	end
 
+	function panel:GetFontFlags()
+		if self.info and self.info.fontOutline == false then return "" end
+		return "OUTLINE"
+	end
+
+	function panel:ApplyFontStyle(fontString, font, size)
+		if not fontString or not fontString.SetFont or not font or not size then return end
+		fontString:SetFont(font, size, self:GetFontFlags())
+		if fontString.SetShadowColor then
+			if self.info and self.info.fontShadow then
+				fontString:SetShadowColor(0, 0, 0, SHADOW_ALPHA)
+				fontString:SetShadowOffset(SHADOW_OFFSET_X, SHADOW_OFFSET_Y)
+			else
+				fontString:SetShadowColor(0, 0, 0, 0)
+				fontString:SetShadowOffset(0, 0)
+			end
+		end
+	end
+
+	function panel:GetTextAlpha(inCombat)
+		local info = self.info or {}
+		local value = (inCombat or false) and info.textAlphaInCombat or info.textAlphaOutOfCombat
+		return normalizePercent(value, DEFAULT_TEXT_ALPHA) / 100
+	end
+
+	function panel:ApplyAlpha(inCombat)
+		local alpha = self:GetTextAlpha(inCombat)
+		for _, data in pairs(self.streams) do
+			if data and data.button and data.button.SetAlpha then data.button:SetAlpha(alpha) end
+		end
+	end
+
+	function panel:ApplyTextStyle()
+		local fontFlags = self:GetFontFlags()
+		local fontShadow = self.info and self.info.fontShadow == true
+		local changed = false
+
+		for _, data in pairs(self.streams) do
+			if data.text then
+				local font, size = data.text:GetFont()
+				if font and size then
+					self:ApplyFontStyle(data.text, font, size)
+					data.fontFlags = fontFlags
+					data.fontShadow = fontShadow
+				end
+			end
+
+			if data.parts then
+				data.partsFontFlags = fontFlags
+				data.partsFontShadow = fontShadow
+				local total = 0
+				local visibleCount = 0
+				for _, child in ipairs(data.parts) do
+					if child and child.text then
+						local font, size = child.text:GetFont()
+						if font and size then self:ApplyFontStyle(child.text, font, size) end
+						if child:IsShown() and not child.usingIcons then
+							local width = child.text:GetStringWidth()
+							if width ~= child.lastWidth then
+								child.lastWidth = width
+								child:SetWidth(width)
+							end
+						end
+					end
+					if child and child:IsShown() then
+						local width = child.lastWidth or 0
+						if visibleCount > 0 then total = total + 5 end
+						total = total + width
+						visibleCount = visibleCount + 1
+					end
+				end
+				if data.usingParts and total ~= data.lastWidth then
+					data.lastWidth = total
+					if data.button then data.button:SetWidth(total) end
+					changed = true
+				end
+			end
+
+			if not data.usingParts and data.text then
+				local width = data.text:GetStringWidth()
+				if width ~= data.lastWidth then
+					data.lastWidth = width
+					if data.button then data.button:SetWidth(width) end
+					changed = true
+				end
+			end
+		end
+
+		if changed then self:Refresh() end
+	end
+
 	function panel:SyncEditModeValue(field, value)
 		if not EditMode or not self.editModeId or self.suspendEditSync or self.applyingFromEditMode then return end
 		self.suspendEditSync = true
-		if field == "width" or field == "height" or field == "hideBorder" or field == "streams" or field == "strata" then EditMode:SetValue(self.editModeId, field, value) end
+		if
+			field == "width"
+			or field == "height"
+			or field == "hideBorder"
+			or field == "streams"
+			or field == "strata"
+			or field == "fontOutline"
+			or field == "fontShadow"
+			or field == "textAlphaInCombat"
+			or field == "textAlphaOutOfCombat"
+		then
+			EditMode:SetValue(self.editModeId, field, value)
+		end
 		self.suspendEditSync = nil
 	end
 
@@ -521,6 +704,8 @@ function DataPanel.Create(id, name, existingOnly)
 	function panel:ApplyEditMode(data)
 		self.suspendEditSync = true
 		local info = self.info
+		local alphaChanged = false
+		local fontStyleChanged = false
 		if data.width then
 			info.width = round2(data.width)
 			self.frame:SetWidth(info.width)
@@ -534,11 +719,41 @@ function DataPanel.Create(id, name, existingOnly)
 			self:ApplyBorder()
 		end
 		if data.strata then self:ApplyStrata(data.strata) end
+		if data.fontOutline ~= nil then
+			local desired = data.fontOutline and true or false
+			if info.fontOutline ~= desired then
+				info.fontOutline = desired
+				fontStyleChanged = true
+			end
+		end
+		if data.fontShadow ~= nil then
+			local desired = data.fontShadow and true or false
+			if info.fontShadow ~= desired then
+				info.fontShadow = desired
+				fontStyleChanged = true
+			end
+		end
+		if data.textAlphaInCombat ~= nil then
+			local value = normalizePercent(data.textAlphaInCombat, info.textAlphaInCombat)
+			if info.textAlphaInCombat ~= value then
+				info.textAlphaInCombat = value
+				alphaChanged = true
+			end
+		end
+		if data.textAlphaOutOfCombat ~= nil then
+			local value = normalizePercent(data.textAlphaOutOfCombat, info.textAlphaOutOfCombat)
+			if info.textAlphaOutOfCombat ~= value then
+				info.textAlphaOutOfCombat = value
+				alphaChanged = true
+			end
+		end
 		if data.streams then
 			self.applyingFromEditMode = true
 			self:ApplyStreams(data.streams)
 			self.applyingFromEditMode = nil
 		end
+		if fontStyleChanged then self:ApplyTextStyle() end
+		if alphaChanged then self:ApplyAlpha() end
 		self.suspendEditSync = nil
 	end
 
@@ -637,6 +852,8 @@ function DataPanel.Create(id, name, existingOnly)
 			end
 			local font = (addon.variables and addon.variables.defaultFont) or select(1, data.text:GetFont())
 			local size = payload.fontSize or data.fontSize or 14
+			local fontFlags = panel:GetFontFlags()
+			local fontShadow = panel.info and panel.info.fontShadow == true
 
 			if payload.hidden then
 				data.button:Hide()
@@ -672,10 +889,12 @@ function DataPanel.Create(id, name, existingOnly)
 				data.text:SetText("")
 				data.text:Hide()
 				data.parts = data.parts or {}
-				local partsFontChanged = data.partsFont ~= font or data.partsFontSize ~= size
+				local partsFontChanged = data.partsFont ~= font or data.partsFontSize ~= size or data.partsFontFlags ~= fontFlags or data.partsFontShadow ~= fontShadow
 				if partsFontChanged then
 					data.partsFont = font
 					data.partsFontSize = size
+					data.partsFontFlags = fontFlags
+					data.partsFontShadow = fontShadow
 				end
 				local buttonHeight = button:GetHeight()
 				local heightChanged = data.partsHeight ~= buttonHeight
@@ -771,7 +990,7 @@ function DataPanel.Create(id, name, existingOnly)
 						end
 					end
 					if isNew or heightChanged then child:SetHeight(buttonHeight) end
-					if isNew or partsFontChanged then child.text:SetFont(font, size, "OUTLINE") end
+					if isNew or partsFontChanged then panel:ApplyFontStyle(child.text, font, size) end
 					local iconSpec = part.icon
 					local overlaySpec = part.iconOverlay
 					local useIcons = iconSpec ~= nil or overlaySpec ~= nil
@@ -869,10 +1088,12 @@ function DataPanel.Create(id, name, existingOnly)
 					textChanged = true
 				end
 				local newSize = payload.fontSize or data.fontSize
-				local fontChanged = newSize and data.fontSize ~= newSize
+				local fontChanged = newSize and (data.fontSize ~= newSize or data.fontFlags ~= fontFlags or data.fontShadow ~= fontShadow)
 				if fontChanged then
-					data.text:SetFont(font, newSize, "OUTLINE")
+					panel:ApplyFontStyle(data.text, font, newSize)
 					data.fontSize = newSize
+					data.fontFlags = fontFlags
+					data.fontShadow = fontShadow
 				end
 				if textChanged or fontChanged or wasParts then
 					local width = data.text:GetStringWidth()
@@ -885,9 +1106,11 @@ function DataPanel.Create(id, name, existingOnly)
 			end
 			if payload.parts then
 				local newSize = payload.fontSize or data.fontSize
-				if newSize and data.fontSize ~= newSize then
-					data.text:SetFont(font, newSize, "OUTLINE")
+				if newSize and (data.fontSize ~= newSize or data.fontFlags ~= fontFlags or data.fontShadow ~= fontShadow) then
+					panel:ApplyFontStyle(data.text, font, newSize)
 					data.fontSize = newSize
+					data.fontFlags = fontFlags
+					data.fontShadow = fontShadow
 				end
 			end
 			data.tooltip = payload.tooltip
@@ -907,6 +1130,7 @@ function DataPanel.Create(id, name, existingOnly)
 		data.applyPayload = cb
 		data.unsub = DataHub:Subscribe(name, cb)
 		self.streams[name] = data
+		if data.button and data.button.SetAlpha then data.button:SetAlpha(self:GetTextAlpha()) end
 
 		local streams = self.info.streams
 		local streamSet = self.info.streamSet
@@ -957,6 +1181,8 @@ function DataPanel.Create(id, name, existingOnly)
 	registerEditModePanel(panel)
 	panel:SyncEditModeStreams()
 	panel:SyncEditModeStrata()
+	ensureFadeWatcher()
+	panel:ApplyAlpha()
 
 	return panel
 end

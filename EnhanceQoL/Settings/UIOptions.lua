@@ -25,10 +25,16 @@ local ACTION_BAR_FRAME_NAMES = constants.ACTION_BAR_FRAME_NAMES or {}
 local ACTION_BAR_ANCHOR_ORDER = constants.ACTION_BAR_ANCHOR_ORDER or {}
 local ACTION_BAR_ANCHOR_CONFIG = constants.ACTION_BAR_ANCHOR_CONFIG or {}
 local COOLDOWN_VIEWER_FRAMES = constants.COOLDOWN_VIEWER_FRAMES or {}
-local COOLDOWN_VIEWER_VISIBILITY_MODES = constants.COOLDOWN_VIEWER_VISIBILITY_MODES or {
-	NONE = "NONE",
-	HIDE_WHILE_MOUNTED = "HIDE_WHILE_MOUNTED",
-}
+local COOLDOWN_VIEWER_VISIBILITY_MODES = constants.COOLDOWN_VIEWER_VISIBILITY_MODES
+	or {
+		IN_COMBAT = "IN_COMBAT",
+		WHILE_MOUNTED = "WHILE_MOUNTED",
+		WHILE_NOT_MOUNTED = "WHILE_NOT_MOUNTED",
+		MOUSEOVER = "MOUSEOVER",
+		PLAYER_HAS_TARGET = "PLAYER_HAS_TARGET",
+		NONE = "NONE",
+		HIDE_WHILE_MOUNTED = "HIDE_WHILE_MOUNTED",
+	}
 local wipe = wipe
 local fontOrder = {}
 
@@ -622,6 +628,10 @@ local function createCooldownViewerDropdowns(category, expandable)
 		{ value = COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_MOUNTED, text = L["cooldownManagerShowMounted"] or "Mounted" },
 		{ value = COOLDOWN_VIEWER_VISIBILITY_MODES.WHILE_NOT_MOUNTED, text = L["cooldownManagerShowNotMounted"] or "Not mounted" },
 		{ value = COOLDOWN_VIEWER_VISIBILITY_MODES.MOUSEOVER, text = L["cooldownManagerShowMouseover"] or "On mouseover" },
+		{
+			value = COOLDOWN_VIEWER_VISIBILITY_MODES.PLAYER_HAS_TARGET,
+			text = L["cooldownManagerShowTarget"] or L["visibilityRule_playerHasTarget"] or "When I have a target",
+		},
 	}
 	local labels = {
 		EssentialCooldownViewer = L["cooldownViewerEssential"] or "Essential Cooldown Viewer",

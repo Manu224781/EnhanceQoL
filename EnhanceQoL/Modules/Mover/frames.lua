@@ -400,6 +400,13 @@ local frames = {
 		defaultEnabled = true,
 	},
 	{
+		id = "OpenMailFrame",
+		label = L["OpenMail"] or "Open Mail",
+		group = "vendors",
+		names = {"OpenMailFrame" },
+		defaultEnabled = true
+	},
+	{
 		id = "ChatConfigFrame",
 		label = L["Chat Settings"] or "Chat Settings",
 		group = "system",
