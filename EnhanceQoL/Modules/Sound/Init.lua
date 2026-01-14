@@ -15,7 +15,35 @@ function addon.Sounds.functions.InitDB()
 	if not addon.db or not addon.functions or not addon.functions.InitDBValue then return end
 	addon.functions.InitDBValue("keepAudioSynced", false)
 	addon.functions.InitDBValue("soundMutedSounds", {})
+	addon.functions.InitDBValue("soundExtraEnabled", false)
+	addon.functions.InitDBValue("soundExtraEvents", {})
 end
+
+addon.Sounds.extraSoundEvents = {
+	-- Add events here to expose them in settings and extra sound playback.
+	{ event = "ACHIEVEMENT_EARNED", label = "soundExtraEventAchievementEarned" },
+	{ event = "CHALLENGE_MODE_LEAVER_TIMER_STARTED", label = "soundExtraEventChallengeLeaverTimer" },
+	{ event = "CHALLENGE_MODE_DEATH_COUNT_UPDATED", label = "soundExtraEventChallengeDeaths" },
+	{ event = "CHAT_MSG_BN_WHISPER", label = "soundExtraEventChatBNWhisper" },
+	{ event = "CHAT_MSG_WHISPER", label = "soundExtraEventChatWhisper" },
+	{ event = "LFG_PROPOSAL_SHOW", label = "soundExtraEventLFGQueueStatus" },
+	{ event = "PLAYER_REGEN_ENABLED", label = "soundExtraEventLeaveCombat" },
+	{ event = "PLAYER_REGEN_DISABLED", label = "soundExtraEventEnterCombat" },
+	{ event = "LOOT_ITEM_ROLL_WON", label = "soundExtraEventLootRollWon" },
+	{ event = "SHOW_LOOT_TOAST_LEGENDARY_LOOTED", label = "soundExtraEventLootLegendary" },
+	{ event = "SHOW_LOOT_TOAST_UPGRADE", label = "soundExtraEventLootUpgrade" },
+	{ event = "LFG_ROLE_CHECK_SHOW", label = "soundExtraEventRoleCheck" },
+	{ event = "START_PLAYER_COUNTDOWN", label = "soundExtraEventPlayerCountdown" },
+	{
+		event = "UPDATE_PENDING_MAIL",
+		label = "soundExtraEventNewMail",
+		condition = function() return HasNewMail and HasNewMail() end,
+	},
+	{ event = "RESURRECT_REQUEST", label = "soundExtraEventResurrect" },
+	{ event = "READY_CHECK", label = "soundExtraEventReadyCheck" },
+	{ event = "PARTY_INVITE_REQUEST", label = "soundExtraEventPartyInvite" },
+	{ event = "GROUP_INVITE_CONFIRMATION", label = "soundExtraEventGroupInviteConfirm" },
+}
 
 addon.Sounds.soundFiles = {
 	["class"] = {
@@ -56,131 +84,131 @@ addon.Sounds.soundFiles = {
 		},
 	},
 	["dungeon"] = {
-			["xalatath"] = {
-				2530794, -- Open your mind to the whispers
-				2530811, -- Do you see it?
-				2530835, -- A stone to call forth the darkness
-				5770084, -- Your ascension
-				5770087, -- Is complete
-				5834619, -- *laughing* / haha #1
-				5834623, -- Oh, he's alone / always alone
-				5834632, -- Embrace who you truly are
-				5835195, -- So easily overlooked
-				5835211, -- Your survival wasn't necessary
-				5835212, -- I simply wish you'd lasted a little longer
-				5835214, -- And now you learn the true lesson of the void
-				5835215, -- Only the strongest survive
-				5835725, -- Inevitable
-				5835726, -- The void consumes everything
-				5835729, -- Deeper in the darkness
-				5854705, -- Too late (timer over)
-				5854706, -- Haha #2
-				6178494, -- My emissary brings you power
-				6178497, -- A willing sacrifice
-				6178498, -- Yes, feed
-				6178500, -- Shred of control
-				6178502, -- Resist
-				6178504, -- Overcome this trial
-				6178506, -- My power is transcendent
-				6178508, -- A gift of power
-			},
-			["rookery_npc"] = {
-				-- Stormrider Vokmar
-				5858404,
-				5858470,
-				5858471,
-				5858472,
-				5858473,
-				5858474,
-				5858478,
-				5858481,
-				5858482,
-				5858485,
-			},
-			["priory_of_the_sacred_flame_npc"] = {
-				-- Sister Etna Blayze
-				5839837,
-				5839839,
-				5839840,
-				5839841,
-				5839846,
-				5839847,
-				5839853,
-				5839854,
-				5839855,
-				5839860,
-				5839861,
-			},
-			["cinderbrew_meadery_npc"] = {
-				5769388,
-				5769390,
-				5769391,
-				5769395,
-				5769396,
-				5769397,
-				5769400,
-				5779635,
-				5858873,
-				5858874,
-				5858875,
-				5858882,
-				5858888,
-				5858889,
-				5858890,
-				5858891,
-				5858892,
-				5858893,
-				5858894,
-				5858895,
-				5858896,
-				5858897,
-				5858898,
-			},
-			["mechagon_npc"] = {
-				-- Prince Erazmin
-				2931350,
-				2931351,
-				2931352,
-				2931353,
-				2931356, --
-				2931435, -- In order to stop my father, we need to infiltrate
-				2931438, -- Do not allow these bots to detect you
-				2931439, -- Remaining within their steam
-				2931441, -- You are no longer my father
+		["xalatath"] = {
+			2530794, -- Open your mind to the whispers
+			2530811, -- Do you see it?
+			2530835, -- A stone to call forth the darkness
+			5770084, -- Your ascension
+			5770087, -- Is complete
+			5834619, -- *laughing* / haha #1
+			5834623, -- Oh, he's alone / always alone
+			5834632, -- Embrace who you truly are
+			5835195, -- So easily overlooked
+			5835211, -- Your survival wasn't necessary
+			5835212, -- I simply wish you'd lasted a little longer
+			5835214, -- And now you learn the true lesson of the void
+			5835215, -- Only the strongest survive
+			5835725, -- Inevitable
+			5835726, -- The void consumes everything
+			5835729, -- Deeper in the darkness
+			5854705, -- Too late (timer over)
+			5854706, -- Haha #2
+			6178494, -- My emissary brings you power
+			6178497, -- A willing sacrifice
+			6178498, -- Yes, feed
+			6178500, -- Shred of control
+			6178502, -- Resist
+			6178504, -- Overcome this trial
+			6178506, -- My power is transcendent
+			6178508, -- A gift of power
+		},
+		["rookery_npc"] = {
+			-- Stormrider Vokmar
+			5858404,
+			5858470,
+			5858471,
+			5858472,
+			5858473,
+			5858474,
+			5858478,
+			5858481,
+			5858482,
+			5858485,
+		},
+		["priory_of_the_sacred_flame_npc"] = {
+			-- Sister Etna Blayze
+			5839837,
+			5839839,
+			5839840,
+			5839841,
+			5839846,
+			5839847,
+			5839853,
+			5839854,
+			5839855,
+			5839860,
+			5839861,
+		},
+		["cinderbrew_meadery_npc"] = {
+			5769388,
+			5769390,
+			5769391,
+			5769395,
+			5769396,
+			5769397,
+			5769400,
+			5779635,
+			5858873,
+			5858874,
+			5858875,
+			5858882,
+			5858888,
+			5858889,
+			5858890,
+			5858891,
+			5858892,
+			5858893,
+			5858894,
+			5858895,
+			5858896,
+			5858897,
+			5858898,
+		},
+		["mechagon_npc"] = {
+			-- Prince Erazmin
+			2931350,
+			2931351,
+			2931352,
+			2931353,
+			2931356, --
+			2931435, -- In order to stop my father, we need to infiltrate
+			2931438, -- Do not allow these bots to detect you
+			2931439, -- Remaining within their steam
+			2931441, -- You are no longer my father
 
-				-- Gazlowe
-				2931354,
-				2931355,
+			-- Gazlowe
+			2931354,
+			2931355,
 
-				-- Tussle Tonks Announcer
-				2925336,
-				2925337,
-				2925338,
-				2925339,
-				2925340,
-				2925341,
-				2925342,
-				2925343,
-				2925345,
-				2925346,
-				2925347,
-				2925348,
-				2925351,
-				2925352,
-				2925353,
-				2925354,
-				2925355,
-				2925356,
-				2925357,
-				2925358,
-				2925359,
-				2925360,
-			},
-			["stonevault"] = {
-				5835282, -- So here we are. High Speaker Eirich... or is it just Eirich now?
-				5835283, -- He's fled from the Hall of Awakening into the Stonevault
-				5835268, -- He's probably running like a frightened mouse. Wee, sleekit, cowering, timorous beastie!
-			},
+			-- Tussle Tonks Announcer
+			2925336,
+			2925337,
+			2925338,
+			2925339,
+			2925340,
+			2925341,
+			2925342,
+			2925343,
+			2925345,
+			2925346,
+			2925347,
+			2925348,
+			2925351,
+			2925352,
+			2925353,
+			2925354,
+			2925355,
+			2925356,
+			2925357,
+			2925358,
+			2925359,
+			2925360,
+		},
+		["stonevault"] = {
+			5835282, -- So here we are. High Speaker Eirich... or is it just Eirich now?
+			5835283, -- He's fled from the Hall of Awakening into the Stonevault
+			5835268, -- He's probably running like a frightened mouse. Wee, sleekit, cowering, timorous beastie!
+		},
 	},
 	["mounts"] = {
 		["banlu"] = {

@@ -8,6 +8,7 @@ else
 end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Sound")
+local LSM = LibStub("LibSharedMedia-3.0", true)
 
 local function toggleSounds(sounds, state)
 	if type(sounds) == "table" then
@@ -52,20 +53,41 @@ local function applyMutedSounds()
 	end
 end
 
-local function isFrameShown(frame)
-	return frame and frame.IsShown and frame:IsShown()
-end
+local function isFrameShown(frame) return frame and frame.IsShown and frame:IsShown() end
 
-local function isCinematicPlaying()
-	return isFrameShown(CinematicFrame) or isFrameShown(MovieFrame)
-end
+local function isCinematicPlaying() return isFrameShown(CinematicFrame) or isFrameShown(MovieFrame) end
 
 local function applyAudioSync()
 	if not SetCVar then return end
 	SetCVar("Sound_OutputDriverIndex", "0")
-	if Sound_GameSystem_RestartSoundSystem and not isCinematicPlaying() then
-		Sound_GameSystem_RestartSoundSystem()
+	if Sound_GameSystem_RestartSoundSystem and not isCinematicPlaying() then Sound_GameSystem_RestartSoundSystem() end
+end
+
+local function resolveExtraSound(soundName)
+	if not soundName or soundName == "" or not LSM then return end
+	return LSM:Fetch("sound", soundName, true)
+end
+
+local function getExtraEventEntry(eventName)
+	local events = addon.Sounds and addon.Sounds.extraSoundEvents
+	if type(events) ~= "table" then return end
+	for _, entry in ipairs(events) do
+		if entry and entry.event == eventName then return entry end
 	end
+end
+
+local extraSoundFrame
+local function playExtraSound(event, ...)
+	if not addon.db or addon.db.soundExtraEnabled ~= true then return end
+	local entry = getExtraEventEntry(event)
+	if entry and type(entry.condition) == "function" then
+		if not entry.condition(event, ...) then return end
+	end
+	local mapping = addon.db.soundExtraEvents
+	local soundName = mapping and mapping[event]
+	if not soundName or soundName == "" then return end
+	local file = resolveExtraSound(soundName)
+	if file then PlaySoundFile(file, "Master") end
 end
 
 local audioSyncFrame
@@ -87,7 +109,33 @@ function addon.Sounds.functions.UpdateAudioSync()
 	end
 end
 
+function addon.Sounds.functions.UpdateExtraSounds()
+	if not addon.db or addon.db.soundExtraEnabled ~= true then
+		if extraSoundFrame then extraSoundFrame:UnregisterAllEvents() end
+		return
+	end
+
+	if not extraSoundFrame then
+		extraSoundFrame = CreateFrame("Frame")
+		extraSoundFrame:SetScript("OnEvent", function(_, event, ...) playExtraSound(event, ...) end)
+	end
+
+	extraSoundFrame:UnregisterAllEvents()
+
+	local events = addon.Sounds and addon.Sounds.extraSoundEvents
+	if type(events) ~= "table" then return end
+	local mapping = addon.db.soundExtraEvents
+	for _, entry in ipairs(events) do
+		local eventName = entry and entry.event
+		if type(eventName) == "string" and eventName ~= "" then
+			local soundName = mapping and mapping[eventName]
+			if soundName and soundName ~= "" then extraSoundFrame:RegisterEvent(eventName) end
+		end
+	end
+end
+
 function addon.Sounds.functions.InitState()
 	applyMutedSounds()
 	addon.Sounds.functions.UpdateAudioSync()
+	if addon.Sounds.functions.UpdateExtraSounds then addon.Sounds.functions.UpdateExtraSounds() end
 end

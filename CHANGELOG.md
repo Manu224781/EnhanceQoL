@@ -8,6 +8,8 @@
 - DataPanels: Edit Mode click-through toggle to make panels ignore mouse input.
 - DataPanels: Content alignment option (left/center/right) in Edit Mode.
 - DataPanels: Mail notification stream with minimap mail icon and tooltip senders.
+- Sound: Additional sounds mapping per event with a per-event dropdown (extra sounds toggle).
+- Combat & Dungeons: Auto combat logging in instances with per-instance + difficulty rules.
 - Inventory: Bag sort and loot order controls (left-to-right or right-to-left).
 - Inventory: Enhanced rarity glow for bags and the character frame.
 - UF Plus: Custom class colors for unit frames.
