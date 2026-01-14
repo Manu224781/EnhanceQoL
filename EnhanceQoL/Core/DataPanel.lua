@@ -49,9 +49,9 @@ for _, anchor in ipairs(CONTENT_ANCHOR_ORDER) do
 	VALID_CONTENT_ANCHOR[anchor] = true
 end
 local CONTENT_ANCHOR_OPTIONS = {
-	{ value = "LEFT", label = LEFT or "Left" },
-	{ value = "CENTER", label = CENTER or "Center" },
-	{ value = "RIGHT", label = RIGHT or "Right" },
+	{ value = "LEFT", label = L["LEFT"] or "Left" },
+	{ value = "CENTER", label = L["CENTER"] or "Center" },
+	{ value = "RIGHT", label = L["RIGHT"] or "Right" },
 }
 
 local function normalizePercent(value, fallback)
