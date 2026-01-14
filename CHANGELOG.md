@@ -12,6 +12,7 @@
 - Inventory: Enhanced rarity glow for bags and the character frame.
 - UF Plus: Custom class colors for unit frames.
 - UF Plus: Secondary/tertiary delimiter options for health/power texts.
+- UF Plus: Status line option to show elite/rare/rareelite icons on non-player frames.
 - UF Plus: Shaman Maelstrom Weapon class resource bar with animated swirl/proc visuals (respects UF Player + Class Resource settings).
 
 ### 🔄 Changed
