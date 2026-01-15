@@ -56,6 +56,7 @@ Core\MovementSpeedStat.lua
 Core\Streams\Streams.xml
 Submodules\GemHelper.lua
 Submodules\ContainerActions.lua
+Submodules\MountActions.lua
 Submodules\ActionTracker.lua
 Submodules\GCDBar.lua
 Submodules\ChatIM\ChannelHistory.lua

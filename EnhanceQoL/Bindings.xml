@@ -9,6 +9,21 @@
              >
     </Binding>
 
+    <Binding name="CLICK EQOLRandomMountButton:LeftButton"
+             category="Enhance QoL"
+             >
+    </Binding>
+
+    <Binding name="CLICK EQOLRepairMountButton:LeftButton"
+             category="Enhance QoL"
+             >
+    </Binding>
+
+    <Binding name="CLICK EQOLAuctionMountButton:LeftButton"
+             category="Enhance QoL"
+             >
+    </Binding>
+
     <Binding name="EQOL_TOGGLE_CHATHISTORY"
              category="Enhance QoL"
              >

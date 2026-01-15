@@ -661,6 +661,18 @@ function addon.functions.initDungeonFrame()
 	end
 	if addon.functions.initDrinkMacro then addon.functions.initDrinkMacro() end
 
+	addon.functions.SettingsCreateHeadline(addon.SettingsLayout.characterInspectCategory, L["Mounts"] or "Mounts", { parentSection = expandable })
+	addon.functions.SettingsCreateCheckbox(addon.SettingsLayout.characterInspectCategory, {
+		var = "randomMountUseAll",
+		text = L["Use all mounts for random mount"] or "Use all mounts for random mount",
+		func = function(value)
+			addon.db["randomMountUseAll"] = value and true or false
+			if addon.MountActions and addon.MountActions.MarkRandomCacheDirty then addon.MountActions:MarkRandomCacheDirty() end
+		end,
+		default = false,
+		parentSection = expandable,
+	})
+
 	local classTag = (addon.variables and addon.variables.unitClass) or select(2, UnitClass("player"))
 	if classTag == "DRUID" then
 		addon.functions.SettingsCreateHeadline(addon.SettingsLayout.characterInspectCategory, select(1, UnitClass("player")), { parentSection = expandable })
