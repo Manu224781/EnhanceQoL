@@ -2693,7 +2693,6 @@ local function initMisc()
 
 	-- Right-click context menu for expansion/garrison minimap buttons
 	local MU = MenuUtil
-	local tinsert = table.insert
 
 	local function ShowLandingMenu(owner)
 		if MU and MU.CreateContextMenu then

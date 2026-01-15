@@ -1334,11 +1334,8 @@ function H.updateClassificationIndicator(st, unit, cfg, def, skipDisabled)
 	local oy = (icfg.offset and icfg.offset.y) or offsetDef.y or 0
 
 	st.classificationIcon:ClearAllPoints()
-	if st.levelText then
-		st.classificationIcon:SetPoint("RIGHT", st.levelText, "LEFT", ox, oy)
-	elseif st.status then
-		st.classificationIcon:SetPoint("RIGHT", st.status, "RIGHT", ox, oy)
-	end
+	local anchorFrame = st.statusTextLayer or st.status
+	if anchorFrame then st.classificationIcon:SetPoint("RIGHT", anchorFrame, "RIGHT", ox or 0, oy) end
 	st.classificationIcon:SetSize(size, size)
 
 	if not enabled then
