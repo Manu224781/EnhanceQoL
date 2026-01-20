@@ -5,6 +5,12 @@
 ### ✨ Added
 
 - Quest Tracker: Option to remember collapsed/expanded state across login/reload.
+- UF Plus: Option to use Edit Mode tooltip position for unit frames.
+- Resource Bars: Threshold lines can use absolute values.
+
+### 🐛 Fixed
+
+- UF Plus: Combined aura layout no longer errors on secret auras.
 
 ---
 

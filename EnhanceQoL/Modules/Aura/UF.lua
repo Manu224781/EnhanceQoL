@@ -1414,9 +1414,15 @@ function AuraUtil.updateTargetAuraIcons(startIndex, unit)
 				shown = math.min(#order, ac.max)
 			else
 				local btn
-				local layout = aura.isHarmful and debuffLayout or buffLayout
+				local isDebuff
+				if issecretvalue and issecretvalue(aura.isHarmful) and C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID then
+					isDebuff = not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, harmfulFilter)
+				else
+					isDebuff = aura.isHarmful == true
+				end
+				local layout = isDebuff and debuffLayout or buffLayout
 				btn, st.auraButtons = AuraUtil.ensureAuraButton(st.auraContainer, st.auraButtons, i, layout)
-				AuraUtil.applyAuraToButton(btn, aura, ac, aura.isHarmful, unit)
+				AuraUtil.applyAuraToButton(btn, aura, ac, isDebuff, unit)
 				AuraUtil.anchorAuraButton(btn, st.auraContainer, i, combinedLayout, perRowCombined, buffPrimary, buffSecondary)
 				indexById[auraId] = i
 				i = i + 1
