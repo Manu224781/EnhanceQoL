@@ -35,22 +35,6 @@ function addon.MythicPlus.functions.InitDB()
 	init("pullTimerLongTime", 10)
 	init("PullTimerType", 4)
 
-	-- Cooldown Tracker
-	init("CooldownTrackerPoint", "CENTER")
-	init("CooldownTrackerX", 0)
-	init("CooldownTrackerY", 0)
-	init("CooldownTrackerBarHeight", 30)
-	init("CooldownTrackerWidth", 200)
-	init("potionTrackerBarTexture", "DEFAULT")
-
-	-- Potion Tracker
-	init("potionTracker", false)
-	init("potionTrackerUpwardsBar", false)
-	init("potionTrackerDisableRaid", true)
-	init("potionTrackerShowTooltip", true)
-	init("potionTrackerHealingPotions", false)
-	init("potionTrackerOffhealing", false)
-
 	-- Dungeon Browser
 	init("groupfinderAppText", false)
 	init("groupfinderSkipRoleSelect", false)
@@ -121,7 +105,6 @@ function addon.MythicPlus.functions.InitState()
 	if addon.MythicPlus.variables.stateInitialized then return end
 	if not addon.db then return end
 	addon.MythicPlus.variables.stateInitialized = true
-	if addon.MythicPlus.functions.InitCooldownTracker then addon.MythicPlus.functions.InitCooldownTracker() end
 	if addon.MythicPlus.functions.InitDungeonPortal then addon.MythicPlus.functions.InitDungeonPortal() end
 	if addon.MythicPlus.functions.InitTalentReminder then addon.MythicPlus.functions.InitTalentReminder() end
 	if addon.MythicPlus.functions.InitDungeonFilter then addon.MythicPlus.functions.InitDungeonFilter() end

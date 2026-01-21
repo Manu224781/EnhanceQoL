@@ -29,6 +29,7 @@ Helper.ENTRY_DEFAULTS = {
 	showCharges = false,
 	showStacks = false,
 	glowReady = false,
+	glowDuration = 0,
 }
 
 function Helper.CopyTableShallow(source)
@@ -90,6 +91,7 @@ function Helper.NormalizeRoot(root)
 	root.defaults.entry.showCooldown = Helper.ENTRY_DEFAULTS.showCooldown
 	root.defaults.entry.showCooldownText = Helper.ENTRY_DEFAULTS.showCooldownText
 	root.defaults.entry.glowReady = Helper.ENTRY_DEFAULTS.glowReady
+	root.defaults.entry.glowDuration = Helper.ENTRY_DEFAULTS.glowDuration
 	return root
 end
 
@@ -125,6 +127,13 @@ function Helper.NormalizeEntry(entry, defaults)
 	if entry.type == "ITEM" and entry.showItemCount == nil then
 		entry.showItemCount = true
 	end
+	local duration = tonumber(entry.glowDuration)
+	if duration == nil then
+		duration = defaults.entry and defaults.entry.glowDuration or Helper.ENTRY_DEFAULTS.glowDuration or 0
+	end
+	if duration < 0 then duration = 0 end
+	if duration > 30 then duration = 30 end
+	entry.glowDuration = math.floor(duration + 0.5)
 end
 
 function Helper.SyncOrder(order, map)

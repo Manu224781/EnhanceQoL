@@ -23,26 +23,6 @@ L["groupfinderShowDungeonScoreFrame"] = "Show %s frame next to the Dungeon Finde
 L["groupfinderShowPartyKeystone"] = "Display your party members Mythic+ Keystone info"
 L["groupfinderShowPartyKeystoneDesc"] = "Allows you to click on the keyinfo icon to teleport to that dungeon"
 
--- Potion Tracker
-L["Drag me to position Cooldownbars"] = "Drag me to position Cooldownbars"
-L["Potion Tracker"] = "Potion tracker"
-L["Toggle Anchor"] = "Toggle anchor"
-L["Save Anchor"] = "Save anchor"
-L["potionTrackerHeadline"] = "This enables you to track the CD of the combat potions of your party members as a moveable bar"
-L["potionTracker"] = "Enable potion cooldown tracker"
-L["potionTrackerMidnightWarning"] = "|cffff7e0aThis potion tracker will be removed in WoW Midnight.|r"
-L["potionTrackerUpwardsBar"] = "Grow upwards"
-L["potionTrackerClassColor"] = "Use class colors for bars"
-L["potionTrackerDisableRaid"] = "Disable potion tracker in raid"
-
-L["Tinker"] = "Tinker"
-L["InvisPotion"] = "Invis"
-L["potionTrackerShowTooltip"] = "Show tooltip on icon"
-L["HealingPotion"] = "Heal"
-L["potionTrackerHealingPotions"] = "Track health pot CD"
-L["potionTrackerOffhealing"] = "Track Offhealing CD usage"
-L["Bar Texture"] = "Bar Texture"
-
 -- Teleports
 L["Teleports"] = "Teleports"
 L["teleportEnabled"] = "Enable Teleport Frame"

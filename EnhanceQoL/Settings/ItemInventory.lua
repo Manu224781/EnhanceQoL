@@ -113,12 +113,9 @@ local function CheckItemGems(element, itemLink, emptySocketsCount, key, pdElemen
 					if addon.db["TooltipAnchorType"] == 4 then anchor = "ANCHOR_CURSOR_RIGHT" end
 					local xOffset = addon.db["TooltipAnchorOffsetX"] or 0
 					local yOffset = addon.db["TooltipAnchorOffsetY"] or 0
-					-- TODO we can't change tooltip for now in midnight beta
-					if not addon.variables.isMidnight then
-						GameTooltip:SetOwner(self, anchor, xOffset, yOffset)
-						GameTooltip:SetHyperlink(gemLink)
-						GameTooltip:Show()
-					end
+					GameTooltip:SetOwner(self, anchor, xOffset, yOffset)
+					GameTooltip:SetHyperlink(gemLink)
+					GameTooltip:Show()
 				end
 			end)
 		else

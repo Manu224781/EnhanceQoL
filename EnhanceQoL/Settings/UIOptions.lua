@@ -946,16 +946,14 @@ local function createFrameCategory()
 end
 
 function addon.functions.initUIOptions()
-	if addon.variables.isMidnight then
-		local defaults = (addon.GCDBar and addon.GCDBar.defaults) or {}
-		addon.functions.InitDBValue("gcdBarEnabled", false)
-		addon.functions.InitDBValue("gcdBarWidth", defaults.width or 200)
-		addon.functions.InitDBValue("gcdBarHeight", defaults.height or 18)
-		addon.functions.InitDBValue("gcdBarTexture", defaults.texture or "DEFAULT")
-		addon.functions.InitDBValue("gcdBarColor", defaults.color or { r = 1, g = 0.82, b = 0.2, a = 1 })
+	local defaults = (addon.GCDBar and addon.GCDBar.defaults) or {}
+	addon.functions.InitDBValue("gcdBarEnabled", false)
+	addon.functions.InitDBValue("gcdBarWidth", defaults.width or 200)
+	addon.functions.InitDBValue("gcdBarHeight", defaults.height or 18)
+	addon.functions.InitDBValue("gcdBarTexture", defaults.texture or "DEFAULT")
+	addon.functions.InitDBValue("gcdBarColor", defaults.color or { r = 1, g = 0.82, b = 0.2, a = 1 })
 
-		if addon.GCDBar and addon.GCDBar.OnSettingChanged then addon.GCDBar:OnSettingChanged(addon.db["gcdBarEnabled"]) end
-	end
+	if addon.GCDBar and addon.GCDBar.OnSettingChanged then addon.GCDBar:OnSettingChanged(addon.db["gcdBarEnabled"]) end
 end
 
 local function createNameplatesCategory()
@@ -1019,25 +1017,23 @@ local function createCastbarCategory()
 	})
 	addon.SettingsLayout.uiCastbarsExpandable = expandable
 
-	if addon.variables.isMidnight then
-		addon.functions.SettingsCreateHeadline(category, C_Spell.GetSpellName(61304) or "GCD", {
-			parentSection = expandable,
-		})
-		addon.functions.SettingsCreateCheckbox(category, {
-			var = "gcdBarEnabled",
-			text = L["gcdBarEnabled"] or "Enable GCD bar",
-			desc = L["gcdBarDesc"],
-			func = function(value)
-				addon.db["gcdBarEnabled"] = value and true or false
-				if addon.GCDBar and addon.GCDBar.OnSettingChanged then addon.GCDBar:OnSettingChanged(addon.db["gcdBarEnabled"]) end
-			end,
-			parentSection = expandable,
-		})
+	addon.functions.SettingsCreateHeadline(category, C_Spell.GetSpellName(61304) or "GCD", {
+		parentSection = expandable,
+	})
+	addon.functions.SettingsCreateCheckbox(category, {
+		var = "gcdBarEnabled",
+		text = L["gcdBarEnabled"] or "Enable GCD bar",
+		desc = L["gcdBarDesc"],
+		func = function(value)
+			addon.db["gcdBarEnabled"] = value and true or false
+			if addon.GCDBar and addon.GCDBar.OnSettingChanged then addon.GCDBar:OnSettingChanged(addon.db["gcdBarEnabled"]) end
+		end,
+		parentSection = expandable,
+	})
 
-		addon.functions.SettingsCreateText(category, "|cffffd700" .. (L["gcdBarEditModeHint"] or "Configure size, texture, and color in Edit Mode.") .. "|r", {
-			parentSection = expandable,
-		})
-	end
+	addon.functions.SettingsCreateText(category, "|cffffd700" .. (L["gcdBarEditModeHint"] or "Configure size, texture, and color in Edit Mode.") .. "|r", {
+		parentSection = expandable,
+	})
 
 	local function isCustomPlayerCastbarEnabled()
 		local cfg = addon.db and addon.db.ufFrames and addon.db.ufFrames.player

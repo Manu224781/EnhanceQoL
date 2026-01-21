@@ -888,6 +888,17 @@ local function createCheck(parent, text)
 	return cb
 end
 
+local function createSlider(parent, width, minValue, maxValue, step)
+	local slider = CreateFrame("Slider", nil, parent, "OptionsSliderTemplate")
+	slider:SetMinMaxValues(minValue or 0, maxValue or 1)
+	slider:SetValueStep(step or 1)
+	slider:SetObeyStepOnDrag(true)
+	slider:SetWidth(width or 180)
+	if slider.Low then slider.Low:SetText(tostring(minValue or 0)) end
+	if slider.High then slider.High:SetText(tostring(maxValue or 1)) end
+	return slider
+end
+
 local function createRowButton(parent, height)
 	local row = CreateFrame("Button", nil, parent, "BackdropTemplate")
 	row:SetHeight(height or 28)
@@ -1070,6 +1081,9 @@ local function ensureEditor()
 	local cbGlow = createCheck(right, L["CooldownPanelGlowReady"] or "Glow when ready")
 	cbGlow:SetPoint("TOPLEFT", cbStacks, "BOTTOMLEFT", 0, -4)
 
+	local glowDuration = createSlider(right, 180, 0, 30, 1)
+	glowDuration:SetPoint("TOPLEFT", cbGlow, "BOTTOMLEFT", 18, -8)
+
 	local removeEntry = createButton(right, L["CooldownPanelRemoveEntry"] or "Remove entry", 180, 22)
 	removeEntry:SetPoint("BOTTOM", right, "BOTTOM", 0, 14)
 
@@ -1121,6 +1135,10 @@ local function ensureEditor()
 	dropZone.highlight:SetAllPoints(dropZone)
 	dropZone.highlight:SetColorTexture(0.2, 0.6, 0.6, 0.15)
 	previewFrame.dropZone = dropZone
+	local previewHintLabel = middle:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	previewHintLabel:SetPoint("BOTTOMRIGHT", previewFrame, "TOPRIGHT", -2, 6)
+	previewHintLabel:SetJustifyH("RIGHT")
+	previewHintLabel:SetText(L["CooldownPanelPreviewHint"] or "Drag spells/items here to add")
 
 	local entryTitle = createLabel(middle, L["CooldownPanelEntries"] or "Entries", 12, "OUTLINE")
 	entryTitle:SetPoint("TOPLEFT", previewFrame, "BOTTOMLEFT", 0, -12)
@@ -1177,6 +1195,7 @@ local function ensureEditor()
 		panelList = { scroll = panelScroll, content = panelContent },
 		entryList = { scroll = entryScroll, content = entryContent },
 		previewFrame = previewFrame,
+		previewHintLabel = previewHintLabel,
 		addPanel = addPanel,
 		deletePanel = deletePanel,
 		addSpellBox = addSpellBox,
@@ -1194,6 +1213,7 @@ local function ensureEditor()
 			cbStacks = cbStacks,
 			cbItemCount = cbItemCount,
 			cbGlow = cbGlow,
+			glowDuration = glowDuration,
 			removeEntry = removeEntry,
 		},
 	}
@@ -1317,11 +1337,29 @@ local function ensureEditor()
 		end)
 	end
 
+	local function bindEntrySlider(slider, field, minValue, maxValue)
+		slider:SetScript("OnValueChanged", function(self, value)
+			if self._suspend then return end
+			local panelId = editor.selectedPanelId
+			local entryId = editor.selectedEntryId
+			local panel = panelId and CooldownPanels:GetPanel(panelId)
+			local entry = panel and panel.entries and panel.entries[entryId]
+			if not entry then return end
+			local clamped = clampInt(value, minValue, maxValue, entry[field] or 0)
+			entry[field] = clamped
+			if self.Text then
+				self.Text:SetText((L["CooldownPanelGlowDuration"] or "Glow duration") .. ": " .. tostring(clamped) .. "s")
+			end
+			CooldownPanels:RefreshPanel(panelId)
+		end)
+	end
+
 	bindEntryToggle(cbCharges, "showCharges")
 	bindEntryToggle(cbStacks, "showStacks")
 	bindEntryToggle(cbCooldownText, "showCooldownText")
 	bindEntryToggle(cbItemCount, "showItemCount")
 	bindEntryToggle(cbGlow, "glowReady")
+	bindEntrySlider(glowDuration, "glowDuration", 0, 30)
 
 	removeEntry:SetScript("OnClick", function()
 		local panelId = editor.selectedPanelId
@@ -1552,6 +1590,7 @@ local function refreshPreview(editor, panel)
 	local preview = editor.previewFrame
 	local canvas = preview.canvas or preview
 	if not panel then
+		if editor.previewHintLabel then editor.previewHintLabel:Hide() end
 		applyIconLayout(canvas, DEFAULT_PREVIEW_COUNT, Helper.PANEL_LAYOUT_DEFAULTS)
 		canvas:ClearAllPoints()
 		canvas:SetPoint("CENTER", preview, "CENTER")
@@ -1567,6 +1606,7 @@ local function refreshPreview(editor, panel)
 		return
 	end
 
+	if editor.previewHintLabel then editor.previewHintLabel:Show() end
 	local baseLayout = (panel and panel.layout) or Helper.PANEL_LAYOUT_DEFAULTS
 	local count = getEditorPreviewCount(panel, preview, baseLayout)
 	local layout = getPreviewLayout(panel, preview, count)
@@ -1624,6 +1664,10 @@ local function layoutInspectorToggles(inspector, entry)
 		hideToggle(inspector.cbStacks)
 		hideToggle(inspector.cbItemCount)
 		hideToggle(inspector.cbGlow)
+		if inspector.glowDuration then
+			inspector.glowDuration:Hide()
+			inspector.glowDuration:Disable()
+		end
 		return
 	end
 
@@ -1657,6 +1701,17 @@ local function layoutInspectorToggles(inspector, entry)
 		place(inspector.cbItemCount, false)
 	end
 	place(inspector.cbGlow, true)
+	if inspector.glowDuration then
+		inspector.glowDuration:ClearAllPoints()
+		inspector.glowDuration:SetPoint("TOPLEFT", inspector.cbGlow, "BOTTOMLEFT", 18, -8)
+		if entry.glowReady then
+			inspector.glowDuration:Show()
+			inspector.glowDuration:Enable()
+		else
+			inspector.glowDuration:Hide()
+			inspector.glowDuration:Disable()
+		end
+	end
 end
 
 local function refreshInspector(editor, panel, entry)
@@ -1686,6 +1741,17 @@ local function refreshInspector(editor, panel, entry)
 		inspector.cbStacks:SetChecked(entry.showStacks and true or false)
 		inspector.cbItemCount:SetChecked(entry.type == "ITEM" and entry.showItemCount ~= false)
 		inspector.cbGlow:SetChecked(entry.glowReady and true or false)
+		if inspector.glowDuration then
+			local duration = clampInt(entry.glowDuration, 0, 30, 0)
+			inspector.glowDuration._suspend = true
+			inspector.glowDuration:SetValue(duration)
+			inspector.glowDuration._suspend = nil
+			if inspector.glowDuration.Text then
+				inspector.glowDuration.Text:SetText((L["CooldownPanelGlowDuration"] or "Glow duration") .. ": " .. tostring(duration) .. "s")
+			end
+			if inspector.glowDuration.Low then inspector.glowDuration.Low:SetText("0s") end
+			if inspector.glowDuration.High then inspector.glowDuration.High:SetText("30s") end
+		end
 
 		inspector.entryId:Enable()
 		inspector.removeEntry:Enable()
@@ -1870,6 +1936,8 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 	end
 
 	local order = panel.order or {}
+	runtime.readyState = runtime.readyState or {}
+	runtime.readyAt = runtime.readyAt or {}
 	for _, entryId in ipairs(order) do
 		local entry = panel.entries and panel.entries[entryId]
 		if entry then
@@ -1880,6 +1948,7 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 			local showItemCount = entry.type == "ITEM" and entry.showItemCount ~= false
 			local alwaysShow = entry.alwaysShow ~= false
 			local glowReady = entry.glowReady ~= false
+			local glowDuration = clampInt(entry.glowDuration, 0, 30, 0)
 
 			local iconTexture = getEntryIcon(entry)
 			local stackCount
@@ -1887,6 +1956,9 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 			local chargesInfo
 			local cooldownStart, cooldownDuration, cooldownEnabled, cooldownRate
 			local show = false
+			local readyNow = false
+			local cooldownEnabledOk = true
+			local cooldownActive = false
 
 			if entry.type == "SPELL" and entry.spellID then
 				if IsSpellKnown and not IsSpellKnown(entry.spellID) then
@@ -1900,8 +1972,15 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 						local aura = GetPlayerAuraBySpellID(entry.spellID)
 						if aura and isSafeGreaterThan(aura.applications, 1) then stackCount = aura.applications end
 					end
+					cooldownEnabledOk = isSafeNotFalse(cooldownEnabled)
+					cooldownActive = showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration)
+					if showCharges and chargesInfo then
+						readyNow = isSafeGreaterThan(chargesInfo.currentCharges, 0)
+					else
+						readyNow = showCooldown and not cooldownActive
+					end
 					show = alwaysShow
-					if not show and showCooldown and isSafeNotFalse(cooldownEnabled) and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
+					if not show and showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
 					if not show and showCharges and chargesInfo and isSafeLessThan(chargesInfo.currentCharges, chargesInfo.maxCharges) then show = true end
 					if not show and showStacks and stackCount then show = true end
 				end
@@ -1914,8 +1993,11 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 						local count = GetItemCountFn(entry.itemID, true)
 						if isSafeGreaterThan(count, 0) then itemCount = count end
 					end
+					cooldownEnabledOk = isSafeNotFalse(cooldownEnabled)
+					cooldownActive = showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration)
+					readyNow = showCooldown and not cooldownActive
 					show = alwaysShow
-					if not show and showCooldown and isSafeNotFalse(cooldownEnabled) and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
+					if not show and showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
 				end
 			elseif entry.type == "SLOT" and entry.slotID then
 				local itemId = GetInventoryItemID and GetInventoryItemID("player", entry.slotID) or nil
@@ -1925,13 +2007,23 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 						if showCooldown then
 							cooldownStart, cooldownDuration, cooldownEnabled = getItemCooldownInfo(itemId, entry.slotID)
 						end
+						cooldownEnabledOk = isSafeNotFalse(cooldownEnabled)
+						cooldownActive = showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration)
+						readyNow = showCooldown and not cooldownActive
 						show = alwaysShow
-						if not show and showCooldown and isSafeNotFalse(cooldownEnabled) and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
+						if not show and showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
 					end
 				end
 			end
 
 			if show then
+				local wasReady = runtime.readyState[entryId] == true
+				if readyNow and not wasReady then
+					runtime.readyAt[entryId] = GetTime and GetTime() or nil
+				elseif not readyNow then
+					runtime.readyAt[entryId] = nil
+				end
+				runtime.readyState[entryId] = readyNow
 				visible[#visible + 1] = {
 					icon = iconTexture or PREVIEW_ICON,
 					showCooldown = showCooldown,
@@ -1940,6 +2032,9 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 					showStacks = showStacks,
 					showItemCount = showItemCount,
 					glowReady = glowReady,
+					glowDuration = glowDuration,
+					readyNow = readyNow,
+					readyAt = runtime.readyAt[entryId],
 					stackCount = stackCount,
 					itemCount = itemCount,
 					chargesInfo = chargesInfo,
@@ -2010,10 +2105,17 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 
 		if data.glowReady then
 			local ready = false
-			if data.showCharges and data.chargesInfo and data.chargesInfo.currentCharges then
-				ready = isSafeGreaterThan(data.chargesInfo.currentCharges, 0)
-			elseif data.showCooldown then
-				ready = not cooldownActive
+			local duration = tonumber(data.glowDuration) or 0
+			if duration > 0 then
+				if data.readyAt and GetTime then
+					ready = (GetTime() - data.readyAt) <= duration
+				end
+			else
+				if data.showCharges and data.chargesInfo and data.chargesInfo.currentCharges then
+					ready = isSafeGreaterThan(data.chargesInfo.currentCharges, 0)
+				elseif data.showCooldown then
+					ready = not cooldownActive
+				end
 			end
 			setGlow(icon, ready)
 		else
