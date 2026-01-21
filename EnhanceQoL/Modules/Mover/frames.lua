@@ -248,6 +248,14 @@ local frames = {
 		defaultEnabled = true,
 	},
 	{
+		id = "TransmogFrame",
+		label = L["TransmogFrame"] or "Transmog Frame",
+		group = "system",
+		names = { "TransmogFrame" },
+		addon = "Blizzard_Transmog",
+		defaultEnabled = true,
+	},
+	{
 		id = "DelvesCompanionAbilityListFrame",
 		label = L["Delves Companion Abilities"] or "Delves Companion Abilities",
 		group = "activities",

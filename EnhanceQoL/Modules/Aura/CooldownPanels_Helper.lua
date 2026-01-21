@@ -20,6 +20,19 @@ Helper.PANEL_LAYOUT_DEFAULTS = {
 	wrapCount = 0,
 	wrapDirection = "DOWN",
 	strata = "MEDIUM",
+	stackAnchor = "BOTTOMRIGHT",
+	stackX = -1,
+	stackY = 1,
+	stackFontSize = 12,
+	stackFontStyle = "OUTLINE",
+	chargesAnchor = "TOP",
+	chargesX = 0,
+	chargesY = -1,
+	chargesFontSize = 12,
+	chargesFontStyle = "OUTLINE",
+	cooldownDrawEdge = true,
+	cooldownDrawBling = true,
+	cooldownDrawSwipe = true,
 }
 
 Helper.ENTRY_DEFAULTS = {
@@ -79,6 +92,10 @@ function Helper.NormalizeRoot(root)
 	if type(root.defaults) ~= "table" then root.defaults = {} end
 	if type(root.defaults.layout) ~= "table" then
 		root.defaults.layout = Helper.CopyTableShallow(Helper.PANEL_LAYOUT_DEFAULTS)
+	else
+		for key, value in pairs(Helper.PANEL_LAYOUT_DEFAULTS) do
+			if root.defaults.layout[key] == nil then root.defaults.layout[key] = value end
+		end
 	end
 	if type(root.defaults.entry) ~= "table" then
 		root.defaults.entry = Helper.CopyTableShallow(Helper.ENTRY_DEFAULTS)
@@ -124,13 +141,9 @@ function Helper.NormalizeEntry(entry, defaults)
 	end
 	entry.alwaysShow = true
 	entry.showCooldown = true
-	if entry.type == "ITEM" and entry.showItemCount == nil then
-		entry.showItemCount = true
-	end
+	if entry.type == "ITEM" and entry.showItemCount == nil then entry.showItemCount = true end
 	local duration = tonumber(entry.glowDuration)
-	if duration == nil then
-		duration = defaults.entry and defaults.entry.glowDuration or Helper.ENTRY_DEFAULTS.glowDuration or 0
-	end
+	if duration == nil then duration = defaults.entry and defaults.entry.glowDuration or Helper.ENTRY_DEFAULTS.glowDuration or 0 end
 	if duration < 0 then duration = 0 end
 	if duration > 30 then duration = 30 end
 	entry.glowDuration = math.floor(duration + 0.5)

@@ -14,6 +14,7 @@ local Helper = CooldownPanels.helper
 local EditMode = addon.EditMode
 local SettingType = EditMode and EditMode.lib and EditMode.lib.SettingType
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL_Aura")
+local LSM = LibStub("LibSharedMedia-3.0", true)
 
 CooldownPanels.ENTRY_TYPE = {
 	SPELL = "SPELL",
@@ -27,6 +28,8 @@ local DEFAULT_PREVIEW_COUNT = 6
 local MAX_PREVIEW_COUNT = 12
 local PREVIEW_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
 local PREVIEW_ICON_SIZE = 36
+local OFFSET_RANGE = 200
+local EXAMPLE_COOLDOWN_PERCENT = 0.55
 local VALID_DIRECTIONS = {
 	RIGHT = true,
 	LEFT = true,
@@ -38,6 +41,23 @@ local VALID_STRATA = {}
 for _, strata in ipairs(STRATA_ORDER) do
 	VALID_STRATA[strata] = true
 end
+local VALID_ANCHORS = {
+	TOPLEFT = true,
+	TOP = true,
+	TOPRIGHT = true,
+	LEFT = true,
+	CENTER = true,
+	RIGHT = true,
+	BOTTOMLEFT = true,
+	BOTTOM = true,
+	BOTTOMRIGHT = true,
+}
+local VALID_FONT_STYLE = {
+	NONE = true,
+	OUTLINE = true,
+	THICKOUTLINE = true,
+	MONOCHROMEOUTLINE = true,
+}
 
 local GetItemInfoInstantFn = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
 local GetItemIconByID = C_Item and C_Item.GetItemIconByID
@@ -66,6 +86,23 @@ local directionOptions = {
 	{ value = "RIGHT", label = _G.HUD_EDIT_MODE_SETTING_BAGS_DIRECTION_RIGHT or _G.RIGHT or "Right" },
 	{ value = "UP", label = _G.HUD_EDIT_MODE_SETTING_BAGS_DIRECTION_UP or _G.UP or "Up" },
 	{ value = "DOWN", label = _G.HUD_EDIT_MODE_SETTING_BAGS_DIRECTION_DOWN or _G.DOWN or "Down" },
+}
+local anchorOptions = {
+	{ value = "TOPLEFT", label = L["Top Left"] or "Top Left" },
+	{ value = "TOP", label = L["Top"] or "Top" },
+	{ value = "TOPRIGHT", label = L["Top Right"] or "Top Right" },
+	{ value = "LEFT", label = L["Left"] or "Left" },
+	{ value = "CENTER", label = L["Center"] or "Center" },
+	{ value = "RIGHT", label = L["Right"] or "Right" },
+	{ value = "BOTTOMLEFT", label = L["Bottom Left"] or "Bottom Left" },
+	{ value = "BOTTOM", label = L["Bottom"] or "Bottom" },
+	{ value = "BOTTOMRIGHT", label = L["Bottom Right"] or "Bottom Right" },
+}
+local fontStyleOptions = {
+	{ value = "NONE", label = L["None"] or "None" },
+	{ value = "OUTLINE", label = L["Outline"] or "Outline" },
+	{ value = "THICKOUTLINE", label = L["Thick Outline"] or "Thick Outline" },
+	{ value = "MONOCHROMEOUTLINE", label = L["Monochrome Outline"] or "Monochrome Outline" },
 }
 
 local function normalizeId(value)
@@ -115,6 +152,81 @@ local function normalizeStrata(strata, fallback)
 		if VALID_STRATA[upper] then return upper end
 	end
 	return "MEDIUM"
+end
+
+local function normalizeAnchor(anchor, fallback)
+	if anchor and VALID_ANCHORS[anchor] then return anchor end
+	if fallback and VALID_ANCHORS[fallback] then return fallback end
+	return "CENTER"
+end
+
+local function normalizeFontStyle(style, fallback)
+	if style == nil then style = fallback end
+	if style == nil then return nil end
+	if style == "" or style == "NONE" then return "" end
+	if style == "MONOCHROMEOUTLINE" or style == "OUTLINE,MONOCHROME" or style == "MONOCHROME,OUTLINE" then return "OUTLINE,MONOCHROME" end
+	return style
+end
+
+local function normalizeFontStyleChoice(style, fallback)
+	if style == nil then style = fallback end
+	if style == nil or style == "" then return "NONE" end
+	if style == "OUTLINE,MONOCHROME" or style == "MONOCHROME,OUTLINE" then return "MONOCHROMEOUTLINE" end
+	if VALID_FONT_STYLE[style] then return style end
+	return "NONE"
+end
+
+local function resolveFontPath(value, fallback)
+	if type(value) == "string" and value ~= "" then return value end
+	if type(fallback) == "string" and fallback ~= "" then return fallback end
+	return STANDARD_TEXT_FONT
+end
+
+local function getCountFontDefaults(frame)
+	if frame then
+		local icon = frame.icons and frame.icons[1]
+		if icon and icon.count and icon.count.GetFont then return icon.count:GetFont() end
+	end
+	local fallback = (addon.variables and addon.variables.defaultFont) or (LSM and LSM:Fetch("font", LSM.DefaultMedia.font)) or STANDARD_TEXT_FONT
+	return fallback, 12, "OUTLINE"
+end
+
+local function getChargesFontDefaults(frame)
+	if frame then
+		local icon = frame.icons and frame.icons[1]
+		if icon and icon.charges and icon.charges.GetFont then return icon.charges:GetFont() end
+	end
+	return getCountFontDefaults()
+end
+
+local function getFontOptions(defaultPath)
+	local list = {}
+	local seen = {}
+	local function add(path, label)
+		if type(path) ~= "string" or path == "" then return end
+		local key = string.lower(path)
+		if seen[key] then return end
+		seen[key] = true
+		list[#list + 1] = { value = path, label = label }
+	end
+	if LSM and LSM.HashTable then
+		for name, path in pairs(LSM:HashTable("font") or {}) do
+			add(path, tostring(name))
+		end
+	end
+	if defaultPath then add(defaultPath, L["Default"] or "Default") end
+	table.sort(list, function(a, b) return tostring(a.label) < tostring(b.label) end)
+	return list
+end
+
+local function setExampleCooldown(cooldown)
+	if not cooldown then return end
+	if CooldownFrame_SetDisplayAsPercentage then
+		CooldownFrame_SetDisplayAsPercentage(cooldown, EXAMPLE_COOLDOWN_PERCENT)
+	elseif cooldown.SetCooldown and GetTime then
+		local duration = 100
+		cooldown:SetCooldown(GetTime() - (duration * EXAMPLE_COOLDOWN_PERCENT), duration, 1)
+	end
 end
 
 local function getPreviewCount(panel)
@@ -525,6 +637,12 @@ local function createIconFrame(parent)
 	icon.previewGlow:SetAlpha(0.6)
 	icon.previewGlow:Hide()
 
+	icon.previewBling = icon:CreateTexture(nil, "OVERLAY")
+	icon.previewBling:SetTexture("Interface\\Cooldown\\star4")
+	icon.previewBling:SetVertexColor(0.3, 0.6, 1, 0.9)
+	icon.previewBling:SetBlendMode("ADD")
+	icon.previewBling:Hide()
+
 	return icon
 end
 
@@ -683,6 +801,15 @@ local function applyIconLayout(frame, count, layout)
 	local wrapCount = clampInt(layout.wrapCount, 0, 40, Helper.PANEL_LAYOUT_DEFAULTS.wrapCount or 0)
 	local wrapDirection = normalizeDirection(layout.wrapDirection, Helper.PANEL_LAYOUT_DEFAULTS.wrapDirection or "DOWN")
 	local primaryHorizontal = direction == "LEFT" or direction == "RIGHT"
+	local stackAnchor = normalizeAnchor(layout.stackAnchor, Helper.PANEL_LAYOUT_DEFAULTS.stackAnchor)
+	local stackX = clampInt(layout.stackX, -OFFSET_RANGE, OFFSET_RANGE, Helper.PANEL_LAYOUT_DEFAULTS.stackX)
+	local stackY = clampInt(layout.stackY, -OFFSET_RANGE, OFFSET_RANGE, Helper.PANEL_LAYOUT_DEFAULTS.stackY)
+	local chargesAnchor = normalizeAnchor(layout.chargesAnchor, Helper.PANEL_LAYOUT_DEFAULTS.chargesAnchor)
+	local chargesX = clampInt(layout.chargesX, -OFFSET_RANGE, OFFSET_RANGE, Helper.PANEL_LAYOUT_DEFAULTS.chargesX)
+	local chargesY = clampInt(layout.chargesY, -OFFSET_RANGE, OFFSET_RANGE, Helper.PANEL_LAYOUT_DEFAULTS.chargesY)
+	local drawEdge = layout.cooldownDrawEdge ~= false
+	local drawBling = layout.cooldownDrawBling ~= false
+	local drawSwipe = layout.cooldownDrawSwipe ~= false
 
 	local cols, rows = getGridDimensions(count, wrapCount, primaryHorizontal)
 	local step = iconSize + spacing
@@ -691,6 +818,14 @@ local function applyIconLayout(frame, count, layout)
 
 	frame:SetSize(width > 0 and width or iconSize, height > 0 and height or iconSize)
 	ensureIconCount(frame, count)
+	local fontPath, fontSize, fontStyle = getCountFontDefaults(frame)
+	local countFontPath = resolveFontPath(layout.stackFont, fontPath)
+	local countFontSize = clampInt(layout.stackFontSize, 6, 64, fontSize or 12)
+	local countFontStyle = normalizeFontStyle(layout.stackFontStyle, fontStyle)
+	local chargesFontPath, chargesFontSize, chargesFontStyle = getChargesFontDefaults(frame)
+	local chargesPath = resolveFontPath(layout.chargesFont, chargesFontPath)
+	local chargesSize = clampInt(layout.chargesFontSize, 6, 64, chargesFontSize or 12)
+	local chargesStyle = normalizeFontStyle(layout.chargesFontStyle, chargesFontStyle)
 
 	for i = 1, count do
 		local icon = frame.icons[i]
@@ -723,10 +858,30 @@ local function applyIconLayout(frame, count, layout)
 		end
 
 		icon:SetSize(iconSize, iconSize)
+		if icon.count then
+			icon.count:ClearAllPoints()
+			icon.count:SetPoint(stackAnchor, icon, stackAnchor, stackX, stackY)
+			icon.count:SetFont(countFontPath, countFontSize, countFontStyle)
+		end
+		if icon.charges then
+			icon.charges:ClearAllPoints()
+			icon.charges:SetPoint(chargesAnchor, icon, chargesAnchor, chargesX, chargesY)
+			icon.charges:SetFont(chargesPath, chargesSize, chargesStyle)
+		end
+		if icon.cooldown then
+			if icon.cooldown.SetDrawEdge then icon.cooldown:SetDrawEdge(drawEdge) end
+			if icon.cooldown.SetDrawBling then icon.cooldown:SetDrawBling(drawBling) end
+			if icon.cooldown.SetDrawSwipe then icon.cooldown:SetDrawSwipe(drawSwipe) end
+		end
 		if icon.previewGlow then
 			icon.previewGlow:ClearAllPoints()
 			icon.previewGlow:SetPoint("CENTER", icon, "CENTER", 0, 0)
 			icon.previewGlow:SetSize(iconSize * 1.8, iconSize * 1.8)
+		end
+		if icon.previewBling then
+			icon.previewBling:ClearAllPoints()
+			icon.previewBling:SetPoint("CENTER", icon, "CENTER", 0, 0)
+			icon.previewBling:SetSize(iconSize * 1.5, iconSize * 1.5)
 		end
 		icon:ClearAllPoints()
 		icon:SetPoint("TOPLEFT", frame, "TOPLEFT", col * step, -row * step)
@@ -1882,6 +2037,8 @@ function CooldownPanels:UpdatePreviewIcons(panelId, countOverride)
 	local runtime = getRuntime(panelId)
 	local frame = runtime.frame
 	if not frame then return end
+	panel.layout = panel.layout or Helper.CopyTableShallow(Helper.PANEL_LAYOUT_DEFAULTS)
+	local layout = panel.layout
 	local count = countOverride or getPreviewCount(panel)
 	ensureIconCount(frame, count)
 
@@ -1889,22 +2046,45 @@ function CooldownPanels:UpdatePreviewIcons(panelId, countOverride)
 		local entryId = panel.order and panel.order[i]
 		local entry = entryId and panel.entries and panel.entries[entryId] or nil
 		local icon = frame.icons[i]
+		local showCooldown = entry and entry.showCooldown ~= false
+		local showCooldownText = entry and entry.showCooldownText ~= false
+		local showCharges = entry and entry.type == "SPELL" and entry.showCharges == true
+		local showStacks = entry and entry.type == "SPELL" and entry.showStacks == true
+		local showItemCount = entry and entry.type == "ITEM" and entry.showItemCount ~= false
 		icon.texture:SetTexture(getEntryIcon(entry))
-		icon.cooldown:SetHideCountdownNumbers(not (entry and entry.showCooldownText ~= false))
+		icon.cooldown:SetHideCountdownNumbers(not showCooldownText)
 		icon.cooldown:Clear()
 		if icon.cooldown.SetScript then icon.cooldown:SetScript("OnCooldownDone", nil) end
 		icon.count:Hide()
 		icon.charges:Hide()
 		if icon.previewGlow then icon.previewGlow:Hide() end
-		icon.texture:SetDesaturated(false)
-		icon.texture:SetAlpha(1)
+		if icon.previewBling then icon.previewBling:Hide() end
 		setGlow(icon, false)
-		if entry and entry.type == "ITEM" and entry.itemID and entry.showItemCount ~= false and GetItemCountFn then
-			local countValue = GetItemCountFn(entry.itemID, true)
+		if showCooldown then
+			setExampleCooldown(icon.cooldown)
+			icon.texture:SetDesaturated(true)
+			icon.texture:SetAlpha(0.6)
+			if icon.previewBling then icon.previewBling:SetShown(layout.cooldownDrawBling ~= false) end
+		else
+			icon.texture:SetDesaturated(false)
+			icon.texture:SetAlpha(1)
+		end
+		if showCharges then
+			icon.charges:SetText("2")
+			icon.charges:Show()
+		end
+		if showStacks then
+			icon.count:SetText("3")
+			icon.count:Show()
+		elseif showItemCount then
+			local countValue
+			if entry and entry.itemID and GetItemCountFn then countValue = GetItemCountFn(entry.itemID, true) end
 			if isSafeGreaterThan(countValue, 0) then
 				icon.count:SetText(countValue)
-				icon.count:Show()
+			else
+				icon.count:SetText("20")
 			end
+			icon.count:Show()
 		end
 	end
 end
@@ -2065,7 +2245,9 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 		local icon = frame.icons[i]
 		icon.texture:SetTexture(data.icon or PREVIEW_ICON)
 		icon.cooldown:SetHideCountdownNumbers(not data.showCooldownText)
+		if icon.cooldown.Resume then icon.cooldown:Resume() end
 		if icon.previewGlow then icon.previewGlow:Hide() end
+		if icon.previewBling then icon.previewBling:Hide() end
 
 		local cooldownStart = data.cooldownStart or 0
 		local cooldownDuration = data.cooldownDuration or 0
@@ -2136,8 +2318,10 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 		if icon then
 			icon.cooldown:Clear()
 			if icon.cooldown.SetScript then icon.cooldown:SetScript("OnCooldownDone", nil) end
+			if icon.cooldown.Resume then icon.cooldown:Resume() end
 			icon.count:Hide()
 			icon.charges:Hide()
+			if icon.previewBling then icon.previewBling:Hide() end
 			icon.texture:SetDesaturated(false)
 			icon.texture:SetAlpha(1)
 			setGlow(icon, false)
@@ -2261,6 +2445,36 @@ local function applyEditLayout(panelId, field, value, skipRefresh)
 		layout.wrapDirection = normalizeDirection(value, layout.wrapDirection)
 	elseif field == "strata" then
 		layout.strata = normalizeStrata(value, layout.strata)
+	elseif field == "stackAnchor" then
+		layout.stackAnchor = normalizeAnchor(value, layout.stackAnchor or Helper.PANEL_LAYOUT_DEFAULTS.stackAnchor)
+	elseif field == "stackX" then
+		layout.stackX = clampInt(value, -OFFSET_RANGE, OFFSET_RANGE, layout.stackX or Helper.PANEL_LAYOUT_DEFAULTS.stackX)
+	elseif field == "stackY" then
+		layout.stackY = clampInt(value, -OFFSET_RANGE, OFFSET_RANGE, layout.stackY or Helper.PANEL_LAYOUT_DEFAULTS.stackY)
+	elseif field == "stackFont" then
+		if type(value) == "string" and value ~= "" then layout.stackFont = value end
+	elseif field == "stackFontSize" then
+		layout.stackFontSize = clampInt(value, 6, 64, layout.stackFontSize or Helper.PANEL_LAYOUT_DEFAULTS.stackFontSize)
+	elseif field == "stackFontStyle" then
+		layout.stackFontStyle = normalizeFontStyleChoice(value, layout.stackFontStyle or Helper.PANEL_LAYOUT_DEFAULTS.stackFontStyle)
+	elseif field == "chargesAnchor" then
+		layout.chargesAnchor = normalizeAnchor(value, layout.chargesAnchor or Helper.PANEL_LAYOUT_DEFAULTS.chargesAnchor)
+	elseif field == "chargesX" then
+		layout.chargesX = clampInt(value, -OFFSET_RANGE, OFFSET_RANGE, layout.chargesX or Helper.PANEL_LAYOUT_DEFAULTS.chargesX)
+	elseif field == "chargesY" then
+		layout.chargesY = clampInt(value, -OFFSET_RANGE, OFFSET_RANGE, layout.chargesY or Helper.PANEL_LAYOUT_DEFAULTS.chargesY)
+	elseif field == "chargesFont" then
+		if type(value) == "string" and value ~= "" then layout.chargesFont = value end
+	elseif field == "chargesFontSize" then
+		layout.chargesFontSize = clampInt(value, 6, 64, layout.chargesFontSize or Helper.PANEL_LAYOUT_DEFAULTS.chargesFontSize)
+	elseif field == "chargesFontStyle" then
+		layout.chargesFontStyle = normalizeFontStyleChoice(value, layout.chargesFontStyle or Helper.PANEL_LAYOUT_DEFAULTS.chargesFontStyle)
+	elseif field == "cooldownDrawEdge" then
+		layout.cooldownDrawEdge = value ~= false
+	elseif field == "cooldownDrawBling" then
+		layout.cooldownDrawBling = value ~= false
+	elseif field == "cooldownDrawSwipe" then
+		layout.cooldownDrawSwipe = value ~= false
 	end
 
 	syncEditModeValue(panelId, field, layout[field])
@@ -2283,6 +2497,21 @@ function CooldownPanels:ApplyEditMode(panelId, data)
 	applyEditLayout(panelId, "wrapCount", data.wrapCount, true)
 	applyEditLayout(panelId, "wrapDirection", data.wrapDirection, true)
 	applyEditLayout(panelId, "strata", data.strata, true)
+	applyEditLayout(panelId, "stackAnchor", data.stackAnchor, true)
+	applyEditLayout(panelId, "stackX", data.stackX, true)
+	applyEditLayout(panelId, "stackY", data.stackY, true)
+	applyEditLayout(panelId, "stackFont", data.stackFont, true)
+	applyEditLayout(panelId, "stackFontSize", data.stackFontSize, true)
+	applyEditLayout(panelId, "stackFontStyle", data.stackFontStyle, true)
+	applyEditLayout(panelId, "chargesAnchor", data.chargesAnchor, true)
+	applyEditLayout(panelId, "chargesX", data.chargesX, true)
+	applyEditLayout(panelId, "chargesY", data.chargesY, true)
+	applyEditLayout(panelId, "chargesFont", data.chargesFont, true)
+	applyEditLayout(panelId, "chargesFontSize", data.chargesFontSize, true)
+	applyEditLayout(panelId, "chargesFontStyle", data.chargesFontStyle, true)
+	applyEditLayout(panelId, "cooldownDrawEdge", data.cooldownDrawEdge, true)
+	applyEditLayout(panelId, "cooldownDrawBling", data.cooldownDrawBling, true)
+	applyEditLayout(panelId, "cooldownDrawSwipe", data.cooldownDrawSwipe, true)
 
 	runtime.applyingFromEditMode = nil
 	self:ApplyLayout(panelId)
@@ -2309,6 +2538,10 @@ function CooldownPanels:RegisterEditModePanel(panelId)
 
 	panel.layout = panel.layout or Helper.CopyTableShallow(Helper.PANEL_LAYOUT_DEFAULTS)
 	local layout = panel.layout
+	local countFontPath, countFontSize, countFontStyle = getCountFontDefaults(frame)
+	local chargesFontPath, chargesFontSize, chargesFontStyle = getChargesFontDefaults(frame)
+	local fontOptions = getFontOptions(countFontPath)
+	local chargesFontOptions = getFontOptions(chargesFontPath)
 	local settings
 	if SettingType then
 		settings = {
@@ -2399,6 +2632,233 @@ function CooldownPanels:RegisterEditModePanel(panelId)
 					end
 				end,
 			},
+			{
+				name = L["CooldownPanelStacksHeader"] or "Stacks / Item Count",
+				kind = SettingType.Collapsible,
+				id = "cooldownPanelStacks",
+				defaultCollapsed = true,
+			},
+			{
+				name = L["CooldownPanelCountAnchor"] or "Count anchor",
+				kind = SettingType.Dropdown,
+				field = "stackAnchor",
+				parentId = "cooldownPanelStacks",
+				height = 160,
+				get = function() return normalizeAnchor(layout.stackAnchor, Helper.PANEL_LAYOUT_DEFAULTS.stackAnchor) end,
+				set = function(_, value) applyEditLayout(panelId, "stackAnchor", value) end,
+				generator = function(_, root)
+					for _, option in ipairs(anchorOptions) do
+						root:CreateRadio(
+							option.label,
+							function() return normalizeAnchor(layout.stackAnchor, Helper.PANEL_LAYOUT_DEFAULTS.stackAnchor) == option.value end,
+							function() applyEditLayout(panelId, "stackAnchor", option.value) end
+						)
+					end
+				end,
+			},
+			{
+				name = L["CooldownPanelCountOffsetX"] or "Count X",
+				kind = SettingType.Slider,
+				field = "stackX",
+				parentId = "cooldownPanelStacks",
+				default = layout.stackX or Helper.PANEL_LAYOUT_DEFAULTS.stackX,
+				minValue = -OFFSET_RANGE,
+				maxValue = OFFSET_RANGE,
+				valueStep = 1,
+				get = function() return layout.stackX or Helper.PANEL_LAYOUT_DEFAULTS.stackX end,
+				set = function(_, value) applyEditLayout(panelId, "stackX", value) end,
+				formatter = function(value) return tostring(math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["CooldownPanelCountOffsetY"] or "Count Y",
+				kind = SettingType.Slider,
+				field = "stackY",
+				parentId = "cooldownPanelStacks",
+				default = layout.stackY or Helper.PANEL_LAYOUT_DEFAULTS.stackY,
+				minValue = -OFFSET_RANGE,
+				maxValue = OFFSET_RANGE,
+				valueStep = 1,
+				get = function() return layout.stackY or Helper.PANEL_LAYOUT_DEFAULTS.stackY end,
+				set = function(_, value) applyEditLayout(panelId, "stackY", value) end,
+				formatter = function(value) return tostring(math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["Font"] or "Font",
+				kind = SettingType.Dropdown,
+				field = "stackFont",
+				parentId = "cooldownPanelStacks",
+				height = 220,
+				get = function() return layout.stackFont or countFontPath end,
+				set = function(_, value) applyEditLayout(panelId, "stackFont", value) end,
+				generator = function(_, root)
+					for _, option in ipairs(fontOptions) do
+						root:CreateRadio(option.label, function() return (layout.stackFont or countFontPath) == option.value end, function() applyEditLayout(panelId, "stackFont", option.value) end)
+					end
+				end,
+			},
+			{
+				name = L["CooldownPanelFontStyle"] or "Font style",
+				kind = SettingType.Dropdown,
+				field = "stackFontStyle",
+				parentId = "cooldownPanelStacks",
+				height = 120,
+				get = function() return normalizeFontStyleChoice(layout.stackFontStyle, countFontStyle) end,
+				set = function(_, value) applyEditLayout(panelId, "stackFontStyle", value) end,
+				generator = function(_, root)
+					for _, option in ipairs(fontStyleOptions) do
+						root:CreateRadio(
+							option.label,
+							function() return normalizeFontStyleChoice(layout.stackFontStyle, countFontStyle) == option.value end,
+							function() applyEditLayout(panelId, "stackFontStyle", option.value) end
+						)
+					end
+				end,
+			},
+			{
+				name = L["FontSize"] or "Font size",
+				kind = SettingType.Slider,
+				field = "stackFontSize",
+				parentId = "cooldownPanelStacks",
+				default = layout.stackFontSize or countFontSize or 12,
+				minValue = 6,
+				maxValue = 64,
+				valueStep = 1,
+				get = function() return layout.stackFontSize or countFontSize or 12 end,
+				set = function(_, value) applyEditLayout(panelId, "stackFontSize", value) end,
+				formatter = function(value) return tostring(math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["CooldownPanelChargesHeader"] or "Charges",
+				kind = SettingType.Collapsible,
+				id = "cooldownPanelCharges",
+				defaultCollapsed = true,
+			},
+			{
+				name = L["CooldownPanelChargesAnchor"] or "Charges anchor",
+				kind = SettingType.Dropdown,
+				field = "chargesAnchor",
+				parentId = "cooldownPanelCharges",
+				height = 160,
+				get = function() return normalizeAnchor(layout.chargesAnchor, Helper.PANEL_LAYOUT_DEFAULTS.chargesAnchor) end,
+				set = function(_, value) applyEditLayout(panelId, "chargesAnchor", value) end,
+				generator = function(_, root)
+					for _, option in ipairs(anchorOptions) do
+						root:CreateRadio(
+							option.label,
+							function() return normalizeAnchor(layout.chargesAnchor, Helper.PANEL_LAYOUT_DEFAULTS.chargesAnchor) == option.value end,
+							function() applyEditLayout(panelId, "chargesAnchor", option.value) end
+						)
+					end
+				end,
+			},
+			{
+				name = L["CooldownPanelChargesOffsetX"] or "Charges X",
+				kind = SettingType.Slider,
+				field = "chargesX",
+				parentId = "cooldownPanelCharges",
+				default = layout.chargesX or Helper.PANEL_LAYOUT_DEFAULTS.chargesX,
+				minValue = -OFFSET_RANGE,
+				maxValue = OFFSET_RANGE,
+				valueStep = 1,
+				get = function() return layout.chargesX or Helper.PANEL_LAYOUT_DEFAULTS.chargesX end,
+				set = function(_, value) applyEditLayout(panelId, "chargesX", value) end,
+				formatter = function(value) return tostring(math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["CooldownPanelChargesOffsetY"] or "Charges Y",
+				kind = SettingType.Slider,
+				field = "chargesY",
+				parentId = "cooldownPanelCharges",
+				default = layout.chargesY or Helper.PANEL_LAYOUT_DEFAULTS.chargesY,
+				minValue = -OFFSET_RANGE,
+				maxValue = OFFSET_RANGE,
+				valueStep = 1,
+				get = function() return layout.chargesY or Helper.PANEL_LAYOUT_DEFAULTS.chargesY end,
+				set = function(_, value) applyEditLayout(panelId, "chargesY", value) end,
+				formatter = function(value) return tostring(math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["Font"] or "Font",
+				kind = SettingType.Dropdown,
+				field = "chargesFont",
+				parentId = "cooldownPanelCharges",
+				height = 220,
+				get = function() return layout.chargesFont or chargesFontPath end,
+				set = function(_, value) applyEditLayout(panelId, "chargesFont", value) end,
+				generator = function(_, root)
+					for _, option in ipairs(chargesFontOptions) do
+						root:CreateRadio(
+							option.label,
+							function() return (layout.chargesFont or chargesFontPath) == option.value end,
+							function() applyEditLayout(panelId, "chargesFont", option.value) end
+						)
+					end
+				end,
+			},
+			{
+				name = L["CooldownPanelFontStyle"] or "Font style",
+				kind = SettingType.Dropdown,
+				field = "chargesFontStyle",
+				parentId = "cooldownPanelCharges",
+				height = 120,
+				get = function() return normalizeFontStyleChoice(layout.chargesFontStyle, chargesFontStyle) end,
+				set = function(_, value) applyEditLayout(panelId, "chargesFontStyle", value) end,
+				generator = function(_, root)
+					for _, option in ipairs(fontStyleOptions) do
+						root:CreateRadio(
+							option.label,
+							function() return normalizeFontStyleChoice(layout.chargesFontStyle, chargesFontStyle) == option.value end,
+							function() applyEditLayout(panelId, "chargesFontStyle", option.value) end
+						)
+					end
+				end,
+			},
+			{
+				name = L["FontSize"] or "Font size",
+				kind = SettingType.Slider,
+				field = "chargesFontSize",
+				parentId = "cooldownPanelCharges",
+				default = layout.chargesFontSize or chargesFontSize or 12,
+				minValue = 6,
+				maxValue = 64,
+				valueStep = 1,
+				get = function() return layout.chargesFontSize or chargesFontSize or 12 end,
+				set = function(_, value) applyEditLayout(panelId, "chargesFontSize", value) end,
+				formatter = function(value) return tostring(math.floor((tonumber(value) or 0) + 0.5)) end,
+			},
+			{
+				name = L["CooldownPanelCooldownHeader"] or "Cooldown",
+				kind = SettingType.Collapsible,
+				id = "cooldownPanelCooldown",
+				defaultCollapsed = true,
+			},
+			{
+				name = L["CooldownPanelDrawEdge"] or "Draw edge",
+				kind = SettingType.Checkbox,
+				field = "cooldownDrawEdge",
+				parentId = "cooldownPanelCooldown",
+				default = layout.cooldownDrawEdge ~= false,
+				get = function() return layout.cooldownDrawEdge ~= false end,
+				set = function(_, value) applyEditLayout(panelId, "cooldownDrawEdge", value) end,
+			},
+			{
+				name = L["CooldownPanelDrawBling"] or "Draw bling",
+				kind = SettingType.Checkbox,
+				field = "cooldownDrawBling",
+				parentId = "cooldownPanelCooldown",
+				default = layout.cooldownDrawBling ~= false,
+				get = function() return layout.cooldownDrawBling ~= false end,
+				set = function(_, value) applyEditLayout(panelId, "cooldownDrawBling", value) end,
+			},
+			{
+				name = L["CooldownPanelDrawSwipe"] or "Draw swipe",
+				kind = SettingType.Checkbox,
+				field = "cooldownDrawSwipe",
+				parentId = "cooldownPanelCooldown",
+				default = layout.cooldownDrawSwipe ~= false,
+				get = function() return layout.cooldownDrawSwipe ~= false end,
+				set = function(_, value) applyEditLayout(panelId, "cooldownDrawSwipe", value) end,
+			},
 		}
 	end
 
@@ -2416,6 +2876,21 @@ function CooldownPanels:RegisterEditModePanel(panelId)
 			wrapCount = layout.wrapCount or 0,
 			wrapDirection = normalizeDirection(layout.wrapDirection, Helper.PANEL_LAYOUT_DEFAULTS.wrapDirection or "DOWN"),
 			strata = normalizeStrata(layout.strata, Helper.PANEL_LAYOUT_DEFAULTS.strata),
+			stackAnchor = normalizeAnchor(layout.stackAnchor, Helper.PANEL_LAYOUT_DEFAULTS.stackAnchor),
+			stackX = layout.stackX or Helper.PANEL_LAYOUT_DEFAULTS.stackX,
+			stackY = layout.stackY or Helper.PANEL_LAYOUT_DEFAULTS.stackY,
+			stackFont = layout.stackFont or countFontPath,
+			stackFontSize = layout.stackFontSize or countFontSize or 12,
+			stackFontStyle = normalizeFontStyleChoice(layout.stackFontStyle, countFontStyle),
+			chargesAnchor = normalizeAnchor(layout.chargesAnchor, Helper.PANEL_LAYOUT_DEFAULTS.chargesAnchor),
+			chargesX = layout.chargesX or Helper.PANEL_LAYOUT_DEFAULTS.chargesX,
+			chargesY = layout.chargesY or Helper.PANEL_LAYOUT_DEFAULTS.chargesY,
+			chargesFont = layout.chargesFont or chargesFontPath,
+			chargesFontSize = layout.chargesFontSize or chargesFontSize or 12,
+			chargesFontStyle = normalizeFontStyleChoice(layout.chargesFontStyle, chargesFontStyle),
+			cooldownDrawEdge = layout.cooldownDrawEdge ~= false,
+			cooldownDrawBling = layout.cooldownDrawBling ~= false,
+			cooldownDrawSwipe = layout.cooldownDrawSwipe ~= false,
 		},
 		onApply = function(_, _, data) self:ApplyEditMode(panelId, data) end,
 		onPositionChanged = function(_, _, data) self:HandlePositionChanged(panelId, data) end,

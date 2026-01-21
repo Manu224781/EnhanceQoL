@@ -25,8 +25,9 @@ local bleedList = {
 local selectedCategory = 1
 
 local function checkRestrictedContent()
-	if IS_MIDNIGHT_BUILD and (InCombatLockdown() or IsEncounterInProgress() or C_ChallengeMode.IsChallengeModeActive()) then return true end
-
+	for _, v in pairs(Enum.AddOnRestrictionType) do
+		if C_RestrictedActions.GetAddOnRestrictionState(v) == 2 then return true end
+	end
 	return false
 end
 
