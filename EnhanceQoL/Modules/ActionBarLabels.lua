@@ -95,6 +95,20 @@ local function GetBorderPadding()
 	return value
 end
 
+local function GetBorderColor()
+	if not addon.db or not addon.db.actionBarBorderColoring then return 1, 1, 1, 1 end
+	local col = addon.db.actionBarBorderColor or {}
+	local r = tonumber(col.r) or 1
+	local g = tonumber(col.g) or 1
+	local b = tonumber(col.b) or 1
+	local a = tonumber(col.a) or 1
+	if r < 0 then r = 0 elseif r > 1 then r = 1 end
+	if g < 0 then g = 0 elseif g > 1 then g = 1 end
+	if b < 0 then b = 0 elseif b > 1 then b = 1 end
+	if a < 0 then a = 0 elseif a > 1 then a = 1 end
+	return r, g, b, a
+end
+
 local function BuildLSMBorderCache()
 	local cache = {}
 	if LSM and LSM.HashTable then
@@ -188,7 +202,8 @@ local function ApplyBackdropBorder(button, style)
 		frame.EQOL_BorderStyle = style
 		frame.EQOL_BorderEdgeSize = edgeSize
 	end
-	frame:SetBackdropBorderColor(1, 1, 1, 1)
+	local r, g, b, a = GetBorderColor()
+	frame:SetBackdropBorderColor(r, g, b, a)
 	frame:Show()
 end
 
@@ -220,7 +235,8 @@ local function ApplyCustomBorder(button, style)
 	else
 		border:SetTexCoord(0, 1, 0, 1)
 	end
-	border:SetVertexColor(1, 1, 1, 1)
+	local r, g, b, a = GetBorderColor()
+	border:SetVertexColor(r, g, b, a)
 	border:Show()
 end
 

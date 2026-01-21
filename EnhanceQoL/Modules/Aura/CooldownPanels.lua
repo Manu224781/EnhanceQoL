@@ -452,17 +452,9 @@ end
 
 local function isSpellKnownSafe(spellId)
 	if not spellId then return false end
-	if C_Spell and C_Spell.IsSpellKnown then
-		local ok, known = pcall(C_Spell.IsSpellKnown, spellId)
-		if ok then return known and true or false end
-	end
-	if IsSpellKnown then
-		local ok, known = pcall(IsSpellKnown, spellId)
-		if ok then return known and true or false end
-	end
 	if C_SpellBook and C_SpellBook.IsSpellInSpellBook then
-		local ok, known = pcall(C_SpellBook.IsSpellInSpellBook, spellId)
-		if ok then return known and true or false end
+		local known = C_SpellBook.IsSpellInSpellBook(spellId)
+		return known and true or false
 	end
 	return true
 end
@@ -551,6 +543,7 @@ function CooldownPanels:DeletePanel(panelId)
 		end
 		CooldownPanels.runtime[panelId] = nil
 	end
+	self:RebuildSpellIndex()
 end
 
 function CooldownPanels:AddEntry(panelId, entryType, idValue, overrides)
@@ -573,6 +566,7 @@ function CooldownPanels:AddEntry(panelId, entryType, idValue, overrides)
 	end
 	panel.entries[entryId] = entry
 	panel.order[#panel.order + 1] = entryId
+	self:RebuildSpellIndex()
 	self:RefreshPanel(panelId)
 	return entryId, entry
 end
@@ -601,7 +595,29 @@ function CooldownPanels:RemoveEntry(panelId, entryId)
 	if not panel or not panel.entries or not panel.entries[entryId] then return end
 	panel.entries[entryId] = nil
 	Helper.SyncOrder(panel.order, panel.entries)
+	self:RebuildSpellIndex()
 	self:RefreshPanel(panelId)
+end
+
+function CooldownPanels:RebuildSpellIndex()
+	local root = ensureRoot()
+	local index = {}
+	if root and root.panels then
+		for panelId, panel in pairs(root.panels) do
+			for _, entry in pairs(panel.entries or {}) do
+				if entry and entry.type == "SPELL" and entry.spellID then
+					local spellId = tonumber(entry.spellID)
+					if spellId then
+						index[spellId] = index[spellId] or {}
+						index[spellId][panelId] = true
+					end
+				end
+			end
+		end
+	end
+	self.runtime = self.runtime or {}
+	self.runtime.spellIndex = index
+	return index
 end
 
 function CooldownPanels:NormalizeAll()
@@ -618,6 +634,7 @@ function CooldownPanels:NormalizeAll()
 			Helper.NormalizeEntry(entry, root.defaults)
 		end
 	end
+	self:RebuildSpellIndex()
 end
 
 function CooldownPanels:AddEntrySafe(panelId, entryType, idValue, overrides)
@@ -776,10 +793,7 @@ end
 
 local function getDurationRemaining(duration)
 	if not duration then return nil end
-	local getter = duration.GetRemainingDuration
-	if type(getter) ~= "function" then return nil end
-	local ok, remaining = pcall(getter, duration, DurationModifierRealTime)
-	if not ok then return nil end
+	local remaining = duration.GetRemainingDuration(duration, DurationModifierRealTime)
 	if isSafeNumber(remaining) then return remaining end
 	return nil
 end
@@ -803,9 +817,7 @@ end
 
 local function getSpellCooldownDurationObject(spellID)
 	if not spellID or not GetSpellCooldownDuration then return nil end
-	local ok, duration = pcall(GetSpellCooldownDuration, spellID)
-	if not ok then return nil end
-	return duration
+	return GetSpellCooldownDuration(spellID)
 end
 
 local function hasItem(itemID)
@@ -1613,6 +1625,7 @@ local function ensureEditor()
 			entry.slotID = value
 		end
 		self:ClearFocus()
+		CooldownPanels:RebuildSpellIndex()
 		CooldownPanels:RefreshPanel(panelId)
 		CooldownPanels:RefreshEditor()
 	end)
@@ -2462,7 +2475,10 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 
 	local count = #visible
 	local layoutCount = count > 0 and count or 1
-	self:ApplyLayout(panelId, layoutCount)
+	if runtime._eqolLastLayoutCount ~= layoutCount then
+		self:ApplyLayout(panelId, layoutCount)
+		runtime._eqolLastLayoutCount = layoutCount
+	end
 	ensureIconCount(frame, count)
 
 	for i = 1, count do
@@ -3240,6 +3256,18 @@ local function registerEditModeCallbacks()
 	editModeCallbacksRegistered = true
 end
 
+local function refreshPanelsForSpell(spellId)
+	local id = tonumber(spellId)
+	if not id then return false end
+	local index = CooldownPanels.runtime and CooldownPanels.runtime.spellIndex
+	local panels = index and index[id]
+	if not panels then return false end
+	for panelId in pairs(panels) do
+		if CooldownPanels:GetPanel(panelId) then CooldownPanels:RefreshPanel(panelId) end
+	end
+	return true
+end
+
 local function ensureUpdateFrame()
 	if CooldownPanels.runtime and CooldownPanels.runtime.updateFrame then return end
 	local frame = CreateFrame("Frame")
@@ -3247,6 +3275,9 @@ local function ensureUpdateFrame()
 		if event == "UNIT_AURA" then
 			local unit = ...
 			if unit ~= "player" then return end
+		end
+		if event == "SPELL_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_CHARGES" then
+			if refreshPanelsForSpell(...) then return end
 		end
 		CooldownPanels:RequestUpdate()
 	end)
