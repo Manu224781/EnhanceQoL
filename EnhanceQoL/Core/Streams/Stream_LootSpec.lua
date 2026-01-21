@@ -24,6 +24,7 @@ local function ensureDB()
 	db = addon.db.datapanel.lootspec
 	db.prefix = db.prefix or ""
 	db.fontSize = db.fontSize or 14
+	if db.hidePrefix == nil then db.hidePrefix = false end
 	if db.hideIcon == nil then db.hideIcon = false end
 	if db.truncateSpecName == nil then
 		if db.iconOnly ~= nil then
@@ -72,6 +73,15 @@ local function createAceWindow()
 		addon.DataHub:RequestUpdate(stream)
 	end)
 	frame:AddChild(prefix)
+
+	local hidePrefix = AceGUI:Create("CheckBox")
+	hidePrefix:SetLabel(L["Hide prefix"] or "Hide prefix")
+	hidePrefix:SetValue(db.hidePrefix)
+	hidePrefix:SetCallback("OnValueChanged", function(_, _, val)
+		db.hidePrefix = val and true or false
+		addon.DataHub:RequestUpdate(stream)
+	end)
+	frame:AddChild(hidePrefix)
 
 	local fontSize = AceGUI:Create("Slider")
 	fontSize:SetLabel(FONT_SIZE)
@@ -200,6 +210,7 @@ local function updateLootSpec(stream)
 		and last.specIcon == keySpecIcon
 		and last.lootSpecID == lootSpecID
 		and last.prefix == db.prefix
+		and last.hidePrefix == db.hidePrefix
 		and last.fontSize == db.fontSize
 		and last.hideIcon == db.hideIcon
 		and last.truncateSpecName == db.truncateSpecName
@@ -213,6 +224,7 @@ local function updateLootSpec(stream)
 	last.specIcon = keySpecIcon
 	last.lootSpecID = lootSpecID
 	last.prefix = db.prefix
+	last.hidePrefix = db.hidePrefix
 	last.fontSize = db.fontSize
 	last.hideIcon = db.hideIcon
 	last.truncateSpecName = db.truncateSpecName
@@ -230,7 +242,7 @@ local function updateLootSpec(stream)
 
 	local size = db.fontSize or 14
 	local label = _G.LOOT or "Loot"
-	local icon = ("|cffc0c0c0%s:|r "):format(label)
+	local icon = db.hidePrefix and "" or ("|cffc0c0c0%s:|r "):format(label)
 	if not db.hideIcon and lootIcon then icon = icon .. ("|T%d:%d:%d:0:0|t "):format(lootIcon, size, size) end
 	local prefix = db.prefix ~= "" and (db.prefix .. " ") or ""
 	local name = db.truncateSpecName and "" or (lootName or UNKNOWN)
