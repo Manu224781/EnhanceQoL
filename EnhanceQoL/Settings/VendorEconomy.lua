@@ -378,7 +378,8 @@ function addon.functions.settingsAddGold()
 	table.sort(data, function(a, b) return a.text < b.text end)
 	addon.functions.SettingsCreateCheckboxes(addon.SettingsLayout.rootGENERAL, data)
 end
-addon.functions.settingsAddGold()
+-- ! Still bugging as of 2026-01-21 - need to disable it
+-- addon.functions.settingsAddGold()
 ----- REGION END
 
 function addon.functions.initVendorEconomy() end

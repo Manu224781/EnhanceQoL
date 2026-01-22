@@ -397,8 +397,8 @@ local function checkAdditionalTooltip(tooltip)
 			if nameLine then nameLine:SetTextColor(r, g, b) end
 			for i = 1, tooltip:NumLines() do
 				local line = _G[tooltip:GetName() .. "TextLeft" .. i]
-				local text = line:GetText()
-				if text and text:find(classDisplayName) then
+				local text = line and line:GetText()
+				if text and (not issecretvalue or not issecretvalue(text)) and text:find(classDisplayName) then
 					line:SetTextColor(r, g, b)
 					break
 				end
@@ -428,11 +428,13 @@ local function checkAdditionalTooltip(tooltip)
 		if guildName then
 			local ttName = tooltip:GetName()
 			local guildLine
+			local guildLineText
 			for i = 1, tooltip:NumLines() do
 				local line = _G[ttName .. "TextLeft" .. i]
 				local text = line and line:GetText()
-				if text and text:find(guildName, 1, true) then
+				if text and (not issecretvalue or not issecretvalue(text)) and text:find(guildName, 1, true) then
 					guildLine = line
+					guildLineText = text
 					break
 				end
 			end
@@ -452,7 +454,7 @@ local function checkAdditionalTooltip(tooltip)
 
 			if guildLine then
 				newText = nameText
-				if rankText and not (guildLine:GetText() or ""):find(guildRank or "", 1, true) then newText = newText .. " - " .. rankText end
+				if rankText and guildLineText and not guildLineText:find(guildRank or "", 1, true) then newText = newText .. " - " .. rankText end
 				guildLine:SetText(newText)
 			else
 				if rankText then
@@ -1090,15 +1092,11 @@ local function registerTooltipHooks()
 	end)
 
 	hooksecurefunc("QuestMapFrame_ShowQuestDetails", function(questID)
-		if addon.Tooltip and addon.Tooltip.functions and addon.Tooltip.functions.UpdateQuestIDInQuestLog then
-			addon.Tooltip.functions.UpdateQuestIDInQuestLog(questID)
-		end
+		if addon.Tooltip and addon.Tooltip.functions and addon.Tooltip.functions.UpdateQuestIDInQuestLog then addon.Tooltip.functions.UpdateQuestIDInQuestLog(questID) end
 	end)
 
 	hooksecurefunc("QuestMapFrame_CloseQuestDetails", function()
-		if addon.Tooltip and addon.Tooltip.functions and addon.Tooltip.functions.UpdateQuestIDInQuestLog then
-			addon.Tooltip.functions.UpdateQuestIDInQuestLog()
-		end
+		if addon.Tooltip and addon.Tooltip.functions and addon.Tooltip.functions.UpdateQuestIDInQuestLog then addon.Tooltip.functions.UpdateQuestIDInQuestLog() end
 	end)
 
 	-- Optionally hide the default "Right-click for options" instruction on unit tooltips
@@ -1124,9 +1122,7 @@ local function registerTooltipHooks()
 		end
 	end)
 
-	if addon.Tooltip and addon.Tooltip.functions and addon.Tooltip.functions.UpdateQuestIDInQuestLog then
-		addon.Tooltip.functions.UpdateQuestIDInQuestLog()
-	end
+	if addon.Tooltip and addon.Tooltip.functions and addon.Tooltip.functions.UpdateQuestIDInQuestLog then addon.Tooltip.functions.UpdateQuestIDInQuestLog() end
 end
 
 function addon.Tooltip.functions.InitState()

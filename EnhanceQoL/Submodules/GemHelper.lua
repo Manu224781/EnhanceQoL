@@ -2,6 +2,9 @@ local addonName, addon = ...
 
 local L = LibStub("AceLocale-3.0"):GetLocale("EnhanceQoL")
 
+addon.GemHelper = addon.GemHelper or {}
+local GemHelper = addon.GemHelper
+
 local NumSockets = C_ItemSocketInfo and C_ItemSocketInfo.GetNumSockets or GetNumSockets
 local TypeSockets = C_ItemSocketInfo and C_ItemSocketInfo.GetSocketTypes or GetSocketTypes
 local wipe = wipe
@@ -88,6 +91,9 @@ local gemTrackerButtons = {}
 local gemTrackerQueued = false
 local gemTrackerHooked = false
 local gemSocketHooked = false
+
+local function isGemTrackerEnabled() return addon.db and addon.db["enableGemHelper"] and not addon.db["hideGemHelperTracker"] end
+
 -- helper to refresh / clear buttons
 local function clearGemButtons()
 	if not gemButtons then return end
@@ -104,9 +110,7 @@ local function clearGemButtons()
 	wipe(gemButtons)
 end
 
-local function getGemTracker()
-	return _G.EnhanceQoLGemTracker
-end
+local function getGemTracker() return _G.EnhanceQoLGemTracker end
 
 local function ensureGemTracker()
 	local tracker = getGemTracker()
@@ -186,13 +190,14 @@ local function queueGemTrackerUpdate(delay)
 	gemTrackerQueued = true
 	C_Timer.After(delay or 0.2, function()
 		gemTrackerQueued = false
-		if addon.db and addon.db["enableGemHelper"] then
+		if isGemTrackerEnabled() then
 			if updateGemTracker then updateGemTracker() end
 		end
 	end)
 end
 
 local function markGemTrackerDirty(delay)
+	if not isGemTrackerEnabled() then return end
 	local useDelay = delay
 	if useDelay == nil then useDelay = TRACKER_UPDATE_DELAY end
 	if PaperDollFrame and PaperDollFrame:IsShown() then queueGemTrackerUpdate(useDelay) end
@@ -202,12 +207,12 @@ local function hookSocketingFrame()
 	if gemSocketHooked or not ItemSocketingFrame then return end
 	gemSocketHooked = true
 	ItemSocketingFrame:HookScript("OnHide", function()
-		if addon.db and addon.db["enableGemHelper"] then markGemTrackerDirty() end
+		if isGemTrackerEnabled() then markGemTrackerDirty() end
 	end)
 end
 
 updateGemTracker = function()
-	if not addon.db or not addon.db["enableGemHelper"] then
+	if not isGemTrackerEnabled() then
 		local tracker = getGemTracker()
 		if tracker then tracker:Hide() end
 		return
@@ -268,11 +273,14 @@ updateGemTracker = function()
 	if needsRetry then queueGemTrackerUpdate() end
 end
 
+GemHelper.UpdateTracker = updateGemTracker
+GemHelper.MarkTrackerDirty = markGemTrackerDirty
+
 local function hookGemTracker()
 	if gemTrackerHooked or not PaperDollFrame then return end
 	gemTrackerHooked = true
 	PaperDollFrame:HookScript("OnShow", function()
-		if addon.db and addon.db["enableGemHelper"] then updateGemTracker() end
+		if isGemTrackerEnabled() then updateGemTracker() end
 	end)
 end
 
@@ -337,18 +345,13 @@ local function createButton(parent, itemTexture, itemLink, bag, slot, locked)
 		button:EnableMouse(true)
 	end
 
-	if not addon.variables.isMidnight then
-		button:SetScript("OnEnter", function(self)
-			if not self.itemLink then return end
-			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-			GameTooltip:SetHyperlink(self.itemLink)
-			GameTooltip:Show()
-		end)
-		button:SetScript("OnLeave", function() GameTooltip:Hide() end)
-	else
-		button:SetScript("OnEnter", nil)
-		button:SetScript("OnLeave", nil)
-	end
+	button:SetScript("OnEnter", function(self)
+		if not self.itemLink then return end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetHyperlink(self.itemLink)
+		GameTooltip:Show()
+	end)
+	button:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 	return button
 end
@@ -467,6 +470,10 @@ local function eventHandler(self, event, unit, arg1, arg2, ...)
 		local tracker = getGemTracker()
 		if tracker then tracker:Hide() end
 		return
+	end
+	if addon.db["hideGemHelperTracker"] then
+		local tracker = getGemTracker()
+		if tracker then tracker:Hide() end
 	end
 
 	if event == "SOCKET_INFO_UPDATE" then

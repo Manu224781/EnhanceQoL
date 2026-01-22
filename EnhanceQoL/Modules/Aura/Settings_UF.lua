@@ -740,9 +740,7 @@ local function buildUnitSettings(unit)
 	list[#list + 1] = checkbox(
 		L["UFTooltipUseEditMode"] or "Use Edit Mode tooltip position",
 		function() return getValue(unit, { "tooltipUseEditMode" }, def.tooltipUseEditMode == true) == true end,
-		function(val)
-			setValue(unit, { "tooltipUseEditMode" }, val and true or false)
-		end,
+		function(val) setValue(unit, { "tooltipUseEditMode" }, val and true or false) end,
 		def.tooltipUseEditMode == true,
 		"frame",
 		isTooltipEnabled
@@ -3341,6 +3339,43 @@ local function buildUnitSettings(unit)
 		end, auraDef.showCooldown ~= false, "auras")
 		list[#list].isEnabled = isAuraEnabled
 
+		list[#list + 1] = checkbox(L["Show buffs"] or "Show buffs", function() return getValue(unit, { "auraIcons", "showBuffs" }, auraDef.showBuffs ~= false) end, function(val)
+			setValue(unit, { "auraIcons", "showBuffs" }, val and true or false)
+			refresh()
+			refreshAuras()
+		end, auraDef.showBuffs ~= false, "auras")
+		list[#list].isEnabled = isAuraEnabled
+
+		list[#list + 1] = checkbox(L["Show debuffs"] or "Show debuffs", function() return getValue(unit, { "auraIcons", "showDebuffs" }, auraDef.showDebuffs ~= false) end, function(val)
+			setValue(unit, { "auraIcons", "showDebuffs" }, val and true or false)
+			refresh()
+			refreshAuras()
+		end, auraDef.showDebuffs ~= false, "auras")
+		list[#list].isEnabled = isAuraEnabled
+
+		list[#list + 1] = slider(
+			L["Cooldown Text Size"] or "Cooldown text size",
+			0,
+			32,
+			1,
+			function() return getValue(unit, { "auraIcons", "cooldownFontSize" }, auraDef.cooldownFontSize or 0) end,
+			function(val)
+				val = tonumber(val) or 0
+				if val < 0 then val = 0 end
+				setValue(unit, { "auraIcons", "cooldownFontSize" }, val)
+				refresh()
+			end,
+			auraDef.cooldownFontSize or 0,
+			"auras",
+			true,
+			function(value)
+				value = tonumber(value) or 0
+				if value <= 0 then return L["Auto"] or "Auto" end
+				return tostring(math.floor(value + 0.5))
+			end
+		)
+		list[#list].isEnabled = isAuraEnabled
+
 		list[#list + 1] = slider(L["Aura stack size"] or "Aura stack size", 8, 32, 1, function() return getValue(unit, { "auraIcons", "countFontSize" }, auraDef.countFontSize or 14) end, function(val)
 			setValue(unit, { "auraIcons", "countFontSize" }, val or 14)
 			refresh()
@@ -3583,6 +3618,8 @@ local function buildUnitSettings(unit)
 	return list
 end
 
+local DEFAULT_SETTINGS_MAX_HEIGHT = 900
+
 local function registerUnitFrame(unit, info)
 	if UF.EnsureFrames then
 		if unit == "boss" then
@@ -3604,6 +3641,7 @@ local function registerUnitFrame(unit, info)
 		settingsSpacing = 1,
 		sliderHeight = 28,
 		layoutDefaults = layout,
+		settingsMaxHeight = DEFAULT_SETTINGS_MAX_HEIGHT,
 		onApply = function(_, _, data)
 			local cfg = ensureConfig(unit)
 			cfg.anchor = cfg.anchor or {}

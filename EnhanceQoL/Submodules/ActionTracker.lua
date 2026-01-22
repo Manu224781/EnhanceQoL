@@ -328,13 +328,7 @@ function ActionTracker:AddEntry(spellID)
 	self:UpdateFadeState(true)
 end
 
-local useNow = false
 function ActionTracker:OnEvent(event, unit, arg2, arg3, arg4)
-	if event == "PLAYER_LOGIN" then
-		C_Timer.After(2, function() useNow = true end)
-		return
-	end
-	if not useNow then return end
 	if event == "UNIT_SPELLCAST_SUCCEEDED" then
 		local spellID = arg3
 		self:AddEntry(spellID)
@@ -345,7 +339,6 @@ function ActionTracker:RegisterEvents()
 	if self.eventsRegistered then return end
 	local frame = self:EnsureFrame()
 	frame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
-	frame:RegisterEvent("PLAYER_LOGIN")
 	frame:SetScript("OnEvent", function(_, event, ...) ActionTracker:OnEvent(event, ...) end)
 	self.eventsRegistered = true
 end

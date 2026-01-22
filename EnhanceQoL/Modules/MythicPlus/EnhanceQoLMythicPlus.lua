@@ -384,79 +384,6 @@ local function checkKeyStone()
 	end
 end
 
-local function setActTank()
-	if UnitGroupRolesAssigned("player") == "TANK" then
-		addon.MythicPlus.actTank = "player"
-		return
-	end
-	for i = 1, 4 do
-		local unit = "party" .. i
-		if UnitGroupRolesAssigned(unit) == "TANK" then
-			addon.MythicPlus.actTank = unit
-			return
-		end
-	end
-	addon.MythicPlus.actTank = nil
-end
-
-local function setActHealer()
-	if UnitGroupRolesAssigned("player") == "HEALER" then
-		addon.MythicPlus.actHealer = "player"
-		return
-	end
-	for i = 1, 4 do
-		local unit = "party" .. i
-		if UnitGroupRolesAssigned(unit) == "HEALER" then
-			addon.MythicPlus.actHealer = unit
-			return
-		end
-	end
-	addon.MythicPlus.actHealer = nil
-end
-
-local function checkRaidMarker()
-	if addon.db["autoMarkTankInDungeon"] then
-		if nil == addon.MythicPlus.actTank then setActTank() end
-		if nil ~= addon.MythicPlus.actTank and UnitInParty(addon.MythicPlus.actTank) then
-			local rIndex = GetRaidTargetIndex(addon.MythicPlus.actTank)
-			if rIndex == nil or rIndex ~= addon.db["autoMarkTankInDungeonMarker"] and (UnitGroupRolesAssigned("player") == "TANK" or UnitIsGroupLeader("player")) then
-				SetRaidTarget(addon.MythicPlus.actTank, addon.db["autoMarkTankInDungeonMarker"])
-			end
-		end
-	end
-
-	if addon.db["autoMarkHealerInDungeon"] then
-		if nil == addon.MythicPlus.actHealer then setActHealer() end
-		if nil ~= addon.MythicPlus.actHealer and UnitInParty(addon.MythicPlus.actHealer) then
-			if addon.MythicPlus.actHealer == "player" and addon.db["mythicPlusNoHealerMark"] then return end
-			local rIndex = GetRaidTargetIndex(addon.MythicPlus.actHealer)
-			if rIndex == nil or rIndex ~= addon.db["autoMarkHealerInDungeonMarker"] and (UnitGroupRolesAssigned("player") == "HEALER" or UnitIsGroupLeader("player")) then
-				SetRaidTarget(addon.MythicPlus.actHealer, addon.db["autoMarkHealerInDungeonMarker"])
-			end
-		end
-	end
-end
-
-local function checkCondition()
-	-- TODO remove feature on midnight release
-	if addon.variables.isMidnight then return false end
-	if addon.db["mythicPlusNoHealerMark"] and UnitInParty("player") and UnitGroupRolesAssigned("player") == "HEALER" then
-		local rIndex = GetRaidTargetIndex("player")
-		if nil ~= rIndex then SetRaidTarget("player", 0) end
-	end
-
-	if addon.db["autoMarkTankInDungeon"] or addon.db["autoMarkHealerInDungeon"] then
-		local _, _, difficultyID, difficultyName = GetInstanceInfo()
-		if difficultyID == 1 and addon.db["mythicPlusIgnoreNormal"] then return false end
-		if difficultyID == 2 and addon.db["mythicPlusIgnoreHeroic"] then return false end
-		if difficultyID == 19 and addon.db["mythicPlusIgnoreEvent"] then return false end
-		if (difficultyID == 23 or difficultyID == 150) and addon.db["mythicPlusIgnoreMythic"] then return false end
-		if difficultyID == 24 and addon.db["mythicPlusIgnoreTimewalking"] then return false end
-		if UnitInParty("player") and not UnitInRaid("player") and select(1, IsInInstance()) == true then return true end
-	end
-	return false
-end
-
 -- Funktion zum Umgang mit Events
 local function eventHandler(self, event, arg1, arg2, arg3, arg4)
 	if event == "ADDON_LOADED" and arg1 == addonName then
@@ -466,20 +393,6 @@ local function eventHandler(self, event, arg1, arg2, arg3, arg4)
 		if addon.db["enableKeystoneHelper"] then checkKeyStone() end
 	elseif event == "READY_CHECK_FINISHED" and ChallengesKeystoneFrame and addon.MythicPlus.Buttons["ReadyCheck"] then
 		addon.MythicPlus.Buttons["ReadyCheck"]:SetText(L["ReadyCheck"])
-	elseif event == "RAID_TARGET_UPDATE" and checkCondition() then
-		C_Timer.After(0.5, function() checkRaidMarker() end)
-	elseif event == "PLAYER_ROLES_ASSIGNED" and checkCondition() then
-		setActTank()
-		setActHealer()
-		checkRaidMarker()
-	elseif event == "GROUP_ROSTER_UPDATE" and checkCondition() then
-		setActTank()
-		setActHealer()
-		checkRaidMarker()
-	elseif event == "READY_CHECK" and checkCondition() then
-		setActTank()
-		setActHealer()
-		checkRaidMarker()
 	elseif event == "SPELL_UPDATE_CHARGES" then
 		if shouldShowBRTracker() then
 			if not brButton or not brButton.cooldownFrame then createBRFrame() end
@@ -510,12 +423,6 @@ function addon.MythicPlus.functions.InitMain()
 	frameLoad:RegisterEvent("CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN")
 	frameLoad:RegisterEvent("READY_CHECK_FINISHED")
 	frameLoad:RegisterEvent("LFG_ROLE_CHECK_SHOW")
-	if not addon.variables.isMidnight then
-		frameLoad:RegisterEvent("RAID_TARGET_UPDATE")
-		frameLoad:RegisterEvent("PLAYER_ROLES_ASSIGNED")
-		frameLoad:RegisterEvent("READY_CHECK")
-		frameLoad:RegisterEvent("GROUP_ROSTER_UPDATE")
-	end
 	frameLoad:RegisterEvent("SPELL_UPDATE_CHARGES")
 	frameLoad:RegisterEvent("ENCOUNTER_END")
 	frameLoad:RegisterEvent("ENCOUNTER_START")

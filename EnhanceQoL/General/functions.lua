@@ -1427,3 +1427,13 @@ addon.functions.FindBindingIndex = function(data)
 	end
 	return found
 end
+
+function addon.functions.isRestrictedContent()
+	local restrictionTypes = Enum and Enum.AddOnRestrictionType
+	local restrictedActions = _G.C_RestrictedActions
+	if not (restrictionTypes and restrictedActions and restrictedActions.GetAddOnRestrictionState) then return false end
+	for _, v in pairs(restrictionTypes) do
+		if restrictedActions.GetAddOnRestrictionState(v) == 2 then return true end
+	end
+	return false
+end

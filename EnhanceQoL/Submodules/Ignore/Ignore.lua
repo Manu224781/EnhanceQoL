@@ -1115,30 +1115,27 @@ local function EQOL_FormatNote(note, maxChars, wordsPerLine)
 end
 
 if not Ignore.tooltipHookInstalled then
-	-- TODO we can't change the tooltip as of beta midnight bug
-	if not addon.variables.isMidnight then
-		GameTooltip:HookScript("OnShow", function(tooltip)
-			if tooltip:IsForbidden() or tooltip:IsProtected() then return end
-			if not addon.db or not addon.db.ignoreTooltipNote then return end
-			-- local _, unit = tooltip:GetUnit()
-			local unit = "mouseover"
-			if not UnitExists(unit) or not UnitIsPlayer(unit) then return end
-			local name, realm = UnitName(unit)
-			if not name then return end
-			realm = realm and realm ~= "" and realm or (GetRealmName()):gsub("%s", "")
-			local entry = Ignore:CheckIgnore(name .. "-" .. realm)
-			if entry and entry.note and entry.note ~= "" then
-				C_Timer.After(0, function()
-					local maxChars = (addon and addon.db and addon.db.ignoreTooltipMaxChars) or 100
-					local wordsPerLine = (addon and addon.db and addon.db.ignoreTooltipWordsPerLine) or 5
-					local text = EQOL_FormatNote(entry.note, maxChars, wordsPerLine)
+	GameTooltip:HookScript("OnShow", function(tooltip)
+		if tooltip:IsForbidden() or tooltip:IsProtected() then return end
+		if not addon.db or not addon.db.ignoreTooltipNote then return end
+		-- local _, unit = tooltip:GetUnit()
+		local unit = "mouseover"
+		if not UnitExists(unit) or not UnitIsPlayer(unit) then return end
+		local name, realm = UnitName(unit)
+		if not name then return end
+		realm = realm and realm ~= "" and realm or (GetRealmName()):gsub("%s", "")
+		local entry = Ignore:CheckIgnore(name .. "-" .. realm)
+		if entry and entry.note and entry.note ~= "" then
+			C_Timer.After(0, function()
+				local maxChars = (addon and addon.db and addon.db.ignoreTooltipMaxChars) or 100
+				local wordsPerLine = (addon and addon.db and addon.db.ignoreTooltipWordsPerLine) or 5
+				local text = EQOL_FormatNote(entry.note, maxChars, wordsPerLine)
 
-					tooltip:AddLine(" ")
-					tooltip:AddDoubleLine(L["IgnoreNote"], text)
-					tooltip:Show()
-				end)
-			end
-		end)
-	end
+				tooltip:AddLine(" ")
+				tooltip:AddDoubleLine(L["IgnoreNote"], text)
+				tooltip:Show()
+			end)
+		end
+	end)
 	Ignore.tooltipHookInstalled = true
 end

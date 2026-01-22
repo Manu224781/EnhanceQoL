@@ -178,9 +178,26 @@ local data = {
 			if not value and EnhanceQoLGemHelper then EnhanceQoLGemHelper:Hide() end
 			local tracker = _G.EnhanceQoLGemTracker
 			if not value and tracker then tracker:Hide() end
+			if value and addon.GemHelper and addon.GemHelper.UpdateTracker then addon.GemHelper.UpdateTracker() end
 		end,
 		get = function() return addon.db["enableGemHelper"] end,
 		desc = L["enableGemHelperDesc"],
+		parentSection = expandable,
+	},
+	{
+		var = "hideGemHelperTracker",
+		text = L["gemHelperHideTracker"],
+		func = function(value)
+			addon.db["hideGemHelperTracker"] = value and true or false
+			if addon.GemHelper and addon.GemHelper.UpdateTracker then
+				addon.GemHelper.UpdateTracker()
+			else
+				local tracker = _G.EnhanceQoLGemTracker
+				if tracker and addon.db["hideGemHelperTracker"] then tracker:Hide() end
+			end
+		end,
+		get = function() return addon.db["hideGemHelperTracker"] end,
+		desc = L["gemHelperHideTrackerDesc"],
 		parentSection = expandable,
 	},
 }

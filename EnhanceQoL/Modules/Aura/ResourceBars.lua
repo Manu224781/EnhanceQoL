@@ -103,6 +103,7 @@ local COSMETIC_BAR_KEYS = {
 	"width",
 	"height",
 	"textStyle",
+	"shortNumbers",
 	"fontSize",
 	"fontFace",
 	"fontOutline",
@@ -194,6 +195,12 @@ local function formatSoulShardValue(value)
 	if value == nil then return "0" end
 	local text = string.format("%.1f", value)
 	return text:gsub("%.0$", "")
+end
+
+local function formatNumber(value, useShort)
+	if value == nil then return "0" end
+	if useShort then return AbbreviateNumbers(value) end
+	return tostring(value)
 end
 
 ResourceBars.PowerLabels = {
@@ -1971,11 +1978,7 @@ function updateHealthBar(evt)
 			healthBar._smoothTarget = nil
 			healthBar._smoothDeadzone = settings.smoothDeadzone or healthBar._smoothDeadzone or RB.DEFAULT_SMOOTH_DEADZONE
 			healthBar._smoothSpeed = RB.SMOOTH_SPEED
-			if not addon.variables.isMidnight and healthBar._lastVal ~= curHealth then
-				healthBar:SetValue(curHealth)
-			else
-				healthBar:SetValue(curHealth)
-			end
+			healthBar:SetValue(curHealth)
 			healthBar._smoothInitialized = nil
 			healthBar._smoothEnabled = false
 			stopSmoothUpdater(healthBar)
@@ -1991,6 +1994,7 @@ function updateHealthBar(evt)
 		end
 		if healthBar.text then
 			local style = settings and settings.textStyle or "PERCENT"
+			local useShortNumbers = settings.shortNumbers ~= false
 			if style == "NONE" then
 				if healthBar._textShown then
 					healthBar.text:SetText("")
@@ -2006,9 +2010,9 @@ function updateHealthBar(evt)
 				if style == "PERCENT" then
 					text = percentStr
 				elseif style == "CURRENT" then
-					text = AbbreviateNumbers(curHealth)
+					text = formatNumber(curHealth, useShortNumbers)
 				else -- CURMAX
-					text = AbbreviateNumbers(curHealth) .. " / " .. (AbbreviateNumbers(maxHealth))
+					text = formatNumber(curHealth, useShortNumbers) .. " / " .. formatNumber(maxHealth, useShortNumbers)
 				end
 				if not addon.variables.isMidnight and healthBar._lastText ~= text then
 					healthBar.text:SetText(text)
@@ -2115,10 +2119,8 @@ function updateHealthBar(evt)
 						absorbBar:SetMinMaxValues(0, maxHealth)
 						absorbBar._lastMax = maxHealth
 					end
-					if absorbBar._lastVal ~= abs then
-						absorbBar:SetValue(abs)
-						absorbBar._lastVal = abs
-					end
+					absorbBar:SetValue(abs)
+					absorbBar._lastVal = abs
 				end
 			end
 		end
@@ -2836,6 +2838,7 @@ function updatePowerBar(type, runeSlot)
 			percentStr = tostring(floor(percentDisplay + 0.5))
 		end
 		if bar.text then
+			local useShortNumbers = cfg.shortNumbers ~= false
 			if style == "NONE" then
 				if bar._textShown then
 					bar.text:SetText("")
@@ -2851,9 +2854,9 @@ function updatePowerBar(type, runeSlot)
 				if style == "PERCENT" then
 					text = percentStr
 				elseif style == "CURRENT" then
-					text = tostring(curPower)
+					text = formatNumber(curPower, useShortNumbers)
 				else
-					text = AbbreviateNumbers(curPower) .. " / " .. (AbbreviateNumbers(maxHealth))
+					text = formatNumber(curPower, useShortNumbers) .. " / " .. formatNumber(maxHealth, useShortNumbers)
 				end
 				if (not addon.variables.isMidnight or (issecretvalue and not issecretvalue(text))) and bar._lastText ~= text then
 					bar.text:SetText(text)
@@ -2937,6 +2940,7 @@ function updatePowerBar(type, runeSlot)
 		local percentStr = addon.variables.isMidnight and string.format("%s%%", AbbreviateLargeNumbers(percent)) or tostring(floor(percent + 0.5))
 
 		if bar.text then
+			local useShortNumbers = cfg.shortNumbers ~= false
 			if style == "NONE" then
 				if bar._textShown then
 					bar.text:SetText("")
@@ -2952,9 +2956,9 @@ function updatePowerBar(type, runeSlot)
 				if style == "PERCENT" then
 					text = percentStr
 				elseif style == "CURRENT" then
-					text = tostring(stacks)
+					text = formatNumber(stacks, useShortNumbers)
 				else
-					text = tostring(stacks) .. " / " .. tostring(logicalMax)
+					text = formatNumber(stacks, useShortNumbers) .. " / " .. formatNumber(logicalMax, useShortNumbers)
 				end
 				if (not addon.variables.isMidnight or (issecretvalue and not issecretvalue(text))) and bar._lastText ~= text then
 					bar.text:SetText(text)
@@ -3045,11 +3049,7 @@ function updatePowerBar(type, runeSlot)
 		bar._smoothTarget = nil
 		bar._smoothDeadzone = cfg.smoothDeadzone or bar._smoothDeadzone or RB.DEFAULT_SMOOTH_DEADZONE
 		bar._smoothSpeed = RB.SMOOTH_SPEED
-		if (not addon.variables.isMidnight and bar._lastVal ~= curPower) or (issecretvalue and not issecretvalue(curPower) and bar._lastVal ~= curPower) then
-			bar:SetValue(curPower)
-		else
-			bar:SetValue(curPower)
-		end
+		bar:SetValue(curPower)
 		bar._smoothInitialized = nil
 		bar._smoothEnabled = false
 		stopSmoothUpdater(bar)
@@ -3063,6 +3063,7 @@ function updatePowerBar(type, runeSlot)
 		percentStr = tostring(floor(percent + 0.5))
 	end
 	if bar.text then
+		local useShortNumbers = cfg.shortNumbers ~= false
 		if style == "NONE" then
 			if bar._textShown then
 				bar.text:SetText("")
@@ -3081,14 +3082,13 @@ function updatePowerBar(type, runeSlot)
 				if isSoulShards then
 					text = formatSoulShardValue(displayCur)
 				else
-					text = AbbreviateNumbers(curPower)
-					text = tostring(curPower)
+					text = formatNumber(curPower, useShortNumbers)
 				end
 			else -- CURMAX
 				if isSoulShards then
 					text = formatSoulShardValue(displayCur) .. " / " .. formatSoulShardValue(displayMax)
 				else
-					text = AbbreviateNumbers(curPower) .. " / " .. (AbbreviateNumbers(maxPower))
+					text = formatNumber(curPower, useShortNumbers) .. " / " .. formatNumber(maxPower, useShortNumbers)
 				end
 			end
 			if (not addon.variables.isMidnight or (issecretvalue and not issecretvalue(text))) and bar._lastText ~= text then
@@ -3314,6 +3314,31 @@ updateBarSeparators = function(pType)
 	bar._sepVertical = vertical
 end
 
+local function getSafeThresholdMaxValue(bar, pType)
+	local function isSecret(value) return issecretvalue and issecretvalue(value) end
+
+	local maxValue
+	if bar and bar.GetMinMaxValues then
+		local _, tmpMax = bar:GetMinMaxValues()
+		if tmpMax ~= nil and not isSecret(tmpMax) then maxValue = tmpMax end
+	end
+	if not maxValue and bar then
+		local last = bar._lastMax
+		if last ~= nil and not isSecret(last) then maxValue = last end
+	end
+	if not maxValue and pType and POWER_ENUM and UnitPowerMax then
+		local useRaw = pType == "SOUL_SHARDS"
+		local tmp = UnitPowerMax("player", POWER_ENUM[pType], useRaw)
+		if tmp ~= nil and not isSecret(tmp) then maxValue = tmp end
+	end
+	if maxValue and bar then
+		bar._rbThresholdMax = maxValue
+	elseif bar and bar._rbThresholdMax and not isSecret(bar._rbThresholdMax) then
+		maxValue = bar._rbThresholdMax
+	end
+	return maxValue
+end
+
 updateBarThresholds = function(pType)
 	if pType == "HEALTH" then return end
 	local bar = powerbar[pType]
@@ -3332,12 +3357,7 @@ updateBarThresholds = function(pType)
 	local useAbsolute = cfg.useAbsoluteThresholds == true
 	local maxValue
 	if useAbsolute then
-		local maxV
-		if bar.GetMinMaxValues then
-			local _, tmpMax = bar:GetMinMaxValues()
-			maxV = tmpMax
-		end
-		maxValue = maxV or bar._lastMax or 0
+		maxValue = getSafeThresholdMaxValue(bar, pType)
 		if not maxValue or maxValue <= 0 then
 			if bar.thresholdMarks then
 				for _, tx in ipairs(bar.thresholdMarks) do
@@ -4555,6 +4575,12 @@ function ResourceBars.Refresh()
 	-- Apply styling updates without forcing a full rebuild
 	if healthBar then
 		local hCfg = getBarSettings("HEALTH") or {}
+		if hCfg.useMaxColor then
+			SetColorCurvePoints(hCfg.maxColor or RB.WHITE)
+		else
+			SetColorCurvePoints()
+		end
+		wasMax = hCfg.useMaxColor == true
 		healthBar._cfg = hCfg
 		healthBar:SetStatusBarTexture(resolveTexture(hCfg))
 		configureSpecialTexture(healthBar, "HEALTH", hCfg)

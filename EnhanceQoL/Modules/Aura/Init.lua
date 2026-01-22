@@ -48,6 +48,34 @@ function addon.Aura.functions.InitDB()
 	init("buffTrackerShowStacks", false)
 	init("buffTrackerShowTimerText", true)
 	init("buffTrackerShowCharges", false)
+	init("cooldownPanels", {
+		version = 1,
+		panels = {},
+		order = {},
+		selectedPanel = nil,
+		defaults = {
+			layout = {
+				iconSize = 36,
+				spacing = 2,
+				direction = "RIGHT",
+				wrapCount = 0,
+				wrapDirection = "DOWN",
+				strata = "MEDIUM",
+			},
+			entry = {
+				alwaysShow = true,
+				showCooldown = true,
+				showCooldownText = true,
+				showCharges = false,
+				showStacks = false,
+				glowReady = false,
+				glowDuration = 0,
+			},
+		},
+	})
+	init("cooldownPanelsEditorPoint", "CENTER")
+	init("cooldownPanelsEditorX", 0)
+	init("cooldownPanelsEditorY", 0)
 
 	if type(addon.db["buffTrackerSelectedCategory"]) ~= "number" then addon.db["buffTrackerSelectedCategory"] = 1 end
 
@@ -87,6 +115,8 @@ function addon.Aura.functions.InitDB()
 			end
 		end
 	end
+
+	if addon.Aura and addon.Aura.CooldownPanels and addon.Aura.CooldownPanels.NormalizeAll then addon.Aura.CooldownPanels:NormalizeAll() end
 
 end
 

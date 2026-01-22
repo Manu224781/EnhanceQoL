@@ -1,5 +1,54 @@
 # Changelog
 
+## [7.4.0] - 2026-01-22
+
+### ✨ Added
+
+- DataPanels: Stream gap slider per panel.
+- DataPanels: Time stream left-click opens the Time Manager (stopwatch/alarm).
+- Combat text: +Combat/-Combat indicator with Edit Mode settings (duration, font, size, color).
+- UF Plus: Aura cooldown text size slider.
+- UF Plus: Masque for Buff/Debuff
+- Resource Bars: Added "Use short numbers" toggle for text to control AbbreviateNumbers usage.
+- Cooldown Panels: New Cooldown Manager editor to build panels and add spells/items/slots with per-entry options (cooldown text, charges, stacks, glow, sound, item count).
+- Cooldown Panels: Anchor to Player/Target (auto-uses UF if enabled) and some external unit frames.
+- Cooldown Panels: Editor keybind and saved editor window position.
+
+### 🐛 Fixed
+
+- Action Tracker: Ignore list updated for recent profession/cooking casts and arachnophobia.
+- Buff Tracker: Avoid secret-value table indexing when resolving pending aura spell IDs.
+- UF Plus: Castbar icon no longer renders behind the castbar.
+
+---
+
+## [7.3.1] - 2026-01-21
+
+### 🐛 Fixed
+
+- Tooltip: Guard against secret values when scanning unit tooltip lines (prevents combat mouseover errors).
+- Action Tracker: No longer misses the first cast when enabled after login.
+- Resource Bars: Max color changes now rebuild the Midnight curve immediately.
+
+---
+
+## [7.3.0] - 2026-01-21
+
+### ⏰ Temporarily disabled
+
+- Money tracker in bags still has a tooltip error (secret related) in latest retail version
+- Close all Bags option in restricted Environment (m+ key running) when opening auction house - leads to lua error when opening mailbox afterwards...
+
+### ✨ Added
+
+- Option to hide the "Screen captured" text
+
+### 🐛 Fixed
+
+- Class Resources: Hide toggles now respect UF player frame activation when switching.
+
+---
+
 ## [7.2.0] - 2026-01-21
 
 ### ✨ Added

@@ -39,4 +39,12 @@
             EnhanceQoL.MythicPlus.functions.OpenWorldMapTeleportPanel()
         end
     </Binding>
+
+    <Binding name="EQOL_TOGGLE_COOLDOWN_PANELS"
+             category="Enhance QoL"
+             >
+        if EnhanceQoL and EnhanceQoL.Aura and EnhanceQoL.Aura.CooldownPanels and EnhanceQoL.Aura.CooldownPanels.ToggleEditor then
+            EnhanceQoL.Aura.CooldownPanels:ToggleEditor()
+        end
+    </Binding>
 </Bindings>

@@ -25,8 +25,12 @@ local bleedList = {
 local selectedCategory = 1
 
 local function checkRestrictedContent()
-	if IS_MIDNIGHT_BUILD and (InCombatLockdown() or IsEncounterInProgress() or C_ChallengeMode.IsChallengeModeActive()) then return true end
-
+	local restrictionTypes = Enum and Enum.AddOnRestrictionType
+	local restrictedActions = _G.C_RestrictedActions
+	if not (restrictionTypes and restrictedActions and restrictedActions.GetAddOnRestrictionState) then return false end
+	for _, v in pairs(restrictionTypes) do
+		if restrictedActions.GetAddOnRestrictionState(v) == 2 then return true end
+	end
 	return false
 end
 
@@ -1504,7 +1508,7 @@ local function FlushPendingAuras()
 		if getter then
 			for inst in pairs(pendingAuraInstances) do
 				local aura = getter("player", inst)
-				if aura and aura.spellId then
+				if aura and aura.spellId and ((issecretvalue and not issecretvalue(aura.spellId)) or not issecretvalue) then
 					local base = altToBase[aura.spellId] or aura.spellId
 					changed[base] = aura.spellId
 				elseif auraInstanceMap[inst] then

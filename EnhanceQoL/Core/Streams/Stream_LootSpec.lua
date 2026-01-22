@@ -24,7 +24,16 @@ local function ensureDB()
 	db = addon.db.datapanel.lootspec
 	db.prefix = db.prefix or ""
 	db.fontSize = db.fontSize or 14
+	if db.hidePrefix == nil then db.hidePrefix = false end
 	if db.hideIcon == nil then db.hideIcon = false end
+	if db.truncateSpecName == nil then
+		if db.iconOnly ~= nil then
+			db.truncateSpecName = db.iconOnly
+		else
+			db.truncateSpecName = false
+		end
+	end
+	if db.hideIcon and db.truncateSpecName then db.truncateSpecName = false end
 end
 
 local function RestorePosition(frame)
@@ -65,6 +74,15 @@ local function createAceWindow()
 	end)
 	frame:AddChild(prefix)
 
+	local hidePrefix = AceGUI:Create("CheckBox")
+	hidePrefix:SetLabel(L["Hide prefix"] or "Hide prefix")
+	hidePrefix:SetValue(db.hidePrefix)
+	hidePrefix:SetCallback("OnValueChanged", function(_, _, val)
+		db.hidePrefix = val and true or false
+		addon.DataHub:RequestUpdate(stream)
+	end)
+	frame:AddChild(hidePrefix)
+
 	local fontSize = AceGUI:Create("Slider")
 	fontSize:SetLabel(FONT_SIZE)
 	fontSize:SetSliderValues(8, 32, 1)
@@ -75,14 +93,34 @@ local function createAceWindow()
 	end)
 	frame:AddChild(fontSize)
 
-	local hide = AceGUI:Create("CheckBox")
+	local hide
+	local truncateName
+
+	hide = AceGUI:Create("CheckBox")
 	hide:SetLabel(L["Hide icon"] or "Hide icon")
 	hide:SetValue(db.hideIcon)
 	hide:SetCallback("OnValueChanged", function(_, _, val)
 		db.hideIcon = val and true or false
+		if db.hideIcon and db.truncateSpecName then
+			db.truncateSpecName = false
+			if truncateName and truncateName.SetValue then truncateName:SetValue(false) end
+		end
 		addon.DataHub:RequestUpdate(stream)
 	end)
 	frame:AddChild(hide)
+
+	truncateName = AceGUI:Create("CheckBox")
+	truncateName:SetLabel(L["Truncate loot spec"] or "Truncate loot spec")
+	truncateName:SetValue(db.truncateSpecName)
+	truncateName:SetCallback("OnValueChanged", function(_, _, val)
+		db.truncateSpecName = val and true or false
+		if db.truncateSpecName and db.hideIcon then
+			db.hideIcon = false
+			if hide and hide.SetValue then hide:SetValue(false) end
+		end
+		addon.DataHub:RequestUpdate(stream)
+	end)
+	frame:AddChild(truncateName)
 
 	frame.frame:Show()
 end
@@ -172,8 +210,10 @@ local function updateLootSpec(stream)
 		and last.specIcon == keySpecIcon
 		and last.lootSpecID == lootSpecID
 		and last.prefix == db.prefix
+		and last.hidePrefix == db.hidePrefix
 		and last.fontSize == db.fontSize
 		and last.hideIcon == db.hideIcon
+		and last.truncateSpecName == db.truncateSpecName
 		and last.hint == hint
 	then
 		return
@@ -184,8 +224,10 @@ local function updateLootSpec(stream)
 	last.specIcon = keySpecIcon
 	last.lootSpecID = lootSpecID
 	last.prefix = db.prefix
+	last.hidePrefix = db.hidePrefix
 	last.fontSize = db.fontSize
 	last.hideIcon = db.hideIcon
+	last.truncateSpecName = db.truncateSpecName
 	last.hint = hint
 
 	local lootName, lootIcon
@@ -200,10 +242,11 @@ local function updateLootSpec(stream)
 
 	local size = db.fontSize or 14
 	local label = _G.LOOT or "Loot"
-	local icon = ("|cffc0c0c0%s:|r "):format(label)
+	local icon = db.hidePrefix and "" or ("|cffc0c0c0%s:|r "):format(label)
 	if not db.hideIcon and lootIcon then icon = icon .. ("|T%d:%d:%d:0:0|t "):format(lootIcon, size, size) end
 	local prefix = db.prefix ~= "" and (db.prefix .. " ") or ""
-	stream.snapshot.text = icon .. prefix .. (lootName or UNKNOWN)
+	local name = db.truncateSpecName and "" or (lootName or UNKNOWN)
+	stream.snapshot.text = icon .. prefix .. name
 	stream.snapshot.fontSize = size
 
 	local clickHint = L["Loot spec click hint"] or "Left-click to change loot and active specialization"

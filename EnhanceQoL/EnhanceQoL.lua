@@ -2290,6 +2290,8 @@ local function initActionBars()
 	addon.functions.InitDBValue("actionBarBorderStyle", "DEFAULT")
 	addon.functions.InitDBValue("actionBarBorderEdgeSize", 16)
 	addon.functions.InitDBValue("actionBarBorderPadding", 0)
+	addon.functions.InitDBValue("actionBarBorderColoring", false)
+	addon.functions.InitDBValue("actionBarBorderColor", { r = 1, g = 1, b = 1, a = 1 })
 	addon.functions.InitDBValue("actionBarHideAssistedRotation", false)
 	addon.functions.InitDBValue("hideExtraActionArtwork", false)
 	addon.functions.InitDBValue("hideMacroNames", false)
@@ -3054,26 +3056,27 @@ local function initBagsFrame()
 		GameTooltip:Hide()
 	end
 
-	moneyFrame:HookScript("OnEnter", ShowBagMoneyTooltip)
-	moneyFrame:HookScript("OnLeave", HideBagMoneyTooltip)
-	for _, coin in ipairs({ "GoldButton", "SilverButton", "CopperButton" }) do
-		local btn = moneyFrame[coin]
-		if btn then
-			btn:HookScript("OnEnter", ShowBagMoneyTooltip)
-			btn:HookScript("OnLeave", HideBagMoneyTooltip)
-		end
-	end
+	-- ! Still bugging as of 2026-01-21 - need to disable it
+	-- moneyFrame:HookScript("OnEnter", ShowBagMoneyTooltip)
+	-- moneyFrame:HookScript("OnLeave", HideBagMoneyTooltip)
+	-- for _, coin in ipairs({ "GoldButton", "SilverButton", "CopperButton" }) do
+	-- 	local btn = moneyFrame[coin]
+	-- 	if btn then
+	-- 		btn:HookScript("OnEnter", ShowBagMoneyTooltip)
+	-- 		btn:HookScript("OnLeave", HideBagMoneyTooltip)
+	-- 	end
+	-- end
 
-	moneyFrame = ContainerFrame1.MoneyFrame
-	moneyFrame:HookScript("OnEnter", ShowBagMoneyTooltip)
-	moneyFrame:HookScript("OnLeave", HideBagMoneyTooltip)
-	for _, coin in ipairs({ "GoldButton", "SilverButton", "CopperButton" }) do
-		local btn = moneyFrame[coin]
-		if btn then
-			btn:HookScript("OnEnter", ShowBagMoneyTooltip)
-			btn:HookScript("OnLeave", HideBagMoneyTooltip)
-		end
-	end
+	-- moneyFrame = ContainerFrame1.MoneyFrame
+	-- moneyFrame:HookScript("OnEnter", ShowBagMoneyTooltip)
+	-- moneyFrame:HookScript("OnLeave", HideBagMoneyTooltip)
+	-- for _, coin in ipairs({ "GoldButton", "SilverButton", "CopperButton" }) do
+	-- 	local btn = moneyFrame[coin]
+	-- 	if btn then
+	-- 		btn:HookScript("OnEnter", ShowBagMoneyTooltip)
+	-- 		btn:HookScript("OnLeave", HideBagMoneyTooltip)
+	-- 	end
+	-- end
 end
 
 local function initChatFrame()
@@ -3465,6 +3468,7 @@ local function initUI()
 	addon.functions.InitDBValue("lootspec_quickswitch", {})
 	addon.functions.InitDBValue("minimapSinkHoleData", {})
 	addon.functions.InitDBValue("hideQuickJoinToast", false)
+	addon.functions.InitDBValue("hideScreenshotStatus", false)
 	addon.functions.InitDBValue("showTrainAllButton", false)
 	addon.functions.InitDBValue("autoCancelDruidFlightForm", false)
 	addon.functions.InitDBValue("enableSquareMinimap", false)
@@ -3474,6 +3478,8 @@ local function initUI()
 	addon.functions.InitDBValue("squareMinimapBorderColor", { r = 0, g = 0, b = 0 })
 	addon.functions.InitDBValue("minimapButtonsMouseover", false)
 	addon.functions.InitDBValue("unclampMinimapCluster", false)
+	addon.functions.InitDBValue("enableMinimapClusterScale", false)
+	addon.functions.InitDBValue("minimapClusterScale", 1)
 	addon.functions.InitDBValue("showWorldMapCoordinates", false)
 	addon.functions.InitDBValue("hiddenMinimapElements", addon.db["hiddenMinimapElements"] or {})
 	addon.functions.InitDBValue("persistAuctionHouseFilter", false)
@@ -3631,6 +3637,23 @@ local function initUI()
 
 	if addon.functions.applyMinimapClusterClamp then addon.functions.applyMinimapClusterClamp() end
 
+	function addon.functions.applyMinimapClusterScale()
+		if not MinimapCluster or not MinimapCluster.SetScale then return end
+		if addon.db and addon.db.enableMinimapClusterScale then
+			local scale = tonumber(addon.db.minimapClusterScale) or 1
+			if scale < 0.5 then
+				scale = 0.5
+			elseif scale > 2 then
+				scale = 2
+			end
+			MinimapCluster:SetScale(scale)
+		else
+			MinimapCluster:SetScale(1)
+		end
+	end
+
+	if addon.functions.applyMinimapClusterScale then addon.functions.applyMinimapClusterScale() end
+
 	function addon.functions.toggleMinimapButton(value)
 		if value == false then
 			LDBIcon:Show(addonName)
@@ -3647,6 +3670,22 @@ local function initUI()
 		end
 	end
 	addon.functions.toggleZoneText(addon.db["hideZoneText"], true)
+
+	function addon.functions.toggleScreenshotStatus(value)
+		local actionStatus = _G.ActionStatus
+		if not actionStatus or not actionStatus.UnregisterEvent or not actionStatus.RegisterEvent then return end
+		if value then
+			actionStatus:UnregisterEvent("SCREENSHOT_STARTED")
+			actionStatus:UnregisterEvent("SCREENSHOT_SUCCEEDED")
+			actionStatus:UnregisterEvent("SCREENSHOT_FAILED")
+			if actionStatus.Hide then actionStatus:Hide() end
+		else
+			actionStatus:RegisterEvent("SCREENSHOT_STARTED")
+			actionStatus:RegisterEvent("SCREENSHOT_SUCCEEDED")
+			actionStatus:RegisterEvent("SCREENSHOT_FAILED")
+		end
+	end
+	addon.functions.toggleScreenshotStatus(addon.db["hideScreenshotStatus"])
 
 	function addon.functions.toggleQuickJoinToastButton(value)
 		if value == false then
@@ -4705,7 +4744,7 @@ local function CreateUI()
 		if addon.functions.ShowOptionsPage and addon.functions.ShowOptionsPage(container, group) then return end
 
 		if type(group) ~= "string" then return end
-		if group == "bufftracker" or group == "combat" or group:sub(1, #"combat\001") == "combat\001" or group:sub(1, #"aura\001") == "aura\001" then
+		if group == "bufftracker" or group == "cooldownpanels" or group == "combat" or group:sub(1, #"combat\001") == "combat\001" or group:sub(1, #"aura\001") == "aura\001" then
 			if addon.Aura and addon.Aura.functions and addon.Aura.functions.treeCallback then addon.Aura.functions.treeCallback(container, group) end
 		end
 	end)
@@ -4738,6 +4777,11 @@ local function CreateUI()
 				if addon.ChatIM.ChannelHistory.ToggleWindow then addon.ChatIM.ChannelHistory:ToggleWindow() end
 			end)
 		end
+
+		DoDevider()
+		root:CreateButton(L["CooldownPanelEditor"] or "Cooldown Panel Editor", function()
+			if addon.Aura and addon.Aura.CooldownPanels and addon.Aura.CooldownPanels.OpenEditor then addon.Aura.CooldownPanels:OpenEditor() end
+		end)
 
 		DoDevider()
 		root:CreateButton(LFG_LIST_LEGACY .. " " .. SETTINGS, function()
@@ -4782,116 +4826,117 @@ local function CreateUI()
 	})
 end
 
+local function updateClassResourceVisibility()
+	if not addon.db then return end
+	local ufActive = addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
+	local _, classTag = UnitClass("player")
+	if not classTag then return end
+
+	local function showFrame(frame)
+		if not frame then return end
+		if frame.Setup then
+			frame:Setup()
+		else
+			frame:Show()
+		end
+	end
+
+	local function apply(frame, hideKey)
+		if not frame then return end
+		if addon.db[hideKey] and not ufActive then
+			frame:Hide()
+		else
+			showFrame(frame)
+		end
+	end
+
+	if classTag == "DEATHKNIGHT" then
+		apply(RuneFrame, "deathknight_HideRuneFrame")
+	elseif classTag == "DRUID" then
+		apply(DruidComboPointBarFrame, "druid_HideComboPoint")
+	elseif classTag == "EVOKER" then
+		apply(EssencePlayerFrame, "evoker_HideEssence")
+	elseif classTag == "MONK" then
+		apply(MonkHarmonyBarFrame, "monk_HideHarmonyBar")
+	elseif classTag == "ROGUE" then
+		apply(RogueComboPointBarFrame, "rogue_HideComboPoint")
+	elseif classTag == "PALADIN" then
+		apply(PaladinPowerBarFrame, "paladin_HideHolyPower")
+	elseif classTag == "WARLOCK" then
+		apply(WarlockPowerFrame, "warlock_HideSoulShardBar")
+	end
+end
+
+addon.functions.UpdateClassResourceVisibility = updateClassResourceVisibility
+
 local function setAllHooks()
 	if RuneFrame then
 		RuneFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["deathknight_HideRuneFrame"] and not ufActive and not ufCRDisabled then
+			if addon.db["deathknight_HideRuneFrame"] and not ufActive then
 				RuneFrame:Hide()
 			else
 				RuneFrame:Show()
 			end
 		end)
 
-		if
-			addon.db["deathknight_HideRuneFrame"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			RuneFrame:Hide()
-		end
+		if addon.db["deathknight_HideRuneFrame"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then RuneFrame:Hide() end
 	end
 
 	if DruidComboPointBarFrame then
 		DruidComboPointBarFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["druid_HideComboPoint"] and not ufActive and not ufCRDisabled then
+			if addon.db["druid_HideComboPoint"] and not ufActive then
 				DruidComboPointBarFrame:Hide()
 			else
 				DruidComboPointBarFrame:Show()
 			end
 		end)
-		if
-			addon.db["druid_HideComboPoint"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			DruidComboPointBarFrame:Hide()
-		end
+		if addon.db["druid_HideComboPoint"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then DruidComboPointBarFrame:Hide() end
 	end
 
 	if EssencePlayerFrame then
 		EssencePlayerFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["evoker_HideEssence"] and not ufActive and not ufCRDisabled then EssencePlayerFrame:Hide() end
+			if addon.db["evoker_HideEssence"] and not ufActive then EssencePlayerFrame:Hide() end
 		end)
-		if
-			addon.db["evoker_HideEssence"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			EssencePlayerFrame:Hide()
-		end -- Initialset
+		if addon.db["evoker_HideEssence"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then EssencePlayerFrame:Hide() end -- Initialset
 	end
 
 	if MonkHarmonyBarFrame then
 		MonkHarmonyBarFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["monk_HideHarmonyBar"] and not ufActive and not ufCRDisabled then
+			if addon.db["monk_HideHarmonyBar"] and not ufActive then
 				MonkHarmonyBarFrame:Hide()
 			else
 				MonkHarmonyBarFrame:Show()
 			end
 		end)
-		if
-			addon.db["monk_HideHarmonyBar"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			MonkHarmonyBarFrame:Hide()
-		end
+		if addon.db["monk_HideHarmonyBar"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then MonkHarmonyBarFrame:Hide() end
 	end
 
 	if RogueComboPointBarFrame then
 		RogueComboPointBarFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["rogue_HideComboPoint"] and not ufActive and not ufCRDisabled then
+			if addon.db["rogue_HideComboPoint"] and not ufActive then
 				RogueComboPointBarFrame:Hide()
 			else
 				RogueComboPointBarFrame:Show()
 			end
 		end)
-		if
-			addon.db["rogue_HideComboPoint"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			RogueComboPointBarFrame:Hide()
-		end
+		if addon.db["rogue_HideComboPoint"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then RogueComboPointBarFrame:Hide() end
 	end
 
 	if PaladinPowerBarFrame then
 		PaladinPowerBarFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["paladin_HideHolyPower"] and not ufActive and not ufCRDisabled then
+			if addon.db["paladin_HideHolyPower"] and not ufActive then
 				PaladinPowerBarFrame:Hide()
 			else
 				PaladinPowerBarFrame:Show()
 			end
 		end)
-		if
-			addon.db["paladin_HideHolyPower"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			PaladinPowerBarFrame:Hide()
-		end
+		if addon.db["paladin_HideHolyPower"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then PaladinPowerBarFrame:Hide() end
 	end
 
 	if TotemFrame then
@@ -4908,21 +4953,14 @@ local function setAllHooks()
 
 	if WarlockPowerFrame then
 		WarlockPowerFrame:HookScript("OnShow", function(self)
-			local ufCRDisabled = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true
 			local ufActive = addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled
-			if addon.db["warlock_HideSoulShardBar"] and not ufActive and not ufCRDisabled then
+			if addon.db["warlock_HideSoulShardBar"] and not ufActive then
 				WarlockPowerFrame:Hide()
 			else
 				WarlockPowerFrame:Show()
 			end
 		end)
-		if
-			addon.db["warlock_HideSoulShardBar"]
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled)
-			and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.classResource and addon.db.ufFrames.player.classResource.enabled == true)
-		then
-			WarlockPowerFrame:Hide()
-		end
+		if addon.db["warlock_HideSoulShardBar"] and not (addon.db and addon.db.ufFrames and addon.db.ufFrames.player and addon.db.ufFrames.player.enabled) then WarlockPowerFrame:Hide() end
 	end
 
 	local ignoredApplicants = {}
@@ -5064,6 +5102,7 @@ local function setAllHooks()
 		if addon.Aura.functions.InitDB then addon.Aura.functions.InitDB() end
 		if addon.Aura.functions.init then addon.Aura.functions.init() end
 		if addon.Aura.functions.InitBuffTracker then addon.Aura.functions.InitBuffTracker() end
+		if addon.Aura.functions.InitCooldownPanels then addon.Aura.functions.InitCooldownPanels() end
 		if addon.Aura.functions.InitResourceBars then addon.Aura.functions.InitResourceBars() end
 	end
 	if addon.Drinks and addon.Drinks.functions then
@@ -5615,7 +5654,7 @@ local eventHandlers = {
 		if addon.db["autoChooseQuest"] and not IsShiftKeyDown() and IsQuestCompletable() then CompleteQuest() end
 	end,
 	["AUCTION_HOUSE_SHOW"] = function()
-		if addon.db["closeBagsOnAuctionHouse"] then CloseAllBags() end
+		if addon.db["closeBagsOnAuctionHouse"] and not addon.functions.isRestrictedContent() then CloseAllBags() end
 		if addon.db["persistAuctionHouseFilter"] then
 			if not AuctionHouseFrame.SearchBar.FilterButton.eqolHooked then
 				hooksecurefunc(AuctionHouseFrame.SearchBar.FilterButton, "Reset", function(self)

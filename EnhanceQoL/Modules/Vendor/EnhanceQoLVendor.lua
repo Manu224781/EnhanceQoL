@@ -398,13 +398,10 @@ local function ensureDestroyButton()
 		else
 			destroyHideList()
 		end
-		-- TODO fix after midnight bug of blizzard is done
-		if not addon.variables.isMidnight then
-			if GameTooltip then
-				GameTooltip:SetOwner(self, "ANCHOR_TOP")
-				GameTooltip:SetText(L["vendorDestroyButtonTooltip"])
-				GameTooltip:Show()
-			end
+		if GameTooltip then
+			GameTooltip:SetOwner(self, "ANCHOR_TOP")
+			GameTooltip:SetText(L["vendorDestroyButtonTooltip"])
+			GameTooltip:Show()
 		end
 	end)
 	button:SetScript("OnLeave", function(self)
@@ -1285,16 +1282,14 @@ local function addGeneralFrame(container)
 			end,
 		},
 	}
-	if not addon.variables.isMidnight then
-		table.insert(data, {
-			text = L["vendorShowSellTooltip"],
-			var = "vendorShowSellTooltip",
-			func = function(self, _, checked)
-				addon.db["vendorShowSellTooltip"] = checked
-				if inventoryOpen() then updateSellMarks(nil, true) end
-			end,
-		})
-	end
+	table.insert(data, {
+		text = L["vendorShowSellTooltip"],
+		var = "vendorShowSellTooltip",
+		func = function(self, _, checked)
+			addon.db["vendorShowSellTooltip"] = checked
+			if inventoryOpen() then updateSellMarks(nil, true) end
+		end,
+	})
 
 	if addon.db["vendorShowSellOverlay"] then
 		table.insert(data, {
@@ -1500,9 +1495,7 @@ function addon.Vendor.functions.InitState()
 	registerEvents(frameLoad)
 	frameLoad:SetScript("OnEvent", eventHandler)
 
-	if _G.ContainerFrameItemButtonMixin then
-		hooksecurefunc(_G.ContainerFrameItemButtonMixin, "OnModifiedClick", AltClickHook)
-	end
+	if _G.ContainerFrameItemButtonMixin then hooksecurefunc(_G.ContainerFrameItemButtonMixin, "OnModifiedClick", AltClickHook) end
 
 	if ContainerFrameCombinedBags then hookBagFrame(ContainerFrameCombinedBags) end
 	local frames = ContainerFrameContainer and ContainerFrameContainer.ContainerFrames or {}
@@ -1510,23 +1503,20 @@ function addon.Vendor.functions.InitState()
 		hookBagFrame(frame)
 	end
 
-	-- TODO bug in midnight beta
-	if TooltipDataProcessor and not addon.variables.isMidnight then
-		TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
-			if not addon.db or not addon.db["vendorShowSellTooltip"] then return end
-			if not data or not tooltip.GetOwner then return end
-			local oTooltip = tooltip.GetOwner and tooltip:GetOwner()
-			if not oTooltip or not oTooltip.GetBagID or not oTooltip.GetID then return end
-			local bagID = oTooltip:GetBagID()
-			local slotIndex = oTooltip:GetID()
-			if bagID and slotIndex then
-				local key = bagID .. "_" .. slotIndex
-				if sellMarkLookup[key] then
-					tooltip:AddLine(L["vendorWillBeSold"], 1, 0, 0)
-				elseif destroyMarkLookup[key] then
-					tooltip:AddLine(L["vendorWillBeDestroyed"], 1, 0.3, 0.1)
-				end
+	TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
+		if not addon.db or not addon.db["vendorShowSellTooltip"] then return end
+		if not data or not tooltip.GetOwner then return end
+		local oTooltip = tooltip.GetOwner and tooltip:GetOwner()
+		if not oTooltip or not oTooltip.GetBagID or not oTooltip.GetID then return end
+		local bagID = oTooltip:GetBagID()
+		local slotIndex = oTooltip:GetID()
+		if bagID and slotIndex then
+			local key = bagID .. "_" .. slotIndex
+			if sellMarkLookup[key] then
+				tooltip:AddLine(L["vendorWillBeSold"], 1, 0, 0)
+			elseif destroyMarkLookup[key] then
+				tooltip:AddLine(L["vendorWillBeDestroyed"], 1, 0.3, 0.1)
 			end
-		end)
-	end
+		end
+	end)
 end

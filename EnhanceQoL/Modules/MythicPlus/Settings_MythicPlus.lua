@@ -63,14 +63,11 @@ local function buildSettings()
 			func = function(v) addon.db["portalHideMissing"] = v end,
 		},
 	}
-	-- TODO bug in tooltip in midnight beta - remove for now
-	if not addon.variables.isMidnight then
-		table.insert(data, {
-			text = L["portalShowTooltip"],
-			var = "portalShowTooltip",
-			func = function(value) addon.db["portalShowTooltip"] = value end,
-		})
-	end
+	table.insert(data, {
+		text = L["portalShowTooltip"],
+		var = "portalShowTooltip",
+		func = function(value) addon.db["portalShowTooltip"] = value end,
+	})
 	table.sort(data, function(a, b) return a.text < b.text end)
 
 	local function applyParentSection(entry)

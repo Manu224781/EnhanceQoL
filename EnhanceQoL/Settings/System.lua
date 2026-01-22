@@ -161,6 +161,17 @@ addon.functions.SettingsCreateCheckbox(cGeneral, {
 	parentSection = utilitiesExpandable,
 })
 
+addon.functions.SettingsCreateCheckbox(cGeneral, {
+	var = "hideScreenshotStatus",
+	text = L["hideScreenshotStatus"],
+	desc = L["hideScreenshotStatusDesc"],
+	func = function(v)
+		addon.db["hideScreenshotStatus"] = v
+		if addon.functions.toggleScreenshotStatus then addon.functions.toggleScreenshotStatus(v) end
+	end,
+	parentSection = utilitiesExpandable,
+})
+
 local systemExpandable = addon.functions.SettingsCreateExpandableSection(cGeneral, {
 	name = L["SystemAndDebug"] or "System & Debug",
 	expanded = false,
