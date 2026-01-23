@@ -9,10 +9,12 @@
 - UF Plus: Optional handling for empty power bars (max 0) when power is detached.
 - UF Plus: Added Heal Absorb Bar options (texture, color, sample, reverse fill) for anti-heal displays.
 - Cooldown Viewer: Optional /cdm and /wa9 slash commands to open settings.
+- DataPanels: Combat time stream with optional boss timer (stacked or inline).
 
 ### 🐛 Fixed
 
 - Action Tracker: Ignore list updated for Spark of Madness and alchemy/cooking DNT casts.
+- UF Plus: Debuff border colors now use the modern dispel color API (DebuffTypeColor removed).
 
 ---
 

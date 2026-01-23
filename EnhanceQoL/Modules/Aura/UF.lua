@@ -491,6 +491,27 @@ local debuffinfo = {
 	[5] = DEBUFF_TYPE_BLEED_COLOR,
 	[0] = DEBUFF_TYPE_NONE_COLOR,
 }
+local dispelIndexByName = {
+	Magic = 1,
+	Curse = 2,
+	Disease = 3,
+	Poison = 4,
+	Bleed = 5,
+	None = 0,
+}
+local function getDebuffColorFromName(name)
+	local idx = dispelIndexByName[name] or 0
+	local col = debuffinfo[idx] or debuffinfo[0]
+	if not col then return nil end
+	if col.GetRGBA then
+		return col:GetRGBA()
+	end
+	if col.GetRGB then
+		return col:GetRGB()
+	end
+	if col.r then return col.r, col.g, col.b, col.a end
+	return col[1], col[2], col[3], col[4]
+end
 local colorcurve = C_CurveUtil and C_CurveUtil.CreateColorCurve() or nil
 if colorcurve and Enum.LuaCurveType and Enum.LuaCurveType.Step then
 	colorcurve:SetType(Enum.LuaCurveType.Step)
@@ -1183,15 +1204,21 @@ function AuraUtil.applyAuraToButton(btn, aura, ac, isDebuff, unitToken)
 				btn.border:SetAllPoints(btn)
 			end
 			local r, g, b = 1, 0.25, 0.25
-			if C_UnitAuras and C_UnitAuras.GetAuraDispelTypeColor and colorcurve then
+			local usedApiColor
+			if not aura.isSample and aura.auraInstanceID and aura.auraInstanceID > 0 and C_UnitAuras and C_UnitAuras.GetAuraDispelTypeColor and colorcurve then
 				local color = C_UnitAuras.GetAuraDispelTypeColor(unitToken, aura.auraInstanceID, colorcurve)
 				if color then
+					usedApiColor = true
 					if color.GetRGBA then
 						r, g, b = color:GetRGBA()
 					elseif color.r then
 						r, g, b = color.r, color.g, color.b
 					end
 				end
+			end
+			if not usedApiColor then
+				local fr, fg, fb = getDebuffColorFromName(aura.dispelName or "None")
+				if fr then r, g, b = fr, fg, fb end
 			end
 			btn.border:SetVertexColor(r, g, b, 1)
 			btn.border:Show()

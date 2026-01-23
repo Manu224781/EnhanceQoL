@@ -10,6 +10,7 @@
         <Script file="Stream_ItemLevel.lua"/>
         <Script file="Stream_Latency.lua"/>
         <Script file="Stream_Time.lua"/>
+        <Script file="Stream_CombatTime.lua"/>
         <Script file="Stream_LootSpec.lua"/>
         <Script file="Stream_MythicKey.lua"/>
         <Script file="Stream_MythicRating.lua"/>
