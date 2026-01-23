@@ -178,6 +178,18 @@ local isKnown = {}
 local parentFrame = PVEFrame
 local doAfterCombat = false
 
+local function isRestrictedContent()
+	local restrictionTypes = Enum and Enum.AddOnRestrictionType
+	local restrictedActions = _G.C_RestrictedActions
+	if not (restrictionTypes and restrictedActions and restrictedActions.GetAddOnRestrictionState) then return false end
+	for _, v in pairs(restrictionTypes) do
+		if v ~= 4 then
+			if restrictedActions.GetAddOnRestrictionState(v) == 2 then return true end
+		end
+	end
+	return false
+end
+
 local function SafeSetSize(frame, width, height)
 	if not frame then return end
 	if InCombatLockdown() then
@@ -1278,6 +1290,7 @@ local function updateKeystoneInfo()
 		doAfterCombat = true
 		return
 	end
+	if isRestrictedContent() then return end
 	if parentFrame:IsShown() then
 		local minHightOffset = 0
 		if PVEFrameTab1 and PVEFrameTab1:IsVisible() then minHightOffset = 0 - PVEFrameTab1:GetHeight() end
@@ -1443,6 +1456,11 @@ function addon.MythicPlus.functions.toggleFrame()
 		doAfterCombat = true
 	else
 		doAfterCombat = false
+		if isRestrictedContent() then
+			if frameAnchor then frameAnchor:Hide() end
+			if keyStoneFrame then keyStoneFrame:Hide() end
+			return
+		end
 		-- Never show teleport frame for Timerunners
 		if addon and addon.functions and addon.functions.IsTimerunner and addon.functions.IsTimerunner() then
 			frameAnchor:Hide()

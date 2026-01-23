@@ -155,7 +155,9 @@ local function isRestrictedContent()
 	local restrictedActions = _G.C_RestrictedActions
 	if not (restrictionTypes and restrictedActions and restrictedActions.GetAddOnRestrictionState) then return false end
 	for _, v in pairs(restrictionTypes) do
-		if restrictedActions.GetAddOnRestrictionState(v) == 2 then return true end
+		if v ~= 4 then
+			if restrictedActions.GetAddOnRestrictionState(v) == 2 then return true end
+		end
 	end
 	return false
 end

@@ -65,11 +65,13 @@ local function IsMPlusActive()
 end
 
 local function GetCurrentExpansionMaxLevel()
+	-- Prefer player-expansion max (matches account/expansion access)
+	local gmlfpe = _G and _G.GetMaxLevelForPlayerExpansion
+	if gmlfpe then return gmlfpe() end
+	-- Fallback to current expansion level if available
 	local gmlfe = _G and _G.GetMaxLevelForExpansionLevel
 	local lec = _G and _G.LE_EXPANSION_LEVEL_CURRENT
 	if gmlfe and lec then return gmlfe(lec) end
-	local gmlfpe = _G and _G.GetMaxLevelForPlayerExpansion
-	if gmlfpe then return gmlfpe() end
 	return nil
 end
 

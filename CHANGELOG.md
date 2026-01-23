@@ -18,6 +18,8 @@
 ### 🐛 Fixed
 
 - Action Tracker: Ignore list updated for Spark of Madness and alchemy/cooking DNT casts.
+- Mythic+: Party keystone list now includes your own key during prepatch (uses player expansion max level).
+- Mythic+: Dungeon portal UI now ignores restriction type 4 (matching world map behavior).
 - UF Plus: Debuff border colors now use the modern dispel color API (DebuffTypeColor removed).
 
 ---
