@@ -1338,6 +1338,14 @@ local function sanitizeCooldownViewerConfig(cfg)
 	return nil
 end
 
+local DRUID_TRAVEL_FORM_SPELL_IDS = {
+	[783] = true, -- Travel Form
+	[1066] = true, -- Aquatic Form
+	[33943] = true, -- Flight Form
+	[40120] = true, -- Swift Flight Form
+	[210053] = true, -- Mount Form (Stag)
+}
+
 local function IsInDruidTravelForm()
 	local class = addon.variables and addon.variables.unitClass
 	if not class and UnitClass then
@@ -1347,7 +1355,15 @@ local function IsInDruidTravelForm()
 	if not class or class ~= "DRUID" then return false end
 	if not GetShapeshiftForm then return false end
 	local form = GetShapeshiftForm()
-	return form == 3 or form == 6
+	if not form or form == 0 then return false end
+	if GetShapeshiftFormID then
+		local formID = GetShapeshiftFormID()
+		if formID == DRUID_TRAVEL_FORM or formID == DRUID_ACQUATIC_FORM or formID == DRUID_FLIGHT_FORM or formID == 29 then return true end
+	end
+	local spellID = select(4, GetShapeshiftFormInfo(form))
+	if spellID and DRUID_TRAVEL_FORM_SPELL_IDS[spellID] then return true end
+	-- Fallback: Travel Form is always slot 3 in the druid shapeshift list.
+	return form == 3
 end
 
 local function computeCooldownViewerHidden(cfg, state)

@@ -102,10 +102,26 @@ local function GetBorderColor()
 	local g = tonumber(col.g) or 1
 	local b = tonumber(col.b) or 1
 	local a = tonumber(col.a) or 1
-	if r < 0 then r = 0 elseif r > 1 then r = 1 end
-	if g < 0 then g = 0 elseif g > 1 then g = 1 end
-	if b < 0 then b = 0 elseif b > 1 then b = 1 end
-	if a < 0 then a = 0 elseif a > 1 then a = 1 end
+	if r < 0 then
+		r = 0
+	elseif r > 1 then
+		r = 1
+	end
+	if g < 0 then
+		g = 0
+	elseif g > 1 then
+		g = 1
+	end
+	if b < 0 then
+		b = 0
+	elseif b > 1 then
+		b = 1
+	end
+	if a < 0 then
+		a = 0
+	elseif a > 1 then
+		a = 1
+	end
 	return r, g, b, a
 end
 
@@ -125,9 +141,7 @@ local function IsLSMBorderPath(path)
 	return Labels._lsmBorderCache and Labels._lsmBorderCache[path] == true
 end
 
-function Labels.ResetBorderCache()
-	Labels._lsmBorderCache = nil
-end
+function Labels.ResetBorderCache() Labels._lsmBorderCache = nil end
 
 local function GetCustomBorderStyle()
 	if not addon.db then return DEFAULT_BORDER_STYLE end
@@ -136,9 +150,7 @@ local function GetCustomBorderStyle()
 	return style
 end
 
-local function IsCustomBorderStyle(style)
-	return type(style) == "string" and style ~= "" and style ~= DEFAULT_BORDER_STYLE
-end
+local function IsCustomBorderStyle(style) return type(style) == "string" and style ~= "" and style ~= DEFAULT_BORDER_STYLE end
 
 local function EnsureCustomBorderTexture(button)
 	if not button then return nil end
@@ -285,9 +297,7 @@ function Labels.RefreshActionButtonBorders()
 	ForEachActionButton(function(button) RefreshButtonBorder(button) end)
 end
 
-function Labels.RefreshActionButtonBorder(button)
-	RefreshButtonBorder(button)
-end
+function Labels.RefreshActionButtonBorder(button) RefreshButtonBorder(button) end
 
 local function EnsureRangeOverlay(btn, icon)
 	local overlay = btn and btn.EQOL_RangeOverlay
@@ -727,6 +737,33 @@ do
 	end
 end
 
+-- Debounced hotkey refresh for bindings changes (quick keybind mode)
+do
+	local refreshPending = false
+	local function RequestHotkeyRefresh()
+		if refreshPending then return end
+		refreshPending = true
+		C_Timer.After(0.05, function()
+			refreshPending = false
+			if Labels.RefreshAllHotkeyStyles then Labels.RefreshAllHotkeyStyles() end
+		end)
+	end
+
+	local hotkeyFrame
+	local function EnsureHotkeyFrame()
+		if hotkeyFrame then return hotkeyFrame end
+		hotkeyFrame = CreateFrame("Frame")
+		hotkeyFrame:SetScript("OnEvent", RequestHotkeyRefresh)
+		return hotkeyFrame
+	end
+
+	function Labels.UpdateHotkeyRefreshEvents()
+		local frame = EnsureHotkeyFrame()
+		frame:UnregisterAllEvents()
+		frame:RegisterEvent("UPDATE_BINDINGS")
+	end
+end
+
 local function OnPlayerLogin(self, event)
 	if event ~= "PLAYER_LOGIN" then return end
 	if Labels.EnsureActionButtonArtHook then Labels.EnsureActionButtonArtHook() end
@@ -737,6 +774,7 @@ local function OnPlayerLogin(self, event)
 	if Labels.RefreshAllRangeOverlays then Labels.RefreshAllRangeOverlays() end
 	if Labels.RefreshActionButtonBorders then Labels.RefreshActionButtonBorders() end
 	if Labels.UpdateRangeOverlayEvents then Labels.UpdateRangeOverlayEvents() end
+	if Labels.UpdateHotkeyRefreshEvents then Labels.UpdateHotkeyRefreshEvents() end
 	if self then
 		self:UnregisterEvent("PLAYER_LOGIN")
 		self:SetScript("OnEvent", nil)

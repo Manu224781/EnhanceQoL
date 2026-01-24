@@ -69,6 +69,7 @@ local ignorelist = {
 	[371817] = true, -- Recall fake mage
 	[372120] = true, -- Fake buff
 	[383313] = true, -- Abomination Limb periodical
+	[384255] = true, -- Change Talents
 	[385060] = true, -- Odyn's Fury
 	[385061] = true, -- Odyn's Fury
 	[385062] = true, -- Odyn's Fury
