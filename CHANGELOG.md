@@ -19,6 +19,10 @@
 - Settings: Moved slash command toggles to General → UI Utilities.
 - Questing: Optional modifier requirement for quest automation (accept/complete).
 
+### 🐛 Fixed
+
+- Cooldown Panel glow wasn't working correctly in restricted environment
+
 ---
 
 ## [7.6.0] - 2026-01-24

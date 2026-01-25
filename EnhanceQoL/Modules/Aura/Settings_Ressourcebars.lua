@@ -1478,6 +1478,135 @@ local function registerEditModeBars()
 					end,
 					default = true,
 				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Cooldown Text Size"] or "Cooldown Text Size",
+					kind = settingType.Slider,
+					allowInput = true,
+					field = "cooldownTextFontSize",
+					minValue = 6,
+					maxValue = 64,
+					valueStep = 1,
+					parentId = "textsettings",
+					get = function()
+						local c = curSpecCfg()
+						return c and c.cooldownTextFontSize or 16
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						if not setIfChanged(c, "cooldownTextFontSize", value) then return end
+						queueRefresh()
+					end,
+					default = 16,
+				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Font"] or "Font",
+					kind = settingType.DropdownColor,
+					height = 180,
+					field = "fontFace",
+					parentId = "textsettings",
+					generator = function(_, root)
+						local function currentFontPath()
+							local c = curSpecCfg()
+							return (c and c.fontFace) or cfg.fontFace or addon.variables.defaultFont
+						end
+						local currentPath = currentFontPath()
+						local seen = {}
+						if not LibStub then return end
+						local media = LibStub("LibSharedMedia-3.0", true)
+						if not media then return end
+						local hash = media:HashTable("font") or {}
+						for _, name in ipairs(media:List("font") or {}) do
+							local path = hash[name] or name
+							seen[path] = name
+							root:CreateCheckbox(name, function() return currentFontPath() == path end, function()
+								local c = curSpecCfg()
+								if not c then return end
+								if currentFontPath() == path then return end
+								c.fontFace = path
+								queueRefresh()
+							end)
+						end
+						if currentPath and not seen[currentPath] then
+							local label = tostring(currentPath)
+							root:CreateCheckbox(label, function() return currentFontPath() == currentPath end, function()
+								local c = curSpecCfg()
+								if not c then return end
+								if currentFontPath() == currentPath then return end
+								c.fontFace = currentPath
+								queueRefresh()
+							end)
+						end
+					end,
+					get = function()
+						local c = curSpecCfg()
+						return (c and c.fontFace) or cfg.fontFace or addon.variables.defaultFont
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.fontFace = value
+						queueRefresh()
+					end,
+					colorDefault = { r = 1, g = 1, b = 1, a = 1 },
+					colorGet = function()
+						local c = curSpecCfg()
+						local col = (c and c.fontColor) or (cfg and cfg.fontColor) or { 1, 1, 1, 1 }
+						local r, g, b, a = toColorComponents(col, { 1, 1, 1, 1 })
+						return { r = r, g = g, b = b, a = a }
+					end,
+					colorSet = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.fontColor = toColorArray(value, { 1, 1, 1, 1 })
+						queueRefresh()
+					end,
+					hasOpacity = true,
+					default = addon.variables.defaultFont,
+				}
+
+				local outlineOptions = {
+					{ key = "NONE", label = NONE },
+					{ key = "OUTLINE", label = "Outline" },
+					{ key = "THICKOUTLINE", label = "Thick Outline" },
+					{ key = "MONOCHROMEOUTLINE", label = "Mono Outline" },
+				}
+				settingsList[#settingsList + 1] = {
+					name = L["Outline"],
+					kind = settingType.Dropdown,
+					height = 180,
+					field = "fontOutline",
+					parentId = "textsettings",
+					generator = function(_, root)
+						for _, entry in ipairs(outlineOptions) do
+							root:CreateCheckbox(entry.label, function()
+								local c = curSpecCfg()
+								local cur = (c and c.fontOutline) or cfg.fontOutline or "OUTLINE"
+								return cur == entry.key
+							end, function()
+								local c = curSpecCfg()
+								if not c then return end
+								local cur = (c and c.fontOutline) or cfg.fontOutline or "OUTLINE"
+								if cur == entry.key then return end
+								c.fontOutline = entry.key
+								queueRefresh()
+							end)
+						end
+					end,
+					get = function()
+						local c = curSpecCfg()
+						return (c and c.fontOutline) or cfg.fontOutline or "OUTLINE"
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.fontOutline = value
+						queueRefresh()
+					end,
+					default = "OUTLINE",
+				}
 			end
 
 			if barType ~= "RUNES" then
@@ -1885,6 +2014,89 @@ local function registerEditModeBars()
 						hasOpacity = true,
 						default = false,
 						parentId = "colorsetting",
+					}
+				end
+
+				settingsList[#settingsList + 1] = {
+					name = L["Use gradient"] or "Use gradient",
+					kind = settingType.Checkbox,
+					field = "useGradient",
+					get = function()
+						local c = curSpecCfg()
+						return c and c.useGradient == true
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.useGradient = value and true or false
+						queueRefresh()
+						refreshSettingsUI()
+					end,
+					default = false,
+					parentId = "colorsetting",
+				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Gradient start color"] or "Gradient start color",
+					kind = settingType.Color,
+					parentId = "colorsetting",
+					get = function()
+						local c = curSpecCfg()
+						return toUIColor((c and c.gradientStartColor) or (cfg and cfg.gradientStartColor) or { 1, 1, 1, 1 }, { 1, 1, 1, 1 })
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.gradientStartColor = toColorArray(value, { 1, 1, 1, 1 })
+						queueRefresh()
+					end,
+					default = { r = 1, g = 1, b = 1, a = 1 },
+					hasOpacity = true,
+					isEnabled = function()
+						local c = curSpecCfg()
+						return c and c.useGradient == true
+					end,
+				}
+
+				settingsList[#settingsList + 1] = {
+					name = L["Gradient end color"] or "Gradient end color",
+					kind = settingType.Color,
+					parentId = "colorsetting",
+					get = function()
+						local c = curSpecCfg()
+						return toUIColor((c and c.gradientEndColor) or (cfg and cfg.gradientEndColor) or { 1, 1, 1, 1 }, { 1, 1, 1, 1 })
+					end,
+					set = function(_, value)
+						local c = curSpecCfg()
+						if not c then return end
+						c.gradientEndColor = toColorArray(value, { 1, 1, 1, 1 })
+						queueRefresh()
+					end,
+					default = { r = 1, g = 1, b = 1, a = 1 },
+					hasOpacity = true,
+					isEnabled = function()
+						local c = curSpecCfg()
+						return c and c.useGradient == true
+					end,
+				}
+
+				if barType == "RUNES" then
+					settingsList[#settingsList + 1] = {
+						name = L["Rune cooldown color"] or "Rune cooldown color",
+						kind = settingType.Color,
+						parentId = "colorsetting",
+						get = function()
+							local c = curSpecCfg()
+							return toUIColor((c and c.runeCooldownColor) or (cfg and cfg.runeCooldownColor) or { 0.35, 0.35, 0.35, 1 }, { 0.35, 0.35, 0.35, 1 })
+						end,
+						set = function(_, value)
+							local c = curSpecCfg()
+							if not c then return end
+							c.runeCooldownColor = toColorArray(value, { 0.35, 0.35, 0.35, 1 })
+							queueRefresh()
+						end,
+						default = { r = 0.35, g = 0.35, b = 0.35, a = 1 },
+						hasOpacity = true,
 					}
 				end
 

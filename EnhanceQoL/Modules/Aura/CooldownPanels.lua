@@ -1001,11 +1001,55 @@ local function setGlow(frame, enabled)
 	end
 end
 
-local function onCooldownDone(self)
-	if self and self._eqolSoundReady then
-		playReadySound(self._eqolSoundName)
-		self._eqolSoundReady = nil
+local function triggerReadyGlow(panelId, entryId, glowDuration)
+	if not panelId or not entryId then return end
+	local runtime = getRuntime(panelId)
+	runtime.readyAt = runtime.readyAt or {}
+	runtime.glowTimers = runtime.glowTimers or {}
+	local glowTimers = runtime.glowTimers
+
+	local now = GetTime and GetTime() or 0
+	runtime.readyAt[entryId] = now
+
+	-- Cancel any existing timer for this entry.
+	local existing = glowTimers[entryId]
+	if existing and existing.Cancel then existing:Cancel() end
+	glowTimers[entryId] = nil
+
+	local duration = tonumber(glowDuration) or 0
+	if duration > 0 and C_Timer and C_Timer.NewTimer then
+		glowTimers[entryId] = C_Timer.NewTimer(duration, function()
+			local rt = getRuntime(panelId)
+			if rt and rt.readyAt and rt.readyAt[entryId] == now then
+				rt.readyAt[entryId] = nil
+			end
+			if rt and rt.glowTimers then
+				rt.glowTimers[entryId] = nil
+			end
+			if CooldownPanels and CooldownPanels.RequestUpdate then CooldownPanels:RequestUpdate() end
+		end)
 	end
+end
+
+local function onCooldownDone(self)
+	if not self then return end
+
+	-- Never trigger sound/glow for GCD-only cooldowns.
+	local isGCD = self._eqolCooldownIsGCD == true
+
+	if not isGCD then
+		-- Sound should only fire once per displayed cooldown.
+		if self._eqolSoundReady then
+			playReadySound(self._eqolSoundName)
+			self._eqolSoundReady = nil
+		end
+
+		-- Glow trigger is purely event-driven (robust in secret environments).
+		if self._eqolGlowReady then
+			triggerReadyGlow(self._eqolPanelId, self._eqolEntryId, self._eqolGlowDuration)
+		end
+	end
+
 	if CooldownPanels and CooldownPanels.RequestUpdate then CooldownPanels:RequestUpdate() end
 end
 
@@ -2637,11 +2681,9 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 	local visibleCount = 0
 
 	local order = panel.order or {}
-	runtime.readyState = runtime.readyState or {}
 	runtime.readyAt = runtime.readyAt or {}
 	runtime.glowTimers = runtime.glowTimers or {}
 	local glowTimers = runtime.glowTimers
-	local initialPass = runtime.initialized ~= true
 	for _, entryId in ipairs(order) do
 		local entry = panel.entries and panel.entries[entryId]
 		if entry then
@@ -2703,6 +2745,7 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 							readyNow = isSafeGreaterThan(chargesInfo.currentCharges, 0)
 						end
 					else
+						-- Ignore the GCD for "ready" tracking so it can't start/stop glow/sound.
 						readyNow = showCooldown and (cooldownGCD == true or not cooldownActive)
 					end
 					show = alwaysShow
@@ -2751,27 +2794,6 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 			end
 
 			if show then
-				local hadState = runtime.readyState[entryId] ~= nil
-				local wasReady = runtime.readyState[entryId] == true
-				if readyNow and not wasReady then
-					if not initialPass or hadState then
-						local now = GetTime and GetTime() or 0
-						runtime.readyAt[entryId] = now
-						if glowDuration > 0 and C_Timer and C_Timer.NewTimer then
-							if glowTimers[entryId] and glowTimers[entryId].Cancel then glowTimers[entryId]:Cancel() end
-							glowTimers[entryId] = C_Timer.NewTimer(glowDuration, function()
-								if runtime.readyAt and runtime.readyAt[entryId] == now then runtime.readyAt[entryId] = nil end
-								glowTimers[entryId] = nil
-								CooldownPanels:RequestUpdate()
-							end)
-						end
-					end
-				elseif not readyNow then
-					runtime.readyAt[entryId] = nil
-					if glowTimers[entryId] and glowTimers[entryId].Cancel then glowTimers[entryId]:Cancel() end
-					glowTimers[entryId] = nil
-				end
-				runtime.readyState[entryId] = readyNow
 				visibleCount = visibleCount + 1
 				local data = visible[visibleCount]
 				if not data then
@@ -2785,11 +2807,11 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 				data.showStacks = showStacks
 				data.showItemCount = showItemCount
 				data.entry = entry
+				data.entryId = entryId
 				data.glowReady = glowReady
 				data.glowDuration = glowDuration
 				data.soundReady = soundReady
 				data.soundName = soundName
-				data.readyNow = readyNow
 				data.readyAt = runtime.readyAt[entryId]
 				data.stackCount = stackCount
 				data.itemCount = itemCount
@@ -2801,7 +2823,7 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 				data.cooldownDuration = cooldownDuration or 0
 				data.cooldownEnabled = cooldownEnabled
 				data.cooldownRate = cooldownRate or 1
-				data.cooldownGCD = cooldownGCD or nil
+				data.cooldownGCD = cooldownGCD == true
 			end
 		end
 	end
@@ -2824,8 +2846,15 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 		icon.texture:SetTexture(data.icon or PREVIEW_ICON)
 		applyIconTooltip(icon, data.entry, showTooltips)
 		icon.cooldown:SetHideCountdownNumbers(not data.showCooldownText)
+
+		-- Context for OnCooldownDone (sound/glow) - keep this in sync every update.
+		icon.cooldown._eqolPanelId = panelId
+		icon.cooldown._eqolEntryId = data.entryId
+		icon.cooldown._eqolCooldownIsGCD = data.cooldownGCD == true
 		icon.cooldown._eqolSoundReady = data.soundReady and not data.cooldownGCD
 		icon.cooldown._eqolSoundName = data.soundName
+		icon.cooldown._eqolGlowReady = data.glowReady
+		icon.cooldown._eqolGlowDuration = data.glowDuration
 		if icon.cooldown.Resume then icon.cooldown:Resume() end
 		if icon.previewGlow then icon.previewGlow:Hide() end
 		if icon.previewBling then icon.previewBling:Hide() end
@@ -2924,15 +2953,15 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 		if data.glowReady then
 			local ready = false
 			local duration = tonumber(data.glowDuration) or 0
-			if duration > 0 then
-				if data.readyAt and GetTime then ready = (GetTime() - data.readyAt) <= duration end
-			else
-				if data.showCharges and data.chargesInfo and data.chargesInfo.currentCharges then
-					ready = isSafeGreaterThan(data.chargesInfo.currentCharges, 0)
-				elseif data.showCooldown then
-					ready = (not cooldownActive) or data.cooldownGCD == true
+
+			if data.readyAt and GetTime then
+				if duration > 0 then
+					ready = (GetTime() - data.readyAt) <= duration
+				else
+					ready = true
 				end
 			end
+
 			setGlow(icon, ready)
 		else
 			setGlow(icon, false)
@@ -3981,6 +4010,31 @@ local function refreshPanelsForSpell(spellId)
 	end
 	return true
 end
+local function clearReadyGlowForSpell(spellId)
+	local id = tonumber(spellId)
+	if not id then return false end
+	local index = CooldownPanels.runtime and CooldownPanels.runtime.spellIndex
+	local panels = index and index[id]
+	if not panels then return false end
+	for panelId in pairs(panels) do
+		local runtime = getRuntime(panelId)
+		local panel = CooldownPanels:GetPanel(panelId)
+		if runtime and panel and panel.entries then
+			runtime.readyAt = runtime.readyAt or {}
+			runtime.glowTimers = runtime.glowTimers or {}
+			for entryId, entry in pairs(panel.entries) do
+				if entry and entry.type == "SPELL" and entry.spellID == id then
+					runtime.readyAt[entryId] = nil
+					local t = runtime.glowTimers[entryId]
+					if t and t.Cancel then t:Cancel() end
+					runtime.glowTimers[entryId] = nil
+				end
+			end
+		end
+	end
+	return true
+end
+
 
 local function ensureUpdateFrame()
 	if CooldownPanels.runtime and CooldownPanels.runtime.updateFrame then return end
@@ -4005,6 +4059,14 @@ local function ensureUpdateFrame()
 			local unit = ...
 			if unit ~= "player" then return end
 		end
+		if event == "UNIT_SPELLCAST_SUCCEEDED" then
+			local unit, _, spellId = ...
+			if unit == "player" and spellId then
+				if clearReadyGlowForSpell(spellId) then
+					if refreshPanelsForSpell(spellId) then return end
+				end
+			end
+		end
 		if event == "SPELL_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_CHARGES" then
 			if refreshPanelsForSpell(...) then return end
 		end
@@ -4023,6 +4085,7 @@ local function ensureUpdateFrame()
 	frame:RegisterEvent("ACTIONBAR_UPDATE_COOLDOWN")
 	frame:RegisterEvent("PLAYER_REGEN_DISABLED")
 	frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+	frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 	CooldownPanels.runtime = CooldownPanels.runtime or {}
 	CooldownPanels.runtime.updateFrame = frame
 end

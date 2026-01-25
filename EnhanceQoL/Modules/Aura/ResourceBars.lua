@@ -116,11 +116,15 @@ local COSMETIC_BAR_KEYS = {
 	"useClassColor",
 	"useMaxColor",
 	"maxColor",
+	"useGradient",
+	"gradientStartColor",
+	"gradientEndColor",
 	"useMaelstromFiveColor",
 	"useMaelstromTenStacks",
 	"maelstromFiveColor",
 	"useHolyThreeColor",
 	"holyThreeColor",
+	"runeCooldownColor",
 	"absorbEnabled",
 	"absorbUseCustomColor",
 	"absorbColor",
@@ -1215,6 +1219,7 @@ local function shouldNormalizeAtlasColor(cfg, pType, bar)
 	if cfg then
 		if cfg.useBarColor == true then return false end
 		if cfg.useClassColor == true then return false end
+		if cfg.useGradient == true then return false end
 		if cfg.useMaxColor == true and bar and bar._usingMaxColor then return false end
 	end
 	local auraDef = RB.AURA_POWER_CONFIG and RB.AURA_POWER_CONFIG[pType]
@@ -1653,6 +1658,7 @@ local function applyBarFillColor(bar, cfg, pType)
 	bar._usingMaxColor = false
 	if pType and pType ~= "RUNES" then SetColorCurvePointsPower(pType, cfg.maxColor, bar._baseColor) end
 	configureSpecialTexture(bar, pType, cfg)
+	if ResourceBars.RefreshStatusBarGradient then ResourceBars.RefreshStatusBarGradient(bar, cfg) end
 end
 
 RB.DK_SPEC_COLOR = {
@@ -1669,17 +1675,17 @@ local function resolveRuneReadyColor(cfg)
 	cfg = cfg or {}
 	if cfg.useBarColor and cfg.barColor then
 		local c = cfg.barColor
-		return c[1] or 1, c[2] or 1, c[3] or 1
+		return c[1] or 1, c[2] or 1, c[3] or 1, c[4] or 1
 	end
 	local dk = dkSpecColor()
-	if dk then return dk[1] or 1, dk[2] or 1, dk[3] or 1 end
+	if dk then return dk[1] or 1, dk[2] or 1, dk[3] or 1, 1 end
 	local cc = C_ClassColor and C_ClassColor.GetClassColor and C_ClassColor.GetClassColor("DEATHKNIGHT")
 	if cc and cc.GetRGB then
 		local cr, cg, cb = cc:GetRGB()
-		return cr or 1, cg or 1, cb or 1
+		return cr or 1, cg or 1, cb or 1, 1
 	end
 	local pr, pg, pb = getPowerBarColor("RUNES")
-	return pr or 1, pg or 1, pb or 1
+	return pr or 1, pg or 1, pb or 1, 1
 end
 
 local function configureBarBehavior(bar, cfg, pType)
@@ -2085,7 +2091,11 @@ function updateHealthBar(evt)
 			if lc[1] ~= finalR or lc[2] ~= finalG or lc[3] ~= finalB or lc[4] ~= fa then
 				lc[1], lc[2], lc[3], lc[4] = finalR, finalG, finalB, fa
 				healthBar._lastColor = lc
-				healthBar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+				if ResourceBars.SetStatusBarColorWithGradient then
+					ResourceBars.SetStatusBarColorWithGradient(healthBar, settings, lc[1], lc[2], lc[3], lc[4])
+				else
+					healthBar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+				end
 			end
 		else
 			local lc = healthBar._lastColor or {}
@@ -2093,7 +2103,11 @@ function updateHealthBar(evt)
 				if (settings.useBarColor or settings.useClassColor) and not settings.useMaxColor then
 					healthBar._lastColor = lc
 					healthBar:GetStatusBarTexture():SetVertexColor(1, 1, 1, 1)
-					healthBar:SetStatusBarColor(baseR, baseG, baseB, baseA)
+					if ResourceBars.SetStatusBarColorWithGradient then
+						ResourceBars.SetStatusBarColorWithGradient(healthBar, settings, baseR, baseG, baseB, baseA)
+					else
+						healthBar:SetStatusBarColor(baseR, baseG, baseB, baseA)
+					end
 				else
 					if wasMax ~= settings.useMaxColor then
 						wasMax = settings.useMaxColor
@@ -2108,6 +2122,7 @@ function updateHealthBar(evt)
 				end
 			end
 		end
+		if ResourceBars.RefreshStatusBarGradient then ResourceBars.RefreshStatusBarGradient(healthBar, settings) end
 		setBarDesaturated(healthBar, true)
 
 		local absorbBar = healthBar.absorbBar
@@ -2588,10 +2603,17 @@ function updatePowerBar(type, runeSlot)
 	-- Special handling for DK RUNES: six sub-bars that fill as cooldown progresses
 	if type == "RUNES" then
 		local cfg = getBarSettings("RUNES") or {}
-		local r, g, b = resolveRuneReadyColor(cfg)
-		local grey = 0.35
-		local colorChanged = (bar._runeReadyR ~= r) or (bar._runeReadyG ~= g) or (bar._runeReadyB ~= b)
-		bar._runeReadyR, bar._runeReadyG, bar._runeReadyB = r, g, b
+		local readyR, readyG, readyB, readyA = resolveRuneReadyColor(cfg)
+		local cooldownR, cooldownG, cooldownB, cooldownA
+		if ResourceBars.ResolveRuneCooldownColor then
+			cooldownR, cooldownG, cooldownB, cooldownA = ResourceBars.ResolveRuneCooldownColor(cfg)
+		else
+			cooldownR, cooldownG, cooldownB, cooldownA = 0.35, 0.35, 0.35, 1
+		end
+		local readyChanged = (bar._runeReadyR ~= readyR) or (bar._runeReadyG ~= readyG) or (bar._runeReadyB ~= readyB) or (bar._runeReadyA ~= readyA)
+		local cooldownChanged = (bar._runeCooldownR ~= cooldownR) or (bar._runeCooldownG ~= cooldownG) or (bar._runeCooldownB ~= cooldownB) or (bar._runeCooldownA ~= cooldownA)
+		bar._runeReadyR, bar._runeReadyG, bar._runeReadyB, bar._runeReadyA = readyR, readyG, readyB, readyA
+		bar._runeCooldownR, bar._runeCooldownG, bar._runeCooldownB, bar._runeCooldownA = cooldownR, cooldownG, cooldownB, cooldownA
 		bar._rune = bar._rune or {}
 		bar._runeOrder = bar._runeOrder or {}
 		bar._charging = bar._charging or {}
@@ -2685,12 +2707,34 @@ function updatePowerBar(type, runeSlot)
 				local prog = info.ready and 1 or min(1, max(0, (now - info.start) / max(info.duration, 1)))
 				sb:SetValue(prog)
 				local wantReady = info.ready or prog >= 1
-				if sb._isReady ~= wantReady or (wantReady and colorChanged) then
+				local colorUpdated = false
+				if sb._isReady ~= wantReady or (wantReady and readyChanged) or ((not wantReady) and cooldownChanged) then
 					sb._isReady = wantReady
 					if wantReady then
-						sb:SetStatusBarColor(r, g, b)
+						if ResourceBars.SetStatusBarColorWithGradient then
+							ResourceBars.SetStatusBarColorWithGradient(sb, cfg, readyR, readyG, readyB, readyA)
+						else
+							sb:SetStatusBarColor(readyR, readyG, readyB, readyA or 1)
+						end
 					else
-						sb:SetStatusBarColor(grey, grey, grey)
+						if ResourceBars.SetStatusBarColorWithGradient then
+							ResourceBars.SetStatusBarColorWithGradient(sb, cfg, cooldownR, cooldownG, cooldownB, cooldownA)
+						else
+							sb:SetStatusBarColor(cooldownR, cooldownG, cooldownB, cooldownA or 1)
+						end
+					end
+					sb._rbColorInitialized = true
+					colorUpdated = true
+				end
+				if not colorUpdated then
+					if wantReady then
+						if ResourceBars.RefreshStatusBarGradient then
+							ResourceBars.RefreshStatusBarGradient(sb, cfg, readyR, readyG, readyB, readyA)
+						end
+					else
+						if ResourceBars.RefreshStatusBarGradient then
+							ResourceBars.RefreshStatusBarGradient(sb, cfg, cooldownR, cooldownG, cooldownB, cooldownA)
+						end
 					end
 				end
 				if sb.fs then
@@ -2740,11 +2784,18 @@ function updatePowerBar(type, runeSlot)
 						self._runeAccum = 0
 						local n = GetTime()
 						local cfgOnUpdate = self._runeConfig or {}
-						local rr = self._runeReadyR or r
-						local rg = self._runeReadyG or g
-						local rb = self._runeReadyB or b
-						local forceColor = (self._appliedRuneReadyR ~= rr) or (self._appliedRuneReadyG ~= rg) or (self._appliedRuneReadyB ~= rb)
-						self._appliedRuneReadyR, self._appliedRuneReadyG, self._appliedRuneReadyB = rr, rg, rb
+						local rr = self._runeReadyR or readyR
+						local rg = self._runeReadyG or readyG
+						local rb = self._runeReadyB or readyB
+						local ra = self._runeReadyA or readyA or 1
+						local cr = self._runeCooldownR or cooldownR
+						local cg = self._runeCooldownG or cooldownG
+						local cb = self._runeCooldownB or cooldownB
+						local ca = self._runeCooldownA or cooldownA or 1
+						local forceReady = (self._appliedRuneReadyR ~= rr) or (self._appliedRuneReadyG ~= rg) or (self._appliedRuneReadyB ~= rb) or (self._appliedRuneReadyA ~= ra)
+						local forceCooldown = (self._appliedRuneCooldownR ~= cr) or (self._appliedRuneCooldownG ~= cg) or (self._appliedRuneCooldownB ~= cb) or (self._appliedRuneCooldownA ~= ca)
+						self._appliedRuneReadyR, self._appliedRuneReadyG, self._appliedRuneReadyB, self._appliedRuneReadyA = rr, rg, rb, ra
+						self._appliedRuneCooldownR, self._appliedRuneCooldownG, self._appliedRuneCooldownB, self._appliedRuneCooldownA = cr, cg, cb, ca
 						local allReady = true
 						for pos = 1, 6 do
 							local ri = self._runeOrder and self._runeOrder[pos]
@@ -2777,12 +2828,34 @@ function updatePowerBar(type, runeSlot)
 								end
 								sb:SetValue(prog)
 								local wantReady = runeReady
-								if sb._isReady ~= wantReady or (wantReady and forceColor) then
+								local colorUpdated = false
+								if sb._isReady ~= wantReady or (wantReady and forceReady) or ((not wantReady) and forceCooldown) then
 									sb._isReady = wantReady
 									if wantReady then
-										sb:SetStatusBarColor(rr, rg, rb)
+										if ResourceBars.SetStatusBarColorWithGradient then
+											ResourceBars.SetStatusBarColorWithGradient(sb, cfgOnUpdate, rr, rg, rb, ra)
+										else
+											sb:SetStatusBarColor(rr, rg, rb, ra or 1)
+										end
 									else
-										sb:SetStatusBarColor(grey, grey, grey)
+										if ResourceBars.SetStatusBarColorWithGradient then
+											ResourceBars.SetStatusBarColorWithGradient(sb, cfgOnUpdate, cr, cg, cb, ca)
+										else
+											sb:SetStatusBarColor(cr, cg, cb, ca or 1)
+										end
+									end
+									sb._rbColorInitialized = true
+									colorUpdated = true
+								end
+								if not colorUpdated then
+									if wantReady then
+										if ResourceBars.RefreshStatusBarGradient then
+											ResourceBars.RefreshStatusBarGradient(sb, cfgOnUpdate, rr, rg, rb, ra)
+										end
+									else
+										if ResourceBars.RefreshStatusBarGradient then
+											ResourceBars.RefreshStatusBarGradient(sb, cfgOnUpdate, cr, cg, cb, ca)
+										end
 									end
 								end
 								if sb.fs then
@@ -2920,10 +2993,15 @@ function updatePowerBar(type, runeSlot)
 		if lc[1] ~= targetR or lc[2] ~= targetG or lc[3] ~= targetB or lc[4] ~= targetA then
 			lc[1], lc[2], lc[3], lc[4] = targetR, targetG, targetB, targetA
 			bar._lastColor = lc
-			bar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+			if ResourceBars.SetStatusBarColorWithGradient then
+				ResourceBars.SetStatusBarColorWithGradient(bar, cfg, lc[1], lc[2], lc[3], lc[4])
+			else
+				bar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+			end
 		end
 		bar._usingMaxColor = flag == "max"
 		configureSpecialTexture(bar, type, cfg)
+		if ResourceBars.RefreshStatusBarGradient then ResourceBars.RefreshStatusBarGradient(bar, cfg) end
 		return
 	end
 	if isAuraPowerType(type) then
@@ -3040,11 +3118,16 @@ function updatePowerBar(type, runeSlot)
 		if lc[1] ~= targetR or lc[2] ~= targetG or lc[3] ~= targetB or lc[4] ~= targetA then
 			lc[1], lc[2], lc[3], lc[4] = targetR, targetG, targetB, targetA
 			bar._lastColor = lc
-			bar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+			if ResourceBars.SetStatusBarColorWithGradient then
+				ResourceBars.SetStatusBarColorWithGradient(bar, cfg, lc[1], lc[2], lc[3], lc[4])
+			else
+				bar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+			end
 		end
 		bar._usingMaxColor = flag == "max"
 		bar._usingMaelstromFiveColor = flag == "mid"
 		configureSpecialTexture(bar, type, cfg)
+		if ResourceBars.RefreshStatusBarGradient then ResourceBars.RefreshStatusBarGradient(bar, cfg) end
 		return
 	end
 	local pType = POWER_ENUM[type]
@@ -3175,7 +3258,11 @@ function updatePowerBar(type, runeSlot)
 		if lc[1] ~= targetR or lc[2] ~= targetG or lc[3] ~= targetB or lc[4] ~= targetA then
 			lc[1], lc[2], lc[3], lc[4] = targetR, targetG, targetB, targetA
 			bar._lastColor = lc
-			bar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+			if ResourceBars.SetStatusBarColorWithGradient then
+				ResourceBars.SetStatusBarColorWithGradient(bar, cfg, lc[1], lc[2], lc[3], lc[4])
+			else
+				bar:SetStatusBarColor(lc[1], lc[2], lc[3], lc[4])
+			end
 		end
 		bar._usingMaxColor = flag == "max"
 		bar._usingHolyThreeColor = flag == "holy3"
@@ -3200,7 +3287,11 @@ function updatePowerBar(type, runeSlot)
 				if lc[1] ~= targetR or lc[2] ~= targetG or lc[3] ~= targetB or lc[4] ~= targetA then
 					bar._lastColor = lc
 					if cfg.useBarColor and not cfg.useMaxColor and not reachedThree then bar:GetStatusBarTexture():SetVertexColor(1, 1, 1, 1) end
-					bar:SetStatusBarColor(targetR, targetG, targetB, targetA)
+					if ResourceBars.SetStatusBarColorWithGradient then
+						ResourceBars.SetStatusBarColorWithGradient(bar, cfg, targetR, targetG, targetB, targetA)
+					else
+						bar:SetStatusBarColor(targetR, targetG, targetB, targetA)
+					end
 				end
 			end
 		end
@@ -3209,6 +3300,7 @@ function updatePowerBar(type, runeSlot)
 	end
 
 	configureSpecialTexture(bar, type, cfg)
+	if ResourceBars.RefreshStatusBarGradient then ResourceBars.RefreshStatusBarGradient(bar, cfg) end
 end
 
 function forceColorUpdate(pType)
@@ -3532,11 +3624,12 @@ function layoutRunes(bar)
 	local cfg = getBarSettings("RUNES") or {}
 	if nil == cfg.showCooldownText then cfg.showCooldownText = true end
 	local show = cfg.showCooldownText ~= false -- default on
-	local size = cfg.cooldownTextFontSize or 16
+	local size = cfg.cooldownTextFontSize or cfg.fontSize or 16
 	local fontPath = resolveFontFace(cfg)
 	local fontOutline = resolveFontOutline(cfg)
 	local fr, fg, fb, fa = resolveFontColor(cfg)
 	local vertical = cfg.verticalFill == true
+	local readyR, readyG, readyB, readyA = resolveRuneReadyColor(cfg)
 	local segPrimary
 	if vertical then
 		segPrimary = max(1, floor((h - gap * (count - 1)) / count + 0.5))
@@ -3604,6 +3697,16 @@ function layoutRunes(bar)
 			sb.fs:Show()
 		else
 			sb.fs:Hide()
+		end
+		if not sb._rbColorInitialized then
+			if ResourceBars.SetStatusBarColorWithGradient then
+				ResourceBars.SetStatusBarColorWithGradient(sb, cfg, readyR, readyG, readyB, readyA)
+			else
+				sb:SetStatusBarColor(readyR, readyG, readyB, readyA or 1)
+			end
+			sb._rbColorInitialized = true
+		elseif ResourceBars.RefreshStatusBarGradient then
+			ResourceBars.RefreshStatusBarGradient(sb, cfg)
 		end
 	end
 end
@@ -3732,10 +3835,8 @@ local function createPowerBar(type, anchor)
 			deactivateRuneTicker(self)
 		end)
 		bar:HookScript("OnShow", function(self)
-			if self._pendingRuneRefresh then
-				self._pendingRuneRefresh = nil
-				updatePowerBar("RUNES")
-			end
+			self._pendingRuneRefresh = nil
+			updatePowerBar("RUNES")
 		end)
 		bar._runeVisibilityHooks = true
 	end
