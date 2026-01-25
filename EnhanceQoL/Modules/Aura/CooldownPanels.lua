@@ -2708,9 +2708,7 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 			local cooldownRemaining
 			local cooldownStart, cooldownDuration, cooldownEnabled, cooldownRate, cooldownGCD
 			local show = false
-			local readyNow = false
 			local cooldownEnabledOk = true
-			local cooldownActive = false
 			local emptyItem = false
 
 			if entry.type == "SPELL" and entry.spellID then
@@ -2737,17 +2735,6 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 					end
 					cooldownEnabledOk = isSafeNotFalse(cooldownEnabled)
 					local durationActive = cooldownDurationObject ~= nil and (cooldownRemaining == nil or cooldownRemaining > 0)
-					cooldownActive = showCooldown and (durationActive or (cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration)))
-					if showCharges and chargesInfo then
-						if issecretvalue and issecretvalue(chargesInfo.currentCharges) then
-							readyNow = false
-						else
-							readyNow = isSafeGreaterThan(chargesInfo.currentCharges, 0)
-						end
-					else
-						-- Ignore the GCD for "ready" tracking so it can't start/stop glow/sound.
-						readyNow = showCooldown and (cooldownGCD == true or not cooldownActive)
-					end
 					show = alwaysShow
 					if not show and showCooldown and ((cooldownDurationObject ~= nil) or (cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration))) then show = true end
 					if not show and showCharges and chargesInfo and isSafeLessThan(chargesInfo.currentCharges, chargesInfo.maxCharges) then show = true end
@@ -2769,8 +2756,6 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 						end
 					end
 					cooldownEnabledOk = isSafeNotFalse(cooldownEnabled)
-					cooldownActive = showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration)
-					readyNow = showCooldown and ownsItem and not cooldownActive
 					show = alwaysShow or showWhenEmpty
 					if not show and showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
 				end
@@ -2783,8 +2768,6 @@ function CooldownPanels:UpdateRuntimeIcons(panelId)
 							cooldownStart, cooldownDuration, cooldownEnabled = getItemCooldownInfo(itemId, entry.slotID)
 						end
 						cooldownEnabledOk = isSafeNotFalse(cooldownEnabled)
-						cooldownActive = showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration)
-						readyNow = showCooldown and not cooldownActive
 						show = alwaysShow or showWhenNoCooldown
 						if not show and showCooldown and cooldownEnabledOk and isCooldownActive(cooldownStart, cooldownDuration) then show = true end
 					elseif showWhenNoCooldown then

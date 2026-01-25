@@ -346,14 +346,14 @@ function GCDBar:UpdateGCD()
 	if not GetSpellCooldownInfo then return end
 
 	local start, duration, enabled, modRate
-	local info = GetSpellCooldownInfo(GCD_SPELL_ID)
+	local info, info2, info3, info4 = GetSpellCooldownInfo(GCD_SPELL_ID)
 	if type(info) == "table" then
 		start = info.startTime
 		duration = info.duration
 		enabled = info.isEnabled
 		modRate = info.modRate or 1
 	else
-		start, duration, enabled, modRate = info
+		start, duration, enabled, modRate = info, info2, info3, info4
 	end
 	if not enabled or not duration or duration <= 0 or not start or start <= 0 then
 		self:StopTimer()
