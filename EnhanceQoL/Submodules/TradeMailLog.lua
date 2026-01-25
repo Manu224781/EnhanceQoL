@@ -261,10 +261,18 @@ local function makeLink(linkType, id, text)
 	return string.format("|H%s:%s|h%s|h", linkType, id, text or "")
 end
 
-local function buildSideSummary(label, itemCount, moneyText)
+local buildTradeItemPreview
+
+local function buildSideSummary(label, items, moneyText)
 	local itemLabel = (_G and _G.ITEMS) or "Items"
-	local count = itemCount or 0
-	local summary = string.format("%s x%d %s", label or "", count, itemLabel)
+	local count = #(items or {})
+	local preview = buildTradeItemPreview(items)
+	local summary
+	if preview ~= "" then
+		summary = string.format("%s %s x%d %s", label or "", preview, count, itemLabel)
+	else
+		summary = string.format("%s x%d %s", label or "", count, itemLabel)
+	end
 	if moneyText and moneyText ~= "" then summary = summary .. " - " .. moneyText end
 	return summary
 end
@@ -275,13 +283,55 @@ local function tradeStatusIcon(status)
 	return ""
 end
 
+local TRADE_ITEM_PREVIEW_LIMIT = 1
+
+local function toHexByte(value)
+	if not value then return "00" end
+	local num = math.floor((value * 255) + 0.5)
+	if num < 0 then num = 0 end
+	if num > 255 then num = 255 end
+	return string.format("%02x", num)
+end
+
+local function colorizeItemName(name, quality)
+	if not name then return "" end
+	if quality and GetItemQualityColor then
+		local r, g, b = GetItemQualityColor(quality)
+		if r then return string.format("|cff%s%s%s%s|r", toHexByte(r), toHexByte(g), toHexByte(b), name) end
+	end
+	return name
+end
+
+buildTradeItemPreview = function(items)
+	local count = #(items or {})
+	if count == 0 then return "" end
+	local limit = TRADE_ITEM_PREVIEW_LIMIT
+	if count < limit then limit = count end
+	local parts = {}
+	for i = 1, limit do
+		local item = items[i]
+		local name = item and (item.name or extractLinkName(item.link) or item.itemID)
+		if name then
+			local display = colorizeItemName(name, item.quality)
+			if item.count and item.count > 1 then display = string.format("%s x%d", display, item.count) end
+			parts[#parts + 1] = display
+		end
+	end
+	if #parts == 0 then return "" end
+	local preview = table.concat(parts, ", ")
+	if count > limit then preview = preview .. string.format(" +%d", count - limit) end
+	return preview
+end
+
 local function buildTradeSummary(state, id)
+	local tradeLabel = TRADE or "Trade"
+
 	local youLabel = YOU or "You"
 	local otherLabel = OTHER or "Other"
 	local partner = state.partner or UNKNOWN or "Unknown"
-	local youSummary = buildSideSummary(youLabel, #(state.playerItems or {}), formatMoneyText(state.playerMoney))
-	local otherSummary = buildSideSummary(otherLabel, #(state.targetItems or {}), formatMoneyText(state.targetMoney))
-	local base = string.format("%s - %s - %s", partner, youSummary, otherSummary)
+	local youSummary = buildSideSummary(youLabel, state.playerItems, formatMoneyText(state.playerMoney))
+	local otherSummary = buildSideSummary(otherLabel, state.targetItems, formatMoneyText(state.targetMoney))
+	local base = string.format("%s - %s - %s - %s", tradeLabel, partner, youSummary, otherSummary)
 	local icon = tradeStatusIcon(state.status)
 	if icon ~= "" then base = icon .. " " .. base end
 	return makeLink("eqoltrade", id, base)
@@ -438,7 +488,9 @@ function TradeMailLog:StartTrade()
 	local partner = GetUnitName and GetUnitName("NPC", true) or nil
 	if not partner or partner == "" then
 		local name, realm
-		if UnitName then name, realm = UnitName("npc") end
+		if UnitName then
+			name, realm = UnitName("npc")
+		end
 		if name and realm then
 			partner = name .. "-" .. realm
 		else
@@ -659,7 +711,6 @@ function TradeMailLog:EnsureTradePreview()
 	if ButtonFrameTemplate_HidePortrait then ButtonFrameTemplate_HidePortrait(frame) end
 	if frame.PortraitContainer then frame.PortraitContainer:Hide() end
 	if frame.RecipientOverlay then frame.RecipientOverlay:Hide() end
-	setFrameTitle(frame, TRADE or "Trade")
 
 	frame.playerNameText = frame.NameHeader and frame.NameHeader.PlayerNameText or frame.PlayerNameText
 	frame.recipientNameText = frame.NameHeader and frame.NameHeader.RecipientNameText or frame.RecipientNameText
@@ -784,8 +835,6 @@ function TradeMailLog:ShowTradePreview(payload)
 	if not payload then return end
 	local frame = self:EnsureTradePreview()
 	if not frame then return end
-
-	setFrameTitle(frame, TRADE or "Trade")
 
 	local playerName = (payload.playerName and payload.playerName ~= "" and payload.playerName) or (UnitName and UnitName("player")) or (YOU or "You")
 	if frame.playerNameText and frame.playerNameText.SetText then frame.playerNameText:SetText(playerName or "") end
